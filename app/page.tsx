@@ -19,6 +19,9 @@ import {
   LayoutDashboard,
   LockKeyhole,
   MessageSquare,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Route,
   Search,
@@ -26,6 +29,7 @@ import {
   ShieldCheck,
   Target,
   Users,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -315,6 +319,8 @@ function FormDialog({
 }
 export default function Home() {
   const [state, setState] = useState<State | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mode, setMode] = useState<Mode>('client');
   const [page, setPage] = useState('inicio');
   const [week, setWeek] = useState(1);
@@ -332,6 +338,9 @@ export default function Home() {
       if (!active) return;
       let s = seed();
       try {
+        setSidebarCollapsed(
+          localStorage.getItem('control-os-sidebar-collapsed') === 'true',
+        );
         const saved = localStorage.getItem(STORAGE);
         if (saved) {
           const candidate = JSON.parse(saved);
@@ -362,6 +371,14 @@ export default function Home() {
       active = false;
     };
   }, []);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileNavOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileNavOpen]);
   const persist = (s: State) => {
     stateRef.current = s;
     setState(s);
@@ -393,6 +410,16 @@ export default function Home() {
     setQuery('');
     setFilter('all');
     setTaskId(null);
+    setMobileNavOpen(false);
+  };
+  const toggleSidebar = () => {
+    setSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        localStorage.setItem('control-os-sidebar-collapsed', String(next));
+      } catch {}
+      return next;
+    });
   };
   useEffect(() => {
     const context = (
@@ -1963,19 +1990,60 @@ export default function Home() {
       </Section>
     );
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-symbol" aria-hidden="true">
-            <Image
-              src="/crisdal-agency.png"
-              alt=""
-              width={108}
-              height={108}
-              priority
-            />
-          </span>
-          CONTROL <b>OS</b>
+    <div
+      className={`shell${sidebarCollapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}`}
+    >
+      <aside
+        className="sidebar"
+        id="sidebar-navigation"
+        aria-label="Navegación principal"
+      >
+        <div className="sidebar-head">
+          <div className="brand" aria-label="CONTROL OS">
+            <span className="brand-symbol" aria-hidden="true">
+              <Image
+                src="/crisdal-agency.png"
+                alt=""
+                width={108}
+                height={108}
+                priority
+              />
+            </span>
+            <span className="brand-label">
+              CONTROL <b>OS</b>
+            </span>
+          </div>
+          <button
+            className="sidebar-toggle"
+            type="button"
+            aria-controls="sidebar-navigation"
+            aria-expanded={!sidebarCollapsed}
+            aria-label={
+              sidebarCollapsed
+                ? 'Desplegar barra lateral'
+                : 'Contraer barra lateral'
+            }
+            title={
+              sidebarCollapsed
+                ? 'Desplegar barra lateral'
+                : 'Contraer barra lateral'
+            }
+            onClick={toggleSidebar}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen size={18} />
+            ) : (
+              <PanelLeftClose size={18} />
+            )}
+          </button>
+          <button
+            className="mobile-nav-close"
+            type="button"
+            aria-label="Cerrar navegación"
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
         <div className="workspace">
           <small>EMPRESA DE DEMOSTRACIÓN</small>
@@ -1998,12 +2066,14 @@ export default function Home() {
           {nav.map(({ id, label, icon: Icon }) => (
             <button
               aria-current={page === id ? 'page' : undefined}
+              aria-label={sidebarCollapsed ? label : undefined}
               className={page === id ? 'active' : ''}
               key={id}
+              title={sidebarCollapsed ? label : undefined}
               onClick={() => navigate(id)}
             >
               <Icon size={18} />
-              {label}
+              <span className="nav-label">{label}</span>
               {id === 'tareas' && (
                 <span className="nav-count">
                   {tasksFor().filter((t) => t.status !== 'DONE').length}
@@ -2022,16 +2092,36 @@ export default function Home() {
           <span>CRISDAL AGENCY · demo funcional</span>
         </div>
       </aside>
+      <button
+        className="sidebar-backdrop"
+        type="button"
+        aria-label="Cerrar navegación"
+        aria-hidden={!mobileNavOpen}
+        tabIndex={mobileNavOpen ? 0 : -1}
+        onClick={() => setMobileNavOpen(false)}
+      />
       <main>
         <header>
-          <div className="breadcrumb">
-            {mode === 'client' ? 'Mi workspace' : 'Administración'}{' '}
-            <ChevronRight size={13} />
-            <span>
-              {page === 'semana'
-                ? 'Semana ' + week
-                : nav.find((n) => n.id === page)?.label || 'Actividad'}
-            </span>
+          <div className="header-start">
+            <button
+              className="mobile-nav-toggle"
+              type="button"
+              aria-controls="sidebar-navigation"
+              aria-expanded={mobileNavOpen}
+              aria-label="Abrir navegación"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu size={21} />
+            </button>
+            <div className="breadcrumb">
+              {mode === 'client' ? 'Mi workspace' : 'Administración'}{' '}
+              <ChevronRight size={13} />
+              <span>
+                {page === 'semana'
+                  ? 'Semana ' + week
+                  : nav.find((n) => n.id === page)?.label || 'Actividad'}
+              </span>
+            </div>
           </div>
           <div className="header-right">
             <Pick

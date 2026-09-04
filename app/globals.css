@@ -754,13 +754,32 @@ h3 {
   inset: 0 auto 0 0;
   display: flex;
   flex-direction: column;
+  z-index: 40;
+  transition:
+    width 180ms ease,
+    padding 180ms ease,
+    transform 220ms ease;
+}
+.sidebar-head {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 28px;
 }
 .brand {
   color: #fff;
   letter-spacing: 1px;
   font-size: 21px;
   font-weight: 700;
-  margin-bottom: 34px;
+  margin-bottom: 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+.brand-label {
+  overflow: hidden;
+  transition: opacity 120ms ease;
 }
 .brand b {
   color: #fab713;
@@ -806,6 +825,11 @@ small {
   background: transparent;
   color: #d8d1c3;
   text-align: left;
+  position: relative;
+  min-height: 42px;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .sidebar nav button:hover {
   background: #231f17;
@@ -820,10 +844,88 @@ small {
   font-size: 12px;
   color: #afa58f;
 }
+.sidebar-toggle,
+.mobile-nav-toggle,
+.mobile-nav-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #3b3426;
+  background: transparent;
+  color: #d8d1c3;
+}
+.sidebar-toggle:hover,
+.mobile-nav-close:hover {
+  background: #231f17;
+  color: #fab713;
+}
+.mobile-nav-toggle {
+  display: none;
+  border-color: var(--border);
+  color: var(--foreground);
+}
+.mobile-nav-close {
+  display: none;
+}
+.sidebar-backdrop {
+  display: none;
+}
 main {
   margin-left: 244px;
   width: calc(100% - 244px);
   min-width: 0;
+  transition:
+    margin-left 180ms ease,
+    width 180ms ease;
+}
+.sidebar-collapsed .sidebar {
+  width: 76px;
+  padding: 24px 13px;
+}
+.sidebar-collapsed .sidebar-head {
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.sidebar-collapsed .brand {
+  justify-content: center;
+}
+.sidebar-collapsed .brand-symbol {
+  margin-right: 0;
+}
+.sidebar-collapsed .brand-label,
+.sidebar-collapsed .workspace,
+.sidebar-collapsed .sidebar > .eyebrow,
+.sidebar-collapsed .sidebar-bottom {
+  display: none;
+}
+.sidebar-collapsed .sidebar nav {
+  gap: 7px;
+}
+.sidebar-collapsed .sidebar nav button {
+  justify-content: center;
+  gap: 0;
+  padding: 11px;
+}
+.sidebar-collapsed .nav-label {
+  display: none;
+}
+.sidebar-collapsed .nav-count {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  margin: 0;
+  min-width: 15px;
+  text-align: center;
+}
+.sidebar-collapsed main {
+  margin-left: 76px;
+  width: calc(100% - 76px);
 }
 header {
   height: 78px;
@@ -834,6 +936,12 @@ header {
   justify-content: space-between;
   padding: 0 38px;
   font-size: 13px;
+}
+.header-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 .header-right {
   display: flex;
@@ -860,7 +968,7 @@ header {
   border-radius: 5px;
 }
 .content {
-  max-width: 1470px;
+  max-width: 1320px;
   margin: auto;
   padding: 36px 38px 50px;
 }
@@ -1038,7 +1146,7 @@ header {
   height: 6px;
 }
 a {
-  color: var(--primary);
+  color: #8a5b00;
 }
 @media (max-width: 1050px) {
   .sidebar {
@@ -1064,39 +1172,94 @@ a {
     font-size: 27px;
   }
 }
-@media (max-width: 650px) {
-  .sidebar {
-    position: static;
-    width: 100%;
-    padding: 14px;
-  }
-  .brand {
-    margin: 0;
-    font-size: 16px;
-  }
-  .sidebar .workspace,
-  .sidebar .eyebrow,
-  .sidebar-bottom {
-    display: none;
-  }
-  .sidebar nav {
-    display: flex;
-    overflow: auto;
-    margin-top: 16px;
-    gap: 5px;
-  }
-  .sidebar nav button {
-    white-space: nowrap;
-    padding: 11px;
-    font-size: 12px;
-  }
-  .sidebar nav svg {
-    display: none;
-  }
+@media (max-width: 720px) {
   .shell {
     display: block;
   }
+  .sidebar,
+  .sidebar-collapsed .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(84vw, 320px);
+    padding: 24px 20px;
+    transform: translateX(-104%);
+    visibility: hidden;
+    box-shadow: 18px 0 50px #0005;
+    overflow-y: auto;
+    transition:
+      transform 220ms ease,
+      visibility 0s linear 220ms;
+  }
+  .mobile-nav-open .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  .sidebar-head,
+  .sidebar-collapsed .sidebar-head {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .sidebar-collapsed .brand {
+    justify-content: flex-start;
+  }
+  .sidebar-collapsed .brand-label,
+  .sidebar-collapsed .workspace,
+  .sidebar-collapsed .sidebar > .eyebrow,
+  .sidebar-collapsed .sidebar-bottom {
+    display: block;
+  }
+  .sidebar .workspace {
+    margin-bottom: 24px;
+  }
+  .sidebar nav,
+  .sidebar-collapsed .sidebar nav {
+    display: grid;
+    gap: 5px;
+  }
+  .sidebar nav button,
+  .sidebar-collapsed .sidebar nav button {
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 11px 13px;
+  }
+  .sidebar-collapsed .nav-label {
+    display: inline;
+  }
+  .sidebar-collapsed .nav-count {
+    position: static;
+    margin-left: auto;
+  }
+  .sidebar-toggle {
+    display: none;
+  }
+  .mobile-nav-close,
+  .mobile-nav-toggle {
+    display: grid;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: 0;
+    padding: 0;
+    background: #0008;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+  .mobile-nav-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
   main {
+    margin: 0;
+    width: 100%;
+  }
+  .sidebar-collapsed main {
     margin: 0;
     width: 100%;
   }
@@ -1106,6 +1269,19 @@ a {
   }
   .header-right {
     gap: 8px;
+  }
+  .avatar {
+    display: none;
+  }
+  .breadcrumb {
+    gap: 7px;
+    font-size: 11px;
+  }
+  .breadcrumb span {
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .content {
     padding: 24px 16px;
@@ -1130,5 +1306,14 @@ a {
   }
   .demo-tag {
     display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  main,
+  .brand-label,
+  .sidebar-backdrop,
+  .sidebar nav button {
+    transition: none;
   }
 }
