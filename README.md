@@ -4,7 +4,7 @@ Primera implementación navegable basada en **CONTROL_OS_Especificacion_Funciona
 
 ## Ejecutar
 
-Requiere Node.js 24 y npm.
+Requiere Node.js 22.13 o posterior y npm.
 
 ```powershell
 npm ci
@@ -45,7 +45,9 @@ El selector de vista NO es inicio de sesión. Las tres empresas son ficticias.
 
 No cargar datos reales ni confidenciales. **Todo el estado, incluidas notas e información de las tres empresas, está en el navegador.** Los filtros y validaciones de esta demo no constituyen seguridad.
 
-No incluye backend Laravel/PostgreSQL, cuentas, invitaciones, 2FA, RBAC servidor, aislamiento multi-tenant seguro, cifrado, almacenamiento privado de archivos, auditoría inmutable, backups, envío de email, jobs, integraciones, CMS completo, importación de KPIs, facturación ni contratos.
+Incluye una base inicial de PostgreSQL/Supabase versionada en `supabase/migrations`, con RLS multiempresa y bucket privado de evidencias. La interfaz demo todavía usa `localStorage`: aún no está conectada a Auth, REST ni Storage y las políticas requieren pruebas de aislamiento antes de producción.
+
+No incluye cuentas e invitaciones completas, 2FA, API de aplicación, cifrado adicional, auditoría automática inmutable, backups verificados, envío de email, jobs, integraciones, CMS completo, importación de KPIs, facturación ni contratos.
 
 Los videos y materiales originales no se proporcionaron. Se incluyen textos y plantillas de ejemplo, no una migración del campus.
 
@@ -84,8 +86,8 @@ Estas pruebas no sustituyen E2E, pruebas de permisos servidor ni QA visual. No s
 ## Siguiente fase productiva
 
 1. Aprobar entitlements, rúbrica de 20 criterios, KPIs obligatorios, datos Owner-only y políticas de retención.
-2. Construir API y base de datos con autenticación, autorización servidor y pruebas de aislamiento de tenant.
+2. Conectar la interfaz a Supabase Auth/API y completar pruebas de aislamiento de tenant.
 3. Conectar storage privado y email, implantar auditoría y recuperación de backups.
 4. Cargar materiales originales y ejecutar UAT con un cliente y un consultor piloto.
 
-Código de interfaz: app/page.tsx. Reglas demo: lib/control.ts. Estilos: app/globals.css.
+Código de interfaz: `app/page.tsx`. Reglas demo: `lib/control.ts`. Estilos: `app/globals.css`. Guía de base de datos: `docs/SUPABASE_SETUP.md`.

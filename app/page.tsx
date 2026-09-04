@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { flushSync } from 'react-dom';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -1965,7 +1966,16 @@ export default function Home() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-symbol">C</span>CONTROL <b>OS</b>
+          <span className="brand-symbol" aria-hidden="true">
+            <Image
+              src="/crisdal-agency.png"
+              alt=""
+              width={108}
+              height={108}
+              priority
+            />
+          </span>
+          CONTROL <b>OS</b>
         </div>
         <div className="workspace">
           <small>EMPRESA DE DEMOSTRACIÓN</small>
@@ -2009,7 +2019,7 @@ export default function Home() {
             <br />
             <strong>Un dueño en control.</strong>
           </p>
-          <span>CONTROL OS · demo funcional</span>
+          <span>CRISDAL AGENCY · demo funcional</span>
         </div>
       </aside>
       <main>

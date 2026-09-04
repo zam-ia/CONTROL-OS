@@ -1,22 +1,26 @@
 import type { Metadata } from 'next';
 import './globals.css';
+
+const metadataOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : 'https://control-os-demo-040926.rebagliati-marketing.chatgpt.site';
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://control-os-demo-040926.rebagliati-marketing.chatgpt.site'),
+  metadataBase: new URL(metadataOrigin),
   icons: { icon: '/favicon.svg' },
   openGraph: {
     title: 'CONTROL OS',
-    description: 'Tu negocio en control · Demo funcional',
+    description: 'Escalamiento con control · Una plataforma de Crisdal Agency',
     images: [{ url: '/og.png', width: 1536, height: 1024 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'CONTROL OS',
-    description: 'Tu negocio en control · Demo funcional',
+    description: 'Escalamiento con control · Una plataforma de Crisdal Agency',
     images: ['/og.png'],
   },
   title: 'CONTROL OS · Tu negocio en control',
-  description:
-    'Demostración de ejecución, evidencias e indicadores de CONTROL OS.',
+  description: 'Ejecución, evidencias e indicadores para escalar con control.',
   robots: { index: false, follow: false },
 };
 export default function RootLayout({

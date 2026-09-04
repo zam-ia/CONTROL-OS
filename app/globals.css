@@ -3,9 +3,9 @@
 @import 'shadcn/tailwind.css';
 @theme inline {
   --color-popover: #fff;
-  --color-popover-foreground: #172c35;
-  --color-accent: #edf2f3;
-  --color-accent-foreground: #172c35;
+  --color-popover-foreground: #211a0d;
+  --color-accent: #fff4d2;
+  --color-accent-foreground: #211a0d;
 }
 .brand {
   display: flex;
@@ -14,14 +14,20 @@
   font-size: 18px;
 }
 .brand-symbol {
-  width: 30px;
-  height: 30px;
-  border: 2px solid #7aceb9;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  color: #7aceb9;
+  width: 42px;
+  height: 42px;
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 42px;
   margin-right: 3px;
+}
+.brand-symbol img {
+  width: 108px;
+  height: 108px;
+  max-width: none;
+  position: absolute;
+  left: -33px;
+  top: -25px;
 }
 .workspace [data-slot='select-trigger'] {
   width: 100%;
@@ -69,7 +75,7 @@
 .demo-dot {
   width: 6px;
   height: 6px;
-  background: #62897a;
+  background: #fab713;
   border-radius: 50%;
   display: inline-block;
   margin-right: 5px;
@@ -84,7 +90,7 @@
   width: 25%;
 }
 .route-steps span {
-  border: 1px solid #4c706a;
+  border: 1px solid #8d7440;
   border-radius: 50%;
   width: 31px;
   height: 31px;
@@ -95,14 +101,14 @@
 }
 .route-steps i {
   height: 1px;
-  background: #4c706a;
+  background: #8d7440;
   flex: 1;
   margin: 0 8px;
 }
 .route-steps .reached span {
-  background: #b2dfc3;
-  color: #183f33;
-  border-color: #b2dfc3;
+  background: #fab713;
+  color: #211a0d;
+  border-color: #fab713;
 }
 .route-steps > div:last-child i {
   display: none;
@@ -121,10 +127,10 @@
   font-weight: 500;
 }
 .route-hero [data-slot='progress-track'] {
-  background: #315a52;
+  background: #4d411f;
 }
 .route-hero [data-slot='progress-indicator'] {
-  background: #a5d9b7;
+  background: #fab713;
 }
 .route-hero .meter {
   margin-bottom: 24px;
@@ -663,23 +669,23 @@ footer {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
-  --color-primary-foreground: #fff;
+  --color-primary-foreground: #211a0d;
   --color-border: var(--border);
   --color-input: var(--border);
   --color-ring: var(--primary);
-  --color-muted: #edf2f3;
-  --color-muted-foreground: #5b707a;
-  --color-secondary: #edf2f3;
+  --color-muted: #f2eee6;
+  --color-muted-foreground: #6d6558;
+  --color-secondary: #f2eee6;
   --color-secondary-foreground: var(--foreground);
   --color-destructive: #b42336;
   --color-card: #fff;
   --radius-lg: 10px;
 }
 :root {
-  --background: #f5f7f8;
-  --foreground: #172c35;
-  --primary: #0f766e;
-  --border: #dce5e7;
+  --background: #f8f6f1;
+  --foreground: #211a0d;
+  --primary: #fab713;
+  --border: #e6dfd1;
   --font-sans: Arial, Helvetica, sans-serif;
 }
 * {
@@ -709,7 +715,7 @@ button:disabled {
 button:focus-visible,
 a:focus-visible,
 select:focus-visible {
-  outline: 3px solid #4ab9a9;
+  outline: 3px solid #fab713;
   outline-offset: 3px;
 }
 h1,
@@ -741,8 +747,8 @@ h3 {
 .sidebar {
   width: 244px;
   flex-shrink: 0;
-  background: #112b32;
-  color: #bbcdcf;
+  background: #090909;
+  color: #d8d1c3;
   padding: 32px 20px;
   position: fixed;
   inset: 0 auto 0 0;
@@ -757,10 +763,10 @@ h3 {
   margin-bottom: 34px;
 }
 .brand b {
-  color: #7aceb9;
+  color: #fab713;
 }
 .workspace {
-  border: 1px solid #355057;
+  border: 1px solid #4c412c;
   border-radius: 9px;
   padding: 13px;
   margin-bottom: 30px;
@@ -782,7 +788,7 @@ small {
   color: #5b707a;
 }
 .sidebar .eyebrow {
-  color: #92aeb3;
+  color: #afa58f;
   font-size: 9px;
   margin: 0 10px 14px;
 }
@@ -798,21 +804,21 @@ small {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #bbcdcf;
+  color: #d8d1c3;
   text-align: left;
 }
 .sidebar nav button:hover {
-  background: #203c42;
+  background: #231f17;
 }
 .sidebar nav button.active {
-  background: #245449;
-  color: #b2efce;
+  background: #fab713;
+  color: #211a0d;
 }
 .sidebar-bottom {
   margin-top: auto;
   padding: 24px 10px 0;
   font-size: 12px;
-  color: #91afb1;
+  color: #afa58f;
 }
 main {
   margin-left: 244px;
@@ -840,8 +846,8 @@ header {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #e4efed;
-  color: #39685d;
+  background: #fff0bd;
+  color: #6f4a00;
   font-weight: 700;
   font-size: 11px;
 }
@@ -903,13 +909,13 @@ header {
   margin: 0;
 }
 .route-hero {
-  background: #123e3d;
-  color: #d4e9e3;
-  border-color: #123e3d;
+  background: #17140f;
+  color: #eee7d9;
+  border-color: #17140f;
   padding: 28px;
 }
 .route-hero .eyebrow {
-  color: #9fc9bd;
+  color: #dbc279;
 }
 .route-hero h2 {
   font-size: 29px;
@@ -917,12 +923,12 @@ header {
   color: #fff;
 }
 .route-hero .pill {
-  background: #315e54;
-  color: #b9efcb;
+  background: #4d411f;
+  color: #ffe390;
 }
 .route-hero [data-slot='button'] {
-  background: #c3e9cb;
-  color: #173c36;
+  background: #fab713;
+  color: #211a0d;
 }
 .pill {
   display: inline-flex;
