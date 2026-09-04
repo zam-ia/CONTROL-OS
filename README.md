@@ -4,7 +4,7 @@ Primera implementación navegable basada en **CONTROL_OS_Especificacion_Funciona
 
 ## Ejecutar
 
-Requiere Node.js 22.13 o posterior y npm.
+Requiere Node.js 24 y npm.
 
 ```powershell
 npm ci
