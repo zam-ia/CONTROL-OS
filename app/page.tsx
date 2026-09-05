@@ -116,7 +116,7 @@ type FormSpec = {
   fields: Field[];
   button?: string;
 };
-const STORAGE = 'control-os-demo-v1';
+const STORAGE = 'control-os-production-v1';
 function download(filename: string, text: string, type = 'text/plain') {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const anchor = document.createElement('a');
@@ -373,7 +373,7 @@ function AuthScreen({ onEnter }: { onEnter: (username: string) => string }) {
               return;
             }
             try {
-              sessionStorage.setItem('control-os-demo-session', 'true');
+              sessionStorage.setItem('control-os-session', 'true');
             } catch {}
           }}
         >
@@ -598,7 +598,7 @@ export default function Home() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [storageError, setStorageError] = useState('');
-  const [resource, setResource] = useState<number | null>(null);
+  const [resource, setResource] = useState<string | null>(null);
   const stateRef = useRef<State | null>(null);
   useEffect(() => {
     let active = true;
@@ -609,7 +609,9 @@ export default function Home() {
         setSidebarCollapsed(
           localStorage.getItem('control-os-sidebar-collapsed') === 'true',
         );
-        const saved = localStorage.getItem(STORAGE);
+        const saved =
+          localStorage.getItem(STORAGE) ||
+          localStorage.getItem('control-os-demo-v1');
         if (saved) {
           const candidate = JSON.parse(saved);
           if (
@@ -690,7 +692,25 @@ export default function Home() {
           });
           candidate.modules = Array.isArray(candidate.modules)
             ? candidate.modules
-            : s.modules;
+            : [];
+          const savedModules = new Set<string>(
+            candidate.modules.map((module: State['modules'][number]) =>
+              String(module.code || module.id),
+            ),
+          );
+          s.modules.forEach((module) => {
+            if (!savedModules.has(String(module.code || module.id)))
+              candidate.modules.push(module);
+          });
+          candidate.modules.forEach((module: State['modules'][number]) => {
+            module.category = module.category || 'General';
+            module.version = module.version || '1.0.0';
+            module.tier = module.tier || 'BASIC';
+            module.tags = Array.isArray(module.tags) ? module.tags : [];
+            module.editorialStatus =
+              module.editorialStatus ||
+              (module.files.length ? 'LISTO' : 'EN_PRODUCCION');
+          });
           candidate.users = Array.isArray(candidate.users)
             ? candidate.users
             : s.users;
@@ -735,13 +755,13 @@ export default function Home() {
             (user: State['users'][number]) => user.id === 'user-admin',
           );
           if (primaryAdmin) {
-            primaryAdmin.name = 'Administrador Crisdal';
-            primaryAdmin.username = 'admin';
+            primaryAdmin.name = 'Aldair Crizam';
+            primaryAdmin.username = 'aldaircrizam';
             primaryAdmin.role = 'ADMIN';
             primaryAdmin.status = 'ACTIVO';
           }
           const defaultUsernames: Record<string, string> = {
-            'user-admin': 'admin',
+            'user-admin': 'aldaircrizam',
             'user-norte': 'cliente.norte',
             'user-orbita': 'cliente.orbita',
             'user-consultor': 'consultor.control',
@@ -773,6 +793,27 @@ export default function Home() {
                 : savedPlan.id === 'implementacion-v1'
                   ? 'MEDIUM'
                   : 'LOW');
+            const canonicalPlan = s.plans.find(
+              (item) => item.accessLevel === savedPlan.accessLevel,
+            );
+            savedPlan.entitlements =
+              savedPlan.entitlements ||
+              canonicalPlan?.entitlements ||
+              s.plans[0].entitlements;
+          });
+          candidate.orgs.forEach((organization: Org) => {
+            organization.support = Array.isArray(organization.support)
+              ? organization.support
+              : [];
+            organization.support.forEach((ticket) => {
+              const legacy = ticket as Org['support'][number];
+              legacy.type = legacy.type || 'ACOMPANAMIENTO';
+              legacy.priority = legacy.priority || 'NORMAL';
+              legacy.privacy = legacy.privacy || 'PRIVADA';
+              legacy.status = legacy.status || (legacy.reply ? 'RESPONDIDO' : 'ABIERTO');
+              legacy.due = legacy.due || new Date(Date.now() + 48 * 3600000).toISOString();
+              legacy.lessonId = legacy.lessonId || '';
+            });
           });
           s = candidate;
           getOrg(s, s.selected);
@@ -787,7 +828,8 @@ export default function Home() {
       setWeek(getOrg(s, s.selected).current);
       try {
         setSessionActive(
-          sessionStorage.getItem('control-os-demo-session') === 'true',
+          sessionStorage.getItem('control-os-session') === 'true' ||
+            sessionStorage.getItem('control-os-demo-session') === 'true',
         );
       } catch {
         setSessionActive(false);
@@ -935,7 +977,9 @@ export default function Home() {
   );
   const onboardingMetrics = lessonMetrics(state, org, 0);
   const phaseGates = new Map(
-    [1, 2].map((phase) => [phase, phaseGate(state, org, phase)] as const),
+    [1, 2, 3, 4].map(
+      (phase) => [phase, phaseGate(state, org, phase)] as const,
+    ),
   );
   const gateFor = (phase: number) => phaseGates.get(phase)!;
   const lessonsThisWeek = implementationLessons.filter(
@@ -948,6 +992,21 @@ export default function Home() {
       (lessonCountByWeek.get(lesson.week) || 0) + 1,
     ),
   );
+  const resourceTierRank = { BASIC: 1, COMPLETE: 2, ADVANCED: 3 } as const;
+  const planResourceRank = resourceTierRank[plan.entitlements.resourceTier];
+  const libraryResources = state.modules.filter((module) => {
+    const matchesSearch = [
+      module.title,
+      module.description,
+      module.category,
+      ...(module.tags || []),
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(query.toLowerCase());
+    const matchesCategory = filter === 'all' || module.category === filter;
+    return matchesSearch && matchesCategory;
+  });
   const implementationGaps = state.orgs.filter((item) => {
     const metrics = lessonMetrics(state, item);
     return metrics.learning >= 50 && metrics.execution + 30 < metrics.learning;
@@ -1675,7 +1734,7 @@ export default function Home() {
                 </div>
               );
             })}
-            {i < 2 && (
+            {i < 4 && (
               <div className="phase-gate">
                 <div className="section-top">
                   <div>
@@ -2195,78 +2254,91 @@ export default function Home() {
   else if (page === 'biblioteca')
     body = (
       <>
-        <p className="muted">
-          Plantillas editoriales de ejemplo · v1.0 · no son los archivos
-          originales del programa.
-        </p>
-        {state.modules
-          .filter(
-            (module) =>
-              module.week <= org.current &&
-              (module.planId === 'all' || module.planId === org.planId),
-          )
-          .map((module) => (
-            <Section
-              title={module.title}
-              key={module.id}
-              className="module-feature"
-            >
-              <div className="section-top">
-                <p className="muted">
-                  Semana {module.week} · material asignado por el equipo
-                </p>
-                <Badge value="Disponible" color="blue" />
-              </div>
-              <p>{module.description}</p>
-              <FileChips files={module.files} />
-              <p className="caption">
-                El acceso al archivo se habilita mediante almacenamiento
-                privado.
-              </p>
-            </Section>
-          ))}
-        <div className="cards-grid">
-          {[
-            'Rastreador de tiempo real',
-            'P&L simplificado',
-            'SOP de una página',
-            'Acuerdo de delegación',
-            'Roadmap 90 días',
-          ].map((title, i) => (
-            <Section title={title} key={title} action={<BookOpen size={20} />}>
-              <Badge
-                value={i < 2 ? 'Biblioteca básica' : 'Biblioteca avanzada'}
-                color="gray"
-              />
-              <p className="resource-description">
-                {
-                  [
-                    'Registra actividad, duración y posibilidad de delegación.',
-                    'Ordena ingresos, costos y utilidad operativa.',
-                    'Establece propósito, owner, pasos y criterio de salida.',
-                    'Define la responsabilidad y sus límites de decisión.',
-                    'Alinea resultados, responsables y revisiones.',
-                  ][i]
-                }
-              </p>
-              <Button
-                variant="outline"
-                disabled={i >= 2 && !plan.advanced}
-                onClick={() => setResource(i)}
-              >
-                {i >= 2 && !plan.advanced ? (
-                  <>
-                    <LockKeyhole /> Fuera de tu plan
-                  </>
-                ) : (
-                  <>
-                    Abrir plantilla <ArrowUpRight />
-                  </>
-                )}
-              </Button>
-            </Section>
-          ))}
+        <div className="toolbar">
+          <p className="muted">
+            Recursos versionados y vinculados a tu ruta. Tu historial conserva
+            la versión utilizada en cada entregable.
+          </p>
+          <Badge
+            value={`Nivel ${plan.entitlements.resourceTier.toLowerCase()}`}
+            color="gray"
+          />
         </div>
+        <div className="filters">
+          <Input
+            aria-label="Buscar recursos"
+            placeholder="Buscar por nombre, categoría o etiqueta…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <Pick
+            label="Categoría"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: 'Todas las categorías' },
+              ...Array.from(
+                new Set(state.modules.map((module) => module.category || 'General')),
+              ).map((category) => ({ value: category, label: category })),
+            ]}
+          />
+        </div>
+        <div className="cards-grid spaced">
+          {libraryResources.map((module) => {
+            const tier = module.tier || 'BASIC';
+            const planAllows = resourceTierRank[tier] <= planResourceRank;
+            const routeAllows = module.week <= org.current;
+            const ready = module.editorialStatus !== 'EN_PRODUCCION';
+            const availableResource = planAllows && routeAllows && ready;
+            return (
+              <Section
+                title={module.title}
+                key={module.id}
+                action={<Badge value={module.code || `SEM ${module.week}`} color="gray" />}
+              >
+                <div className="inline-actions">
+                  <Badge value={module.category || 'General'} color="blue" />
+                  <Badge value={`v${module.version || '1.0.0'}`} color="gray" />
+                  <Badge value={tier} color="gray" />
+                </div>
+                <p className="resource-description">{module.description}</p>
+                <small className="muted">
+                  Semana {module.week}
+                  {module.relatedLesson ? ` · Clase ${module.relatedLesson}` : ''}
+                  {module.editable ? ' · Editable' : ''}
+                </small>
+                {module.files.length > 0 && <FileChips files={module.files} />}
+                <div className="inline-actions">
+                  <Button
+                    variant="outline"
+                    disabled={!availableResource}
+                    onClick={() => setResource(module.id)}
+                  >
+                    {!planAllows ? (
+                      <><LockKeyhole /> Fuera de tu plan</>
+                    ) : !routeAllows ? (
+                      <><LockKeyhole /> Se habilita en tu ruta</>
+                    ) : !ready ? (
+                      <><Clock3 /> En producción editorial</>
+                    ) : (
+                      <>Abrir recurso <ArrowUpRight /></>
+                    )}
+                  </Button>
+                  {module.relatedLesson && routeAllows && (
+                    <Button variant="ghost" onClick={() => openWeek(module.week)}>
+                      Ver en mi ruta
+                    </Button>
+                  )}
+                </div>
+              </Section>
+            );
+          })}
+        </div>
+        {!libraryResources.length && (
+          <Section title="Sin resultados" className="spaced">
+            <Empty>Prueba otra búsqueda o categoría.</Empty>
+          </Section>
+        )}
       </>
     );
   else if (page === 'sesiones')
@@ -2291,7 +2363,8 @@ export default function Home() {
       <>
         <div className="toolbar">
           <p className="muted">
-            Consultas locales. No se envían mensajes al equipo real.
+            Soporte vinculado a tu ruta · SLA de respuesta: hasta{' '}
+            {plan.entitlements.supportSlaHours} horas.
           </p>
           <Button
             onClick={() =>
@@ -2301,6 +2374,47 @@ export default function Home() {
                   'Tu consulta aparecerá en Cliente 360 para el equipo asignado.',
                 command: { type: 'support' },
                 fields: [
+                  {
+                    key: 'supportType',
+                    label: 'Tipo de consulta',
+                    value: 'METODOLOGICO',
+                    options: [
+                      { value: 'METODOLOGICO', label: 'Metodológica' },
+                      { value: 'TECNICO', label: 'Incidencia técnica' },
+                      { value: 'ACOMPANAMIENTO', label: 'Acompañamiento' },
+                    ],
+                  },
+                  {
+                    key: 'priority',
+                    label: 'Prioridad',
+                    value: 'NORMAL',
+                    options: ['NORMAL', 'ALTA', 'URGENTE'].map((value) => ({
+                      value,
+                      label: value.charAt(0) + value.slice(1).toLowerCase(),
+                    })),
+                  },
+                  {
+                    key: 'privacy',
+                    label: 'Privacidad',
+                    value: 'PRIVADA',
+                    options: [
+                      { value: 'PRIVADA', label: 'Privada con el equipo CONTROL' },
+                      { value: 'COMUNIDAD', label: 'Compartida con la comunidad' },
+                    ],
+                  },
+                  {
+                    key: 'lessonId',
+                    label: 'Clase relacionada (opcional)',
+                    value: '',
+                    required: false,
+                    options: [
+                      { value: '', label: 'Sin clase relacionada' },
+                      ...implementationLessons.map((lesson) => ({
+                        value: lesson.id,
+                        label: `${lesson.code} · ${lesson.title}`,
+                      })),
+                    ],
+                  },
                   {
                     key: 'text',
                     label: '¿Qué te está bloqueando?',
@@ -2316,11 +2430,30 @@ export default function Home() {
         {org.support.length ? (
           org.support.map((t) => (
             <Section
-              title="Consulta de acompañamiento"
+              title={
+                t.type === 'TECNICO'
+                  ? 'Incidencia técnica'
+                  : t.type === 'METODOLOGICO'
+                    ? 'Consulta metodológica'
+                    : 'Consulta de acompañamiento'
+              }
               key={t.id}
               className="spaced"
             >
+              <div className="inline-actions">
+                <Badge value={t.priority} color={t.priority === 'URGENTE' ? 'red' : t.priority === 'ALTA' ? 'amber' : 'gray'} />
+                <Badge value={t.privacy} color="gray" />
+                <Badge value={t.status} />
+              </div>
               <p>{t.text}</p>
+              <small className="muted">
+                Respuesta comprometida antes de{' '}
+                {new Intl.DateTimeFormat('es-PE', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                  timeZone: 'America/Lima',
+                }).format(new Date(t.due))}
+              </small>
               {t.reply ? (
                 <p className="feedback">{t.reply}</p>
               ) : (
@@ -2593,7 +2726,19 @@ export default function Home() {
                         {lesson.requiresReview ? ' + revisión' : ''}
                       </p>
                     </div>
+                    {lesson.approvalCriteria && (
+                      <div>
+                        <small>CRITERIO DE APROBACIÓN</small>
+                        <p>{lesson.approvalCriteria}</p>
+                      </div>
+                    )}
                   </div>
+                  {lesson.resourceId && (
+                    <p className="caption">
+                      Recurso {lesson.resourceId} · versión{' '}
+                      {lesson.resourceVersion || '1.0.0'}
+                    </p>
+                  )}
                   <div className="section-top">
                     <span className="muted text-small">
                       {assigned
@@ -2800,6 +2945,51 @@ export default function Home() {
                         value: item.id,
                         label: item.name + ' v' + item.version,
                       })),
+                    ],
+                  },
+                  {
+                    key: 'category',
+                    label: 'Categoría',
+                    value: 'Operaciones',
+                    options: [
+                      'Diagnóstico',
+                      'Estrategia',
+                      'Operaciones',
+                      'Delegación',
+                      'Control',
+                      'Crecimiento',
+                      'Partnership',
+                      'Ejemplos',
+                    ].map((value) => ({ value, label: value })),
+                  },
+                  {
+                    key: 'tier',
+                    label: 'Nivel de biblioteca',
+                    value: 'BASIC',
+                    options: [
+                      { value: 'BASIC', label: 'Básico' },
+                      { value: 'COMPLETE', label: 'Completo' },
+                      { value: 'ADVANCED', label: 'Avanzado' },
+                    ],
+                  },
+                  { key: 'version', label: 'Versión', value: '1.0.0' },
+                  {
+                    key: 'tags',
+                    label: 'Etiquetas separadas por coma',
+                    value: 'CONTROL, implementación',
+                  },
+                  {
+                    key: 'relatedLesson',
+                    label: 'Código de clase relacionada (opcional)',
+                    required: false,
+                  },
+                  {
+                    key: 'editable',
+                    label: 'Tipo de recurso',
+                    value: 'yes',
+                    options: [
+                      { value: 'yes', label: 'Editable' },
+                      { value: 'no', label: 'Solo lectura' },
                     ],
                   },
                   {
@@ -3765,6 +3955,23 @@ export default function Home() {
                         ? 'Limitadas'
                         : 'No incluidas',
                   ],
+                  ['Techo de ruta', `Etapa ${p.entitlements.maxStageAccess}`],
+                  ['Biblioteca', p.entitlements.resourceTier],
+                  ['Revisiones humanas', p.entitlements.reviewLimit],
+                  ['Comunidad', p.entitlements.community],
+                  ['SLA de soporte', `${p.entitlements.supportSlaHours} h`],
+                  [
+                    'Auditoría',
+                    p.entitlements.audit === 'FULL'
+                      ? 'Completa'
+                      : p.entitlements.audit === 'LIGHT'
+                        ? 'Parcial'
+                        : 'No incluida',
+                  ],
+                  [
+                    'Plan 90D post',
+                    p.entitlements.post90DayPlan ? 'Incluido' : 'No incluido',
+                  ],
                 ].map(([feature, value]) => (
                   <li key={feature}>
                     <Check className="green" size={16} />
@@ -4181,6 +4388,7 @@ export default function Home() {
               title="Cerrar sesión"
               onClick={() => {
                 try {
+                  sessionStorage.removeItem('control-os-session');
                   sessionStorage.removeItem('control-os-demo-session');
                 } catch {}
                 setSessionActive(false);
@@ -4404,42 +4612,35 @@ export default function Home() {
         }}
       >
         <DialogContent className="control-dialog">
-          <DialogTitle>Plantilla de trabajo · v1.0</DialogTitle>
+          <DialogTitle>
+            {state.modules.find((module) => module.id === resource)?.title ||
+              'Recurso CONTROL'}
+          </DialogTitle>
           <DialogDescription>
-            Ejemplo editable fuera de la plataforma. Descarga CSV UTF-8.
+            Recurso versionado del expediente de implementación.
           </DialogDescription>
           {resource !== null && (
             <>
-              <p>
-                {
-                  [
-                    'Fecha, Actividad, Horas, Delegable, Observación',
-                    'Período, Ingresos, Costos directos, Gastos, Utilidad',
-                    'Proceso, Propósito, Owner, Pasos, SLA, KPI, Criterio de salida',
-                    'Responsabilidad, Owner, Límites, Indicador, Revisión',
-                    'Objetivo, Baseline, Meta, Owner, Fecha, Revisión',
-                  ][resource]
-                }
-              </p>
-              <Button
-                onClick={() =>
-                  download(
-                    'control-os-plantilla-' + (resource + 1) + '.csv',
-                    '\uFEFF' +
-                      [
-                        'Fecha;Actividad;Horas;Delegable;Observacion',
-                        'Periodo;Ingresos;Costos directos;Gastos;Utilidad',
-                        'Proceso;Proposito;Owner;Pasos;SLA;KPI;Criterio de salida',
-                        'Responsabilidad;Owner;Limites;Indicador;Revision',
-                        'Objetivo;Baseline;Meta;Owner;Fecha;Revision',
-                      ][resource] +
-                      '\r\n',
-                    'text/csv;charset=utf-8',
-                  )
-                }
-              >
-                <Download /> Descargar plantilla
-              </Button>
+              {(() => {
+                const selectedResource = state.modules.find(
+                  (module) => module.id === resource,
+                );
+                if (!selectedResource) return null;
+                return (
+                  <>
+                    <p>{selectedResource.description}</p>
+                    <div className="inline-actions">
+                      <Badge value={selectedResource.category || 'General'} color="blue" />
+                      <Badge value={`v${selectedResource.version || '1.0.0'}`} color="gray" />
+                    </div>
+                    <FileChips files={selectedResource.files} />
+                    <p className="caption">
+                      La descarga segura se habilitará desde Supabase Storage.
+                      El expediente conservará la versión usada.
+                    </p>
+                  </>
+                );
+              })()}
             </>
           )}
         </DialogContent>

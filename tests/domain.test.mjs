@@ -49,9 +49,56 @@ test('seed: one organization per plan and 12 weeks each', () => {
 test('seed includes one protected primary administrator', () => {
   const s = seed();
   const admin = s.users.find((user) => user.id === 'user-admin');
-  assert.equal(admin.username, 'admin');
+  assert.equal(admin.username, 'aldaircrizam');
+  assert.equal(admin.name, 'Aldair Crizam');
   assert.equal(admin.role, 'ADMIN');
   assert.equal(admin.status, 'ACTIVO');
+});
+test('curriculum 03–07 includes 36 advanced classes and 34 resources', () => {
+  const s = seed();
+  assert.equal(s.lessons.filter((lesson) => [3, 4].includes(lesson.stage)).length, 36);
+  assert.equal(s.modules.filter((module) => module.code?.startsWith('RES-')).length, 34);
+  assert.equal(methodSteps.length, 82);
+});
+test('commercial plans expose configurable depth without changing the method', () => {
+  const s = seed();
+  assert.deepEqual(
+    s.plans.map((plan) => [plan.accessLevel, plan.entitlements.maxStageAccess, plan.entitlements.resourceTier]),
+    [
+      ['LOW', 1, 'BASIC'],
+      ['MEDIUM', 3, 'COMPLETE'],
+      ['HIGH', 4, 'ADVANCED'],
+    ],
+  );
+  assert.equal(lessonsFor(s, getOrg(s, 'norte')).some((lesson) => lesson.stage === 4), false);
+  assert.equal(lessonsFor(s, getOrg(s, 'vertice')).some((lesson) => lesson.stage === 4), true);
+});
+test('support tickets retain type, privacy, priority and plan SLA', () => {
+  const s = run(seed(), {
+    type: 'support',
+    text: 'Necesito ayuda para definir el KPI de mi proceso.',
+    supportType: 'METODOLOGICO',
+    priority: 'ALTA',
+    privacy: 'PRIVADA',
+    lessonId: '',
+  });
+  const ticket = getOrg(s, org).support[0];
+  assert.equal(ticket.type, 'METODOLOGICO');
+  assert.equal(ticket.priority, 'ALTA');
+  assert.equal(ticket.status, 'ABIERTO');
+  assert.ok(new Date(ticket.due).getTime() > Date.now());
+});
+test('technical support cannot expose tenant details in community', () => {
+  assert.throws(
+    () => run(seed(), {
+      type: 'support',
+      text: 'No puedo acceder a un archivo privado.',
+      supportType: 'TECNICO',
+      priority: 'NORMAL',
+      privacy: 'COMUNIDAD',
+    }),
+    /privada/,
+  );
 });
 test('week 2 requires approved week 1', () => {
   const s = seed();
@@ -611,10 +658,12 @@ test('learning, execution and validation stay separate', () => {
     total: 8,
   });
 });
-test('one methodology exposes 46 internal controls across phases 1 and 2', () => {
-  assert.equal(methodSteps.length, 46);
+test('one methodology exposes 82 internal controls across four phases', () => {
+  assert.equal(methodSteps.length, 82);
   assert.equal(methodSteps.filter((step) => step.phase === 1).length, 22);
   assert.equal(methodSteps.filter((step) => step.phase === 2).length, 24);
+  assert.equal(methodSteps.filter((step) => step.phase === 3).length, 18);
+  assert.equal(methodSteps.filter((step) => step.phase === 4).length, 18);
   assert.ok(methodSteps.every((step) => ['C', 'E', 'C+E', 'A'].includes(step.owner)));
 });
 test('client curriculum stays compact and access grows without changing methodology', () => {
@@ -625,8 +674,11 @@ test('client curriculum stays compact and access grows without changing methodol
   assert.equal(low.filter((lesson) => lesson.stage === 1).length, 16);
   assert.equal(low.filter((lesson) => lesson.stage === 2).length, 0);
   assert.equal(medium.filter((lesson) => lesson.stage === 2).length, 16);
+  assert.equal(medium.filter((lesson) => lesson.stage === 3).length, 18);
+  assert.equal(medium.filter((lesson) => lesson.stage === 4).length, 0);
   assert.equal(high.filter((lesson) => lesson.stage <= 2).length, 40);
-  assert.equal(s.orgs.every((organization) => organization.lessonRuns.length === 40), true);
+  assert.equal(high.filter((lesson) => lesson.stage === 4).length, 18);
+  assert.equal(s.orgs.every((organization) => organization.lessonRuns.length === 76), true);
 });
 test('phase gates expose evidence-based exit criteria', () => {
   const gate = phaseGate(seed(), getOrg(seed(), org), 1);

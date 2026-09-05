@@ -119,6 +119,9 @@ export type Lesson = {
   requiredForUnlock: boolean;
   owner: 'C' | 'E' | 'C+E' | 'A';
   minAccess: 'LOW' | 'MEDIUM' | 'HIGH';
+  approvalCriteria?: string;
+  resourceId?: string;
+  resourceVersion?: string;
 };
 export type LessonRun = {
   lessonId: string;
@@ -147,7 +150,17 @@ export type Org = {
   interventions: Intervention[];
   notes: { text: string; shared: boolean }[];
   session: { title: string; date: string; agenda: string; attended: boolean };
-  support: { id: string; text: string; reply: string }[];
+  support: {
+    id: string;
+    text: string;
+    reply: string;
+    type: 'METODOLOGICO' | 'TECNICO' | 'ACOMPANAMIENTO';
+    priority: 'NORMAL' | 'ALTA' | 'URGENTE';
+    privacy: 'PRIVADA' | 'COMUNIDAD';
+    status: 'ABIERTO' | 'RESPONDIDO' | 'CERRADO';
+    due: string;
+    lessonId: string;
+  }[];
   finances: FinanceEntry[];
   followUps: FollowUp[];
   lessonRuns: LessonRun[];
@@ -161,10 +174,20 @@ export type Plan = {
   sessions: number;
   advanced: boolean;
   accessLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  entitlements: {
+    resourceTier: 'BASIC' | 'COMPLETE' | 'ADVANCED';
+    reviewLimit: string;
+    community: 'GENERAL' | 'PRIVADA';
+    supportSlaHours: number;
+    privateSupport: boolean;
+    audit: 'NONE' | 'LIGHT' | 'FULL';
+    post90DayPlan: boolean;
+    maxStageAccess: number;
+  };
 };
 export type MethodStep = {
   code: number;
-  phase: 1 | 2;
+  phase: 1 | 2 | 3 | 4;
   week: number;
   title: string;
   owner: 'C' | 'E' | 'C+E' | 'A';
@@ -183,6 +206,14 @@ export type State = {
     planId: string;
     files: Attachment[];
     createdAt: string;
+    code?: string;
+    category?: string;
+    version?: string;
+    tier?: 'BASIC' | 'COMPLETE' | 'ADVANCED';
+    tags?: string[];
+    relatedLesson?: string;
+    editable?: boolean;
+    editorialStatus?: 'LISTO' | 'EN_PRODUCCION';
   }[];
   users: {
     id: string;
@@ -384,7 +415,7 @@ export const methodSteps: MethodStep[] = [
   [46, 2, 6, 'Bitácora de mejoras', 'C+E'],
 ].map(([code, phase, week, title, owner]) => ({
   code: Number(code),
-  phase: Number(phase) as 1 | 2,
+  phase: Number(phase) as MethodStep['phase'],
   week: Number(week),
   title: String(title),
   owner: owner as MethodStep['owner'],
@@ -551,6 +582,99 @@ function createOrganizationWorkspace(
       })),
   };
 }
+
+// Curriculum source: CONTROL OS modules 03–04, version 1.1.
+// YouTube links stay empty until the content team publishes each class.
+export const advancedLessonBlueprints = [
+  ['3.1.1', 'El trabajo que debes dejar de hacer', 'Identificar tareas que consumen al fundador y decidir si eliminar, delegar, automatizar o retener.', 'Clasificar al menos 20 actividades y seleccionar las cinco que deben salir de la agenda en 30 días.', 'RES-001', 'Matriz EDAE + Top 5 firmado por founder.', '20 tareas clasificadas; Top 5 con destino, responsable y fecha.', 'C'],
+  ['3.1.2', 'Diseña los asientos antes de pensar en personas', 'Separar las funciones del negocio de las personas actuales.', 'Diseñar los asientos necesarios para operar el negocio a 12 meses.', 'RES-002', 'Organigrama funcional + ficha por asiento.', 'Cada función crítica tiene un asiento, sin duplicidad y con owner claro.', 'C'],
+  ['3.1.3', 'Quién decide qué', 'Definir derechos de decisión para eliminar escalamiento innecesario.', 'Registrar entre 15 y 30 decisiones frecuentes y asignar nivel de autoridad.', 'RES-003', 'Matriz de decisiones aprobada.', 'Toda decisión tiene responsable, límite y ruta de escalamiento.', 'C+E'],
+  ['3.1.4', 'Delegar sin tirar tareas por encima del muro', 'Estandarizar el traspaso de una responsabilidad.', 'Completar tres fichas reales para tareas del Top 5.', 'RES-004', 'Tres fichas de delegación completas.', 'Cada ficha incluye resultado, estándar, recursos, fecha, KPI y revisión.', 'C'],
+  ['3.1.5', 'Capacidad real del equipo', 'Medir carga antes de delegar o contratar.', 'Estimar capacidad por rol y definir tres ajustes priorizados.', 'RES-005', 'Mapa de capacidad y tres ajustes.', 'Horas coherentes, cuello de botella y acción definidos.', 'C+E'],
+  ['3.1.6', 'Checkpoint de delegación', 'Cerrar la semana con decisiones implementables.', 'Revisar Top 5, asientos, autoridad, handoffs y capacidad.', 'RES-001', 'Checkpoint aprobado u observado.', 'Entregables clave aprobados y sprint de delegación definido.', 'C+E'],
+  ['3.2.1', 'Controla resultados, no movimientos', 'Diferenciar actividad de resultado y escoger KPIs útiles.', 'Definir de uno a tres KPIs por rol o proceso crítico.', 'RES-006', 'Set inicial de KPIs.', 'Cada KPI tiene fórmula, fuente, frecuencia, owner, meta y umbral.', 'C+E'],
+  ['3.2.2', 'Scorecard por rol', 'Crear una vista semanal simple de accountability.', 'Construir scorecards para los roles críticos.', 'RES-007', 'Scorecards aprobados.', 'Máximo siete métricas por rol y semáforo configurable.', 'C'],
+  ['3.2.3', 'La reunión que evita 30 mensajes', 'Diseñar una cadencia de reuniones y una agenda de control.', 'Configurar la reunión semanal con KPIs, bloqueos, decisiones y acciones.', 'RES-008', 'Cadencia + próxima reunión agendada.', 'Agenda de hasta 60 minutos y acciones con owner y fecha.', 'C+E'],
+  ['3.2.4', 'Qué hacer cuando algo se sale del estándar', 'Definir gestión de excepciones y escalamiento.', 'Definir de cinco a diez eventos que requieren escalamiento.', 'RES-009', 'Protocolo de excepciones.', 'Cada evento tiene umbral, canal, responsable, SLA y evidencia.', 'C+E'],
+  ['3.2.5', 'Calidad sin microgestión', 'Instalar puntos de control y criterios de aceptación.', 'Crear controles para tres procesos con mayor retrabajo o riesgo.', 'RES-011', 'Tres checklists QA.', 'El control ocurre antes de la entrega y usa criterios objetivos.', 'C'],
+  ['3.2.6', 'Checkpoint de control', 'Validar que delegación y control conviven.', 'Revisar scorecards, reuniones, escalamiento y QA.', 'RES-008', 'Semana 8 aprobada u observada.', 'Roles críticos con scorecard y reunión operativa activa.', 'C+E'],
+  ['3.3.1', 'Escalera de autonomía', 'Asignar niveles de autonomía por responsabilidad.', 'Asignar nivel actual y objetivo a responsabilidades críticas.', 'RES-012', 'Matriz actual a objetivo.', 'Cada responsabilidad tiene nivel y fecha de revisión.', 'C+E'],
+  ['3.3.2', 'El tablero de decisiones del CEO', 'Conservar solo las decisiones que realmente deben llegar al founder.', 'Registrar decisiones de dos semanas y rediseñar el flujo.', 'RES-013', 'Decision Log y política v1.', 'Reduce decisiones operativas y conserva trazabilidad.', 'C'],
+  ['3.3.3', 'Sprint de 30 días para soltar operación', 'Ejecutar una delegación controlada con revisión progresiva.', 'Planificar la transferencia de tres a cinco responsabilidades.', 'RES-014', 'Sprint 30D activo.', 'Owner receptor, checkpoints, riesgo y métrica de éxito.', 'C+E'],
+  ['3.3.4', 'Rediseña la agenda del fundador', 'Mover horas liberadas a estrategia, ventas clave, talento y capital.', 'Diseñar la semana ideal y compararla con la línea base.', 'RES-015', 'Calendario CEO v1.', 'Bloques estratégicos protegidos y límite de operación.', 'C'],
+  ['3.3.5', 'Control sin volver a meterte en todo', 'Crear reglas de observación y revisión sin microgestión.', 'Definir qué revisar, con qué frecuencia y cuándo intervenir.', 'RES-016', 'Política de control.', 'No duplica controles y la intervención ocurre por excepción.', 'C+E'],
+  ['3.3.6', 'Cierre Etapa 3 + CONTROL Score #3', 'Medir la reducción de dependencia y decidir readiness para escalar.', 'Repetir mediciones clave y participar en la revisión del gate.', 'RES-033', 'CONTROL Score #3 + informe de delegación.', 'Roles, scorecards, reuniones y sprint activos; founder hours medido.', 'C+E'],
+  ['4.1.1', '¿De verdad debes escalar ahora?', 'Evaluar readiness antes de aumentar volumen.', 'Completar la evaluación de cinco dimensiones.', 'RES-017', 'Scale Readiness Score.', 'No se aprueba escala con margen, capacidad o entrega en rojo sin mitigación.', 'C'],
+  ['4.1.2', 'Encuentra tu cuello de botella de crecimiento', 'Identificar la restricción dominante usando datos.', 'Seleccionar la restricción principal y adjuntar evidencia.', 'RES-018', 'Restricción prioritaria + hipótesis.', 'La restricción se justifica con datos, no solo opinión.', 'C+E'],
+  ['4.1.3', 'Economía unitaria del crecimiento', 'Medir margen, CAC, LTV, caja y capacidad al aumentar volumen.', 'Simular escenarios de +20%, +50% y +100% de volumen.', 'RES-019', 'Escenarios de crecimiento.', 'Cada escenario incluye ingresos, margen, CAC, capacidad y caja.', 'C+E'],
+  ['4.1.4', 'Escalar para qué', 'Traducir propósito y ambición en una meta económica y operativa.', 'Definir el resultado a 12 meses y sus trade-offs.', 'RES-020', 'North Star 12M.', 'Meta cuantificada con dinero, margen, horas, capacidad e impacto.', 'C'],
+  ['4.1.5', 'Plan de capacidad', 'Determinar recursos necesarios antes de vender más.', 'Modelar personas, herramientas y proveedores para el objetivo 12M.', 'RES-021', 'Plan de capacidad.', 'Cada recurso tiene fecha, costo y trigger de contratación o compra.', 'C+E'],
+  ['4.1.6', 'Checkpoint de preparación', 'Decidir Go, Go condicionado o No Go.', 'Revisar readiness, restricción, economics, objetivo y capacidad.', 'RES-017', 'Decisión de escalamiento registrada.', 'Decisión soportada por datos, condiciones y bloqueos explícitos.', 'C+E'],
+  ['4.2.1', 'ICP rentable, no solo ICP atractivo', 'Validar el cliente ideal con margen, entrega, recurrencia y resultados.', 'Puntuar entre tres y cinco segmentos o clientes.', 'RES-022', 'ICP prioritario.', 'Incluye economía y fit operativo.', 'C'],
+  ['4.2.2', 'Arquitectura de oferta y escalera de valor', 'Alinear oferta de entrada, core y expansión sin dispersión.', 'Diseñar los tres niveles de la escalera de valor.', 'RES-023', 'Escalera de valor.', 'Cada nivel tiene promesa, precio, costo, margen y criterio de paso.', 'C+E'],
+  ['4.2.3', 'Motor de adquisición', 'Definir canales, mensajes, CTA, destino y responsable.', 'Diseñar un motor principal y uno secundario.', 'RES-024', 'Mapa de adquisición.', 'Cada canal tiene objetivo, KPI, cadencia, presupuesto y handoff.', 'C+E'],
+  ['4.2.4', 'Sistema de autoridad', 'Convertir experiencia y casos en activos de marca.', 'Definir de tres a cuatro pilares y doce ideas ancla.', 'RES-025', 'Authority Content Map.', 'Cada contenido se vincula a dolor, objeción o evidencia.', 'C'],
+  ['4.2.5', 'Embudo que termina en utilidad', 'Diseñar el funnel desde atención hasta cliente rentable.', 'Registrar conversiones actuales y metas por etapa.', 'RES-026', 'Modelo de funnel con unit economics.', 'Calcula lead, reunión, propuesta, cierre, CAC y margen.', 'C+E'],
+  ['4.2.6', 'Backlog de experimentos', 'Transformar crecimiento en hipótesis medibles.', 'Priorizar tres experimentos para 30 días.', 'RES-027', 'Backlog 30D.', 'Hipótesis, métrica, duración, presupuesto y criterio de éxito.', 'C'],
+  ['4.3.1', 'Plan de escala 90 días', 'Convertir prioridades en objetivos, iniciativas, responsables y métricas.', 'Definir hasta tres objetivos y sus iniciativas.', 'RES-028', 'Roadmap 90D.', 'Owner, KPI, baseline, target, fechas y dependencias.', 'C+E'],
+  ['4.3.2', 'Pronóstico de caja y capacidad', 'Evitar que el crecimiento rompa caja o entrega.', 'Proyectar ventas, cobros, costos, contrataciones y capacidad.', 'RES-029', 'Forecast 90D.', 'Incluye escenarios base, conservador y agresivo y caja mínima.', 'C+E'],
+  ['4.3.3', 'Registro de riesgos de escala', 'Anticipar riesgos y definir respuestas.', 'Registrar los diez principales riesgos y su mitigación.', 'RES-030', 'Matriz de riesgos.', 'Probabilidad, impacto, owner, trigger y respuesta.', 'C'],
+  ['4.3.4', 'CEO Dashboard final', 'Consolidar los indicadores que gobiernan el negocio.', 'Seleccionar entre diez y doce indicadores y sus fuentes.', 'RES-031', 'CONTROL Board final.', 'Cada indicador tiene owner, frecuencia y decisión asociada.', 'C+E'],
+  ['4.3.5', 'Readiness para Partnership', 'Validar datos y gobierno para una relación base más utilidad incremental.', 'Verificar reportes, fórmula, periodo base y exclusiones.', 'RES-032', 'Informe de readiness.', 'No se aprueba sin baseline y fuentes verificables.', 'C+E'],
+  ['4.3.6', 'Cierre CONTROL: evidencia, Score final y próximo ciclo', 'Comparar antes y después y convertir resultados en continuidad.', 'Repetir CONTROL Score, registrar resultados y aprobar el próximo plan.', 'RES-033', 'Score final + Plan post-mentoría + caso interno.', 'Separa resultado observado de promesa y adjunta evidencia.', 'C+E'],
+] as const;
+
+methodSteps.push(
+  ...advancedLessonBlueprints.map((lesson, index) => {
+    const phase = Number(lesson[0].split('.')[0]) as MethodStep['phase'];
+    const block = Number(lesson[0].split('.')[1]);
+    return {
+      code: 47 + index,
+      phase,
+      week: phase === 3 ? block + 6 : block + 9,
+      title: lesson[1],
+      owner: lesson[7],
+    };
+  }),
+);
+
+export const curriculumResources = [
+  ['RES-001', 'Matriz Stop Doing / EDAE', 7, 'Delegación', 'COMPLETE'],
+  ['RES-002', 'Organigrama Funcional v2', 7, 'Delegación', 'COMPLETE'],
+  ['RES-003', 'Matriz de Autoridad y Decisiones', 7, 'Delegación', 'COMPLETE'],
+  ['RES-004', 'Ficha de Delegación CONTROL', 7, 'Delegación', 'COMPLETE'],
+  ['RES-005', 'Calculadora de Capacidad Semanal', 7, 'Delegación', 'COMPLETE'],
+  ['RES-006', 'Ficha KPI CONTROL', 8, 'Control', 'COMPLETE'],
+  ['RES-007', 'Scorecard de Rol', 8, 'Control', 'COMPLETE'],
+  ['RES-008', 'Agenda Weekly Control', 8, 'Control', 'COMPLETE'],
+  ['RES-009', 'Matriz de Escalamiento', 8, 'Control', 'COMPLETE'],
+  ['RES-010', 'Registro de Incidentes', 8, 'Control', 'COMPLETE'],
+  ['RES-011', 'Checklist QA / Definition of Done', 8, 'Control', 'COMPLETE'],
+  ['RES-012', 'Matriz de Autonomía', 9, 'Delegación', 'COMPLETE'],
+  ['RES-013', 'Decision Log', 9, 'Control', 'COMPLETE'],
+  ['RES-014', 'Sprint 30D', 9, 'Delegación', 'COMPLETE'],
+  ['RES-015', 'Perfect CEO Week', 9, 'Delegación', 'COMPLETE'],
+  ['RES-016', 'Política de Control y Revisión', 9, 'Control', 'COMPLETE'],
+  ['RES-017', 'Scale Readiness Assessment', 10, 'Crecimiento', 'ADVANCED'],
+  ['RES-018', 'Mapa de Restricciones de Crecimiento', 10, 'Crecimiento', 'ADVANCED'],
+  ['RES-019', 'Calculadora Economics of Growth', 10, 'Crecimiento', 'ADVANCED'],
+  ['RES-020', 'Canvas Objetivo 12M', 10, 'Estrategia', 'ADVANCED'],
+  ['RES-021', 'Capacity Growth Plan', 10, 'Crecimiento', 'ADVANCED'],
+  ['RES-022', 'ICP Rentable Scorecard', 11, 'Crecimiento', 'ADVANCED'],
+  ['RES-023', 'Offer Ladder Canvas', 11, 'Crecimiento', 'ADVANCED'],
+  ['RES-024', 'Growth Engine Canvas', 11, 'Crecimiento', 'ADVANCED'],
+  ['RES-025', 'Mapa de Autoridad', 11, 'Crecimiento', 'ADVANCED'],
+  ['RES-026', 'Funnel Economics Sheet', 11, 'Crecimiento', 'ADVANCED'],
+  ['RES-027', 'Growth Experiment Backlog', 11, 'Crecimiento', 'ADVANCED'],
+  ['RES-028', 'Roadmap 90D de Escala', 12, 'Crecimiento', 'ADVANCED'],
+  ['RES-029', 'Forecast Cash + Capacity', 12, 'Crecimiento', 'ADVANCED'],
+  ['RES-030', 'Risk Register CONTROL', 12, 'Crecimiento', 'ADVANCED'],
+  ['RES-031', 'CEO Dashboard', 12, 'Control', 'ADVANCED'],
+  ['RES-032', 'Partnership Readiness Checklist', 12, 'Partnership', 'ADVANCED'],
+  ['RES-033', 'Reporte Antes / Después', 12, 'Partnership', 'ADVANCED'],
+  ['RES-034', 'Plantilla de Caso de Éxito interno', 12, 'Ejemplos', 'ADVANCED'],
+] as const;
+
 export function seed(): State {
   const today = new Date();
   const date = (days: number) => {
@@ -568,6 +692,16 @@ export function seed(): State {
       sessions: 1,
       advanced: false,
       accessLevel: 'LOW',
+      entitlements: {
+        resourceTier: 'BASIC',
+        reviewLimit: 'Sin revisión mensual incluida',
+        community: 'GENERAL',
+        supportSlaHours: 48,
+        privateSupport: false,
+        audit: 'NONE',
+        post90DayPlan: false,
+        maxStageAccess: 1,
+      },
     },
     {
       id: 'implementacion-v1',
@@ -578,6 +712,16 @@ export function seed(): State {
       sessions: 4,
       advanced: true,
       accessLevel: 'MEDIUM',
+      entitlements: {
+        resourceTier: 'COMPLETE',
+        reviewLimit: '2 revisiones por mes',
+        community: 'PRIVADA',
+        supportSlaHours: 24,
+        privateSupport: true,
+        audit: 'LIGHT',
+        post90DayPlan: false,
+        maxStageAccess: 3,
+      },
     },
     {
       id: 'partnership-v1',
@@ -588,6 +732,16 @@ export function seed(): State {
       sessions: 8,
       advanced: true,
       accessLevel: 'HIGH',
+      entitlements: {
+        resourceTier: 'ADVANCED',
+        reviewLimit: 'Revisión prioritaria',
+        community: 'PRIVADA',
+        supportSlaHours: 8,
+        privateSupport: true,
+        audit: 'FULL',
+        post90DayPlan: true,
+        maxStageAccess: 4,
+      },
     },
   ];
   const onboardingLessons: Lesson[] = [
@@ -759,7 +913,60 @@ export function seed(): State {
       } as Lesson;
     },
   );
-  const allLessons = [...onboardingLessons, ...methodologyLessons];
+  const advancedCurriculum: Lesson[] = advancedLessonBlueprints.map(
+    (
+      [
+        code,
+        title,
+        objective,
+        action,
+        resourceId,
+        deliverable,
+        approvalCriteria,
+        owner,
+      ],
+      index,
+    ) => {
+      const stage = Number(code.split('.')[0]);
+      const block = Number(code.split('.')[1]);
+      const weekNumber = stage === 3 ? block + 6 : block + 9;
+      return {
+        id: 'lesson-' + code.replaceAll('.', '-'),
+        code,
+        title,
+        stage,
+        week: weekNumber,
+        planId: 'all',
+        publication: 'PUBLICADO',
+        description: objective,
+        objective,
+        duration: 8 + (index % 4) * 2,
+        videoUrl: '',
+        thumbnailUrl: '',
+        learnings: [
+          objective,
+          'Convertir el aprendizaje en evidencia verificable.',
+        ],
+        action,
+        resourceType: 'PLANTILLA',
+        deliverable,
+        due: date(55 + index * 2),
+        points: 25,
+        requiresReview: true,
+        requiredForUnlock: true,
+        owner,
+        minAccess: stage === 3 ? 'MEDIUM' : 'HIGH',
+        approvalCriteria,
+        resourceId,
+        resourceVersion: '1.0.0',
+      };
+    },
+  );
+  const allLessons = [
+    ...onboardingLessons,
+    ...methodologyLessons,
+    ...advancedCurriculum,
+  ];
   const orgs: Org[] = [
     {
       id: 'norte',
@@ -970,7 +1177,7 @@ export function seed(): State {
     plans,
     thresholds: { green: 75, amber: 50 },
     selected: 'norte',
-    modules: [
+    modules: ([
       [
         'module-w1',
         'Mapa de Fugas™',
@@ -1027,27 +1234,56 @@ export function seed(): State {
         'CEO_Control_Review.pdf',
         'PDF',
       ],
-    ].map(([moduleId, title, description, week, fileName, type]) => ({
-      id: String(moduleId),
-      title: String(title),
-      description: String(description),
-      week: Number(week),
-      planId: 'all',
-      files: [
-        {
-          id: 'file-' + moduleId,
-          name: String(fileName),
-          size: 184320,
-          type: type as Attachment['type'],
-        },
-      ],
-      createdAt: now(),
-    })),
+    ]
+      .map(([moduleId, title, description, week, fileName, type]) => ({
+        id: String(moduleId),
+        title: String(title),
+        description: String(description),
+        week: Number(week),
+        planId: 'all',
+        files: [
+          {
+            id: 'file-' + moduleId,
+            name: String(fileName),
+            size: 184320,
+            type: type as Attachment['type'],
+          },
+        ],
+        createdAt: now(),
+        category: Number(week) <= 3 ? 'Diagnóstico' : 'Operaciones',
+        version: '1.0.0',
+        tier: Number(week) <= 3 ? ('BASIC' as const) : ('COMPLETE' as const),
+        tags: ['CONTROL', 'implementación'],
+        editable: true,
+        editorialStatus: 'LISTO' as const,
+      })) as State['modules'])
+      .concat(
+        curriculumResources.map(([code, title, week, category, tier]) => ({
+          id: code.toLowerCase(),
+          code,
+          title,
+          description:
+            'Plantilla editable con guía de uso y ejemplo resuelto vinculada a la ruta CONTROL.',
+          week,
+          planId: 'all',
+          files: [],
+          createdAt: now(),
+          category,
+          version: '1.0.0',
+          tier,
+          tags: [category, 'plantilla', `semana-${week}`],
+          relatedLesson: advancedLessonBlueprints.find(
+            (lesson) => lesson[4] === code,
+          )?.[0],
+          editable: true,
+          editorialStatus: 'EN_PRODUCCION' as const,
+        })) as State['modules'],
+      ),
     users: [
       {
         id: 'user-admin',
-        name: 'Administrador Crisdal',
-        username: 'admin',
+        name: 'Aldair Crizam',
+        username: 'aldaircrizam',
         role: 'ADMIN',
         orgId: '',
         status: 'ACTIVO',
@@ -1115,6 +1351,14 @@ export function phaseGate(s: State, o: Org, phase: number) {
     o.tasks.filter((task) => task.week === week && task.status === 'DONE').length;
   const validated = (code: string) =>
     o.kpis.some((kpi) => kpi.code === code && kpi.status === 'VALIDATED');
+  const approvedLesson = (code: string) => {
+    const lesson = s.lessons.find((item) => item.code === code);
+    return Boolean(
+      lesson &&
+        o.lessonRuns.find((run) => run.lessonId === lesson.id)?.status ===
+          'APROBADO',
+    );
+  };
   const onboarding = lessonMetrics(s, o, 0).validation;
   const requirements =
     phase === 1
@@ -1133,9 +1377,21 @@ export function phaseGate(s: State, o: Org, phase: number) {
             { label: 'Nueva medición de horas del fundador', ok: o.kpis.filter((kpi) => kpi.code === 'hours').length >= 2 },
             { label: 'CONTROL Score #2 y bitácora actualizados', ok: approved(6) },
           ]
-        : [
-            { label: 'Semanas de la fase aprobadas', ok: [phase * 3 - 2, phase * 3 - 1, phase * 3].every(approved) },
-          ];
+        : phase === 3
+          ? [
+              { label: 'Responsabilidades críticas con owner y nivel de decisión', ok: approvedLesson('3.1.3') },
+              { label: 'Roles críticos con scorecard activo', ok: approvedLesson('3.2.2') },
+              { label: 'Cadencia semanal ejecutada y control de excepciones activo', ok: approvedLesson('3.2.6') },
+              { label: 'Sprint 30D con al menos tres responsabilidades en transferencia', ok: approvedLesson('3.3.3') },
+              { label: 'CONTROL Score #3 y nueva medición del fundador', ok: approvedLesson('3.3.6') && o.kpis.filter((kpi) => kpi.code === 'hours').length >= 2 },
+            ]
+          : [
+              { label: 'Decisión de escala documentada y restricciones conocidas', ok: approvedLesson('4.1.6') },
+              { label: 'Economics, caja y capacidad modelados', ok: approvedLesson('4.1.3') && approvedLesson('4.3.2') },
+              { label: 'Motor de adquisición y funnel medible', ok: approvedLesson('4.2.3') && approvedLesson('4.2.5') },
+              { label: 'CEO Dashboard y registro de riesgos activos', ok: approvedLesson('4.3.3') && approvedLesson('4.3.4') },
+              { label: 'Roadmap 90D y continuidad aprobados', ok: approvedLesson('4.3.1') && approvedLesson('4.3.6') },
+            ];
   const ready = requirements.every((item) => item.ok);
   return {
     requirements,
@@ -1357,6 +1613,15 @@ export type Command = {
   requiresReview?: string;
   requiredForUnlock?: string;
   override?: string;
+  supportType?: string;
+  priority?: string;
+  privacy?: string;
+  lessonId?: string;
+  version?: string;
+  tier?: string;
+  tags?: string;
+  relatedLesson?: string;
+  editable?: string;
 };
 export function execute(
   s: State,
@@ -1637,12 +1902,36 @@ export function execute(
     o.notes.push({ text: needText(c.text), shared: Boolean(c.shared) });
     event = 'Nota personal guardada';
   } else if (c.type === 'support') {
-    o.support.push({ id: id(), text: needText(c.text), reply: '' });
+    const supportType = c.supportType as Org['support'][number]['type'];
+    const priority = c.priority as Org['support'][number]['priority'];
+    const privacy = c.privacy as Org['support'][number]['privacy'];
+    if (!['METODOLOGICO', 'TECNICO', 'ACOMPANAMIENTO'].includes(supportType))
+      throw Error('Selecciona un tipo de consulta válido.');
+    if (!['NORMAL', 'ALTA', 'URGENTE'].includes(priority))
+      throw Error('Selecciona una prioridad válida.');
+    if (!['PRIVADA', 'COMUNIDAD'].includes(privacy))
+      throw Error('Selecciona la privacidad de la consulta.');
+    if (privacy === 'COMUNIDAD' && supportType === 'TECNICO')
+      throw Error('Las incidencias técnicas deben enviarse de forma privada.');
+    const slaHours = getPlan(next, o).entitlements.supportSlaHours;
+    const due = new Date(Date.now() + slaHours * 3600000).toISOString();
+    o.support.push({
+      id: id(),
+      text: needText(c.text),
+      reply: '',
+      type: supportType,
+      priority,
+      privacy,
+      status: 'ABIERTO',
+      due,
+      lessonId: typeof c.lessonId === 'string' ? c.lessonId : '',
+    });
     event = 'Consulta de soporte abierta';
   } else if (c.type === 'reply') {
     const t = o.support.find((t) => t.id === c.targetId);
     if (!t) throw Error('Consulta no encontrada.');
     t.reply = needText(c.text);
+    t.status = 'RESPONDIDO';
     event = 'Respuesta de soporte registrada';
   } else if (c.type === 'attendance') {
     o.session.attended = Boolean(c.checked);
@@ -1858,6 +2147,20 @@ export function execute(
       planId: c.planId || 'all',
       files,
       createdAt: now(),
+      category: needText(c.category || 'General', 2),
+      version: needText(c.version || '1.0.0', 1),
+      tier: ['BASIC', 'COMPLETE', 'ADVANCED'].includes(c.tier || '')
+        ? (c.tier as 'BASIC' | 'COMPLETE' | 'ADVANCED')
+        : 'BASIC',
+      tags: (c.tags || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 12),
+      relatedLesson:
+        typeof c.relatedLesson === 'string' ? c.relatedLesson.trim() : '',
+      editable: c.editable !== 'no',
+      editorialStatus: 'LISTO',
     });
     event = 'Módulo creado: ' + c.title;
     internal = true;

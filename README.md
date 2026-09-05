@@ -17,8 +17,8 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 
 - Portal cliente y Command Center responsive, con barra lateral contraíble y navegación adaptada a móvil.
 - Etapa 00 de onboarding con ocho clases, desbloqueo progresivo y regla **aprender → aplicar → entregar → recibir feedback → avanzar**.
-- Una metodología maestra para todos los planes: 46 controles internos en las fases 1 y 2, resumidos para el cliente en 32 clases distribuidas durante seis semanas.
-- Gates de salida basados en evidencia al finalizar Claridad y Diagnóstico y Sistema Operativo Interno.
+- Una metodología maestra para todos los planes: 82 controles internos y 68 clases de implementación a lo largo de las cuatro etapas.
+- Gates de salida basados en evidencia al finalizar cada etapa, incluida Delegación y Controles y Escalar con Propósito.
 - Etiquetas de responsabilidad `[C]`, `[E]`, `[C+E]` y `[A]` para separar trabajo del cliente, equipo y sistema.
 - Clases reproducidas desde enlaces de YouTube, sin almacenar archivos de video en CONTROL OS.
 - Seguimiento separado de aprendizaje, ejecución y validación; alerta ante alto consumo y baja aplicación.
@@ -31,7 +31,8 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 - Gestión de usuarios con roles, creación, suspensión, reactivación y eliminación protegida del administrador principal.
 - Inicio de sesión mediante usuario único —DNI, RUC o alias—, sin autorregistro; las cuentas y empresas son creadas por administración.
 - Control financiero por cliente con ingresos, costos, cobros, contribución y resumen de cartera.
-- Versionado de planes, biblioteca de recursos y exportación administrativa en JSON.
+- Versionado de planes, entitlements configurables y biblioteca con 34 recursos curriculares de las etapas 3 y 4.
+- Soporte metodológico, técnico y de acompañamiento con privacidad, prioridad y SLA según plan.
 
 ## Flujo de una clase
 
@@ -49,6 +50,7 @@ El esquema versionado está en `supabase/migrations`:
 4. Checkpoints binarios para clase vista y actividad completada.
 5. Usuarios únicos, creación de empresas y checkpoints de objetivos.
 6. Metodología maestra, profundidad de acceso por plan, expediente empresarial, entregables y gates de fase.
+7. Currículo de módulos 03–07, recursos versionados, soporte con SLA, sesiones y entitlements.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 
