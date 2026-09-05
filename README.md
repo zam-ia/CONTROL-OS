@@ -31,7 +31,7 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 
 ## Flujo de una clase
 
-Una clase no se completa únicamente por reproducir el video. El cierre requiere al menos 90% confirmado, la actividad enviada y, cuando corresponde, aprobación administrativa. La siguiente clase se habilita cuando se cumplen sus requisitos, salvo una excepción registrada por el equipo.
+Cada clase tiene dos checkpoints: **Clase vista** y **Actividad completada**. El segundo abre el registro de respuesta o evidencia y, cuando corresponde, pasa a revisión administrativa. La siguiente clase se habilita cuando se cumplen sus requisitos, salvo una excepción registrada por el equipo.
 
 Los enlaces admitidos son URLs HTTPS de `youtube.com` o `youtu.be`. El reproductor usa el dominio de privacidad mejorada `youtube-nocookie.com` y carga de forma diferida.
 
@@ -42,6 +42,7 @@ El esquema versionado está en `supabase/migrations`:
 1. Modelo multiempresa, planes, ruta, evidencia, KPIs y RLS.
 2. Usuarios, módulos, archivos, finanzas y seguimientos.
 3. Clases, enlaces de YouTube, avance, revisión y desbloqueos.
+4. Checkpoints binarios para clase vista y actividad completada.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 
@@ -49,7 +50,7 @@ Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orde
 
 La interfaz actual conserva su estado en `localStorage` para permitir validación funcional. Todavía no está conectada a Supabase Auth, REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
 
-Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. La medición del video usa confirmaciones por hitos; en producción debe integrarse YouTube IFrame Player API y validar los eventos en el servidor.
+Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. El avance de las clases se mide por checkpoints completados, no mediante porcentajes ingresados por el usuario.
 
 También siguen pendientes 2FA, invitaciones por correo, auditoría inmutable, backups verificados, email transaccional, pagos, facturación, políticas de retención y UAT con usuarios reales.
 

@@ -86,6 +86,7 @@ import {
   type Attachment,
   type Mode,
   type Lesson,
+  type LessonRun,
   type Org,
   type State,
   type Task,
@@ -630,6 +631,12 @@ export default function Home() {
             o.lessonRuns = Array.isArray(o.lessonRuns)
               ? o.lessonRuns
               : freshOrg.lessonRuns;
+            o.lessonRuns.forEach((run) => {
+              const legacyRun = run as LessonRun & { playback?: number };
+              if (typeof legacyRun.videoCompleted !== 'boolean')
+                legacyRun.videoCompleted = (legacyRun.playback || 0) >= 90;
+              delete legacyRun.playback;
+            });
             o.events.forEach((event) => {
               if (event.text.includes('Workspace de demostración'))
                 event.text = 'Espacio de trabajo activado.';
@@ -1380,9 +1387,10 @@ export default function Home() {
         <div className="method-rule">
           <ShieldCheck size={22} />
           <div>
-            <strong>Ninguna clase termina al ver el video.</strong>
+            <strong>Dos checkpoints para completar cada clase.</strong>
             <span>
-              Contenido ≥ 90% + actividad entregada + validación requerida.
+              Clase vista + actividad completada + validación cuando
+              corresponda.
             </span>
           </div>
         </div>
@@ -1392,13 +1400,13 @@ export default function Home() {
               (item) => item.lessonId === lesson.id,
             )!;
             const unlocked = lessonAvailable(state, org, lesson.id);
-            const nextPlayback = Math.min(100, (run?.playback || 0) + 25) as
-              | 25
-              | 50
-              | 75
-              | 100;
-            const complete = run?.playback >= 90 && run.status === 'APROBADO';
+            const complete = run?.videoCompleted && run.status === 'APROBADO';
             const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
+            const activityCompleted = [
+              'ENVIADO',
+              'EN_REVISION',
+              'APROBADO',
+            ].includes(run.status);
             return (
               <Section
                 key={lesson.id}
@@ -1436,11 +1444,6 @@ export default function Home() {
                     <span>Video pendiente de publicación</span>
                   </div>
                 )}
-                <Meter
-                  label="Reproducción"
-                  value={run?.playback || 0}
-                  right={(run?.playback || 0) + '%'}
-                />
                 <p>{lesson.description}</p>
                 <div className="lesson-structure">
                   <div>
@@ -1459,58 +1462,67 @@ export default function Home() {
                 {run?.feedback && (
                   <p className="feedback">Feedback: {run.feedback}</p>
                 )}
-                <div className="inline-actions">
-                  <Badge value={lesson.resourceType} color="gray" />
-                  {unlocked && youtubeUrl && run.playback < 100 && (
-                    <Button
-                      variant="outline"
-                      onClick={() =>
+                <div className="lesson-checkpoints">
+                  <div className="checkpoint-row">
+                    <Checkbox
+                      aria-label="Marcar clase como vista"
+                      checked={run.videoCompleted}
+                      disabled={!unlocked || !youtubeUrl || activityCompleted}
+                      onCheckedChange={(checked) =>
                         act({
                           type: 'watchLesson',
                           targetId: lesson.id,
-                          value: nextPlayback,
+                          checked: checked === true,
                         })
                       }
-                    >
-                      Confirmar {nextPlayback}% visto
-                    </Button>
-                  )}
-                  {unlocked &&
-                    run.playback >= 90 &&
-                    !['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(
-                      run.status,
-                    ) && (
-                      <Button
-                        onClick={() =>
-                          setForm({
-                            title: 'Entregar actividad',
-                            description:
-                              lesson.deliverable +
-                              ' · La evidencia queda vinculada a esta clase.',
-                            command: {
-                              type: 'submitLesson',
-                              targetId: lesson.id,
+                    />
+                    <span>
+                      <strong>Clase vista</strong>
+                      <small>Marca este checkpoint al terminar el video.</small>
+                    </span>
+                  </div>
+                  <div className="checkpoint-row">
+                    <Checkbox
+                      aria-label="Marcar actividad como completada"
+                      checked={activityCompleted}
+                      disabled={
+                        !unlocked || !run.videoCompleted || activityCompleted
+                      }
+                      onCheckedChange={(checked) => {
+                        if (checked !== true) return;
+                        setForm({
+                          title: 'Entregar actividad',
+                          description:
+                            lesson.deliverable +
+                            ' · La evidencia queda vinculada a esta clase.',
+                          command: {
+                            type: 'submitLesson',
+                            targetId: lesson.id,
+                          },
+                          fields: [
+                            {
+                              key: 'text',
+                              label: 'Respuesta, evidencia o URL',
+                              type: 'textarea',
+                              value: run.response,
                             },
-                            fields: [
-                              {
-                                key: 'text',
-                                label: 'Respuesta, evidencia o URL',
-                                type: 'textarea',
-                                value: run.response,
-                              },
-                            ],
-                            button: lesson.requiresReview
-                              ? 'Enviar a revisión'
-                              : 'Completar actividad',
-                          })
-                        }
-                      >
-                        Entregar actividad
-                      </Button>
-                    )}
+                          ],
+                          button: lesson.requiresReview
+                            ? 'Enviar a revisión'
+                            : 'Completar actividad',
+                        });
+                      }}
+                    />
+                    <span>
+                      <strong>Actividad completada</strong>
+                      <small>
+                        Marca para registrar la respuesta o evidencia.
+                      </small>
+                    </span>
+                  </div>
                 </div>
                 <p className="caption">
-                  Cierre: video ≥ 90% + actividad completada
+                  Cierre: clase vista + actividad completada
                   {lesson.requiresReview ? ' + aprobación del equipo' : ''}.
                   Vence {displayDate(run?.due || lesson.due)}.
                 </p>
@@ -2224,16 +2236,13 @@ export default function Home() {
               <div>
                 <strong>Consumo alto y ejecución baja · {org.name}</strong>
                 <span>
-                  {org.lessonRuns.filter((run) => run.playback >= 90).length}{' '}
+                  {org.lessonRuns.filter((run) => run.videoCompleted).length}{' '}
                   clases vistas /{' '}
                   {
                     org.lessonRuns.filter((run) =>
-                      [
-                        'ENVIADO',
-                        'EN_REVISION',
-                        'OBSERVADO',
-                        'APROBADO',
-                      ].includes(run.status),
+                      ['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(
+                        run.status,
+                      ),
                     ).length
                   }{' '}
                   actividades entregadas.
@@ -2289,7 +2298,7 @@ export default function Home() {
                     <div>
                       <small>CIERRE</small>
                       <p>
-                        Video ≥ 90% + actividad
+                        Clase vista + actividad
                         {lesson.requiresReview ? ' + revisión' : ''}
                       </p>
                     </div>
@@ -2307,6 +2316,32 @@ export default function Home() {
                       />
                     )}
                   </div>
+                  {run && (
+                    <div className="inline-actions checkpoint-summary">
+                      <Badge
+                        value={
+                          run.videoCompleted ? 'Clase vista' : 'Clase pendiente'
+                        }
+                        color={run.videoCompleted ? undefined : 'gray'}
+                      />
+                      <Badge
+                        value={
+                          ['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(
+                            run.status,
+                          )
+                            ? 'Actividad completada'
+                            : 'Actividad pendiente'
+                        }
+                        color={
+                          ['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(
+                            run.status,
+                          )
+                            ? undefined
+                            : 'gray'
+                        }
+                      />
+                    </div>
+                  )}
                   {run?.feedback && <p className="feedback">{run.feedback}</p>}
                   {run && (
                     <div className="inline-actions">
@@ -2849,12 +2884,10 @@ export default function Home() {
             implementationGaps.map((item) => {
               const metrics = lessonMetrics(state, item);
               const viewed = item.lessonRuns.filter(
-                (run) => run.playback >= 90,
+                (run) => run.videoCompleted,
               ).length;
               const delivered = item.lessonRuns.filter((run) =>
-                ['ENVIADO', 'EN_REVISION', 'OBSERVADO', 'APROBADO'].includes(
-                  run.status,
-                ),
+                ['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(run.status),
               ).length;
               return (
                 <div

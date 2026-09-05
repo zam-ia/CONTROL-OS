@@ -449,17 +449,32 @@ test('watching a class is not enough to complete it', () => {
   const s = run(seed(), {
     type: 'watchLesson',
     targetId: lessonId,
-    value: 100,
+    checked: true,
   });
   const progress = getOrg(s, org).lessonRuns.find(
     (item) => item.lessonId === lessonId,
   );
-  assert.equal(progress.playback, 100);
+  assert.equal(progress.videoCompleted, true);
   assert.equal(progress.status, 'EN_PROGRESO');
 });
-test('class completion requires playback and its activity', () => {
+test('lesson progress rejects manually entered percentages', () => {
+  assert.throws(
+    () =>
+      run(seed(), {
+        type: 'watchLesson',
+        targetId: 'lesson-00-1',
+        value: 50,
+      }),
+    /Checkpoint/,
+  );
+});
+test('class completion requires both checkpoints', () => {
   const lessonId = 'lesson-00-1';
-  let s = run(seed(), { type: 'watchLesson', targetId: lessonId, value: 100 });
+  let s = run(seed(), {
+    type: 'watchLesson',
+    targetId: lessonId,
+    checked: true,
+  });
   s = run(s, {
     type: 'submitLesson',
     targetId: lessonId,
@@ -478,7 +493,11 @@ test('reviewed class follows submitted to approved workflow', () => {
     { type: 'lessonOverride', targetId: lessonId, override: 'unlock' },
     'admin',
   );
-  s = run(s, { type: 'watchLesson', targetId: lessonId, value: 100 });
+  s = run(s, {
+    type: 'watchLesson',
+    targetId: lessonId,
+    checked: true,
+  });
   s = run(s, {
     type: 'submitLesson',
     targetId: lessonId,

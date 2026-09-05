@@ -859,6 +859,47 @@ footer {
   font-size: 11px;
   margin: 4px 0 0;
 }
+.lesson-checkpoints {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.checkpoint-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #faf9f6;
+  cursor: pointer;
+}
+.checkpoint-row:has([data-state='checked']) {
+  border-color: #a8d6c1;
+  background: #f2faf6;
+}
+.checkpoint-row:has([disabled]) {
+  cursor: default;
+  opacity: 0.72;
+}
+.checkpoint-row > span,
+.checkpoint-row strong,
+.checkpoint-row small {
+  display: block;
+}
+.checkpoint-row strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+.checkpoint-row small {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.checkpoint-row [data-slot='checkbox'] {
+  flex: 0 0 auto;
+}
 .class-meta {
   display: flex;
   flex-wrap: wrap;

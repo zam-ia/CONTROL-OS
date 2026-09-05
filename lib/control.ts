@@ -116,7 +116,7 @@ export type Lesson = {
 };
 export type LessonRun = {
   lessonId: string;
-  playback: 0 | 25 | 50 | 75 | 100;
+  videoCompleted: boolean;
   status: LessonStatus;
   response: string;
   feedback: string;
@@ -698,12 +698,7 @@ export function seed(): State {
         const secondClientProgress = index === 1 && lessonIndex === 0;
         return {
           lessonId: lesson.id,
-          playback:
-            advancedProgress || secondClientProgress
-              ? 100
-              : lessonIndex === 0
-                ? 25
-                : 0,
+          videoCompleted: advancedProgress || secondClientProgress,
           status: advancedProgress
             ? lessonIndex === 0
               ? 'APROBADO'
@@ -918,17 +913,11 @@ export function lessonMetrics(s: State, o: Org) {
   const runs = new Map(o.lessonRuns.map((run) => [run.lessonId, run]));
   const total = Math.max(1, lessons.length);
   const learning = Math.round(
-    lessons.reduce(
-      (sum, lesson) => sum + (runs.get(lesson.id)?.playback || 0),
-      0,
-    ) / total,
+    (100 *
+      lessons.filter((lesson) => runs.get(lesson.id)?.videoCompleted).length) /
+      total,
   );
-  const submitted = new Set([
-    'ENVIADO',
-    'EN_REVISION',
-    'OBSERVADO',
-    'APROBADO',
-  ]);
+  const submitted = new Set(['ENVIADO', 'EN_REVISION', 'APROBADO']);
   const execution = Math.round(
     (100 *
       lessons.filter((lesson) =>
@@ -1431,20 +1420,21 @@ export function execute(
     if (!lesson || !run || !lessonAvailable(next, o, lesson.id))
       throw Error('La clase todavía no está disponible.');
     if (c.type === 'watchLesson') {
-      if (![0, 25, 50, 75, 100].includes(Number(c.value)))
-        throw Error('Progreso de reproducción no válido.');
-      run.playback = Math.max(
-        run.playback,
-        Number(c.value),
-      ) as LessonRun['playback'];
-      if (run.status === 'NO_INICIADO') run.status = 'EN_PROGRESO';
+      if (typeof c.checked !== 'boolean')
+        throw Error('Checkpoint de clase no válido.');
+      if (!c.checked && !['NO_INICIADO', 'EN_PROGRESO'].includes(run.status))
+        throw Error('No puedes desmarcar una clase con actividad entregada.');
+      run.videoCompleted = c.checked;
+      if (c.checked && run.status === 'NO_INICIADO') run.status = 'EN_PROGRESO';
+      if (!c.checked && run.status === 'EN_PROGRESO')
+        run.status = 'NO_INICIADO';
       event =
-        'Reproducción registrada: ' + lesson.title + ' · ' + run.playback + '%';
+        'Checkpoint actualizado: ' +
+        lesson.title +
+        (c.checked ? ' · clase vista' : ' · pendiente');
     } else {
-      if (run.playback < 90)
-        throw Error(
-          'Completa al menos el 90% del contenido antes de entregar.',
-        );
+      if (!run.videoCompleted)
+        throw Error('Marca primero el checkpoint de clase vista.');
       run.response = needText(c.text, 5);
       run.status = lesson.requiresReview ? 'ENVIADO' : 'APROBADO';
       run.feedback = '';
@@ -1517,7 +1507,7 @@ export function execute(
       .forEach((organization) =>
         organization.lessonRuns.push({
           lessonId: lesson.id,
-          playback: 0,
+          videoCompleted: false,
           status: 'NO_INICIADO',
           response: '',
           feedback: '',
