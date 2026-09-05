@@ -23,18 +23,23 @@ Abre la dirección local que muestre el servidor. El script **INICIAR.cmd** arra
 6. Cambia a **Vista admin → Revisiones**. Abre cada tarea y acepta su evidencia.
 7. Aprueba el cierre con comentario. Regresa al cliente: la semana 2 queda disponible.
 8. Prueba **Portafolio → Cliente 360 → Intervenir** para registrar causa, acción, responsable y plazo.
+9. En administración revisa **Módulos**, **Finanzas** y **Configuración → Usuarios y accesos**.
 
-El selector de vista NO es inicio de sesión. Las tres empresas son ficticias.
+La pantalla de acceso y el selector de vista son simulaciones locales, NO autenticación real. Las tres empresas son ficticias.
 
 ## Implementado
 
 - Portal cliente y Command Center adaptables a escritorio y móvil.
 - Tres empresas demo, una por plan; ruta de 12 semanas con objetivos, tres microacciones por semana y requisitos.
-- Evidencia de texto versionada, bloqueos, devolución con comentarios y aprobación.
+- Evidencia versionada con descripción y metadatos de PDF, Word o Excel, bloqueos, devolución con comentarios y aprobación.
 - Cierre híbrido, restricciones de secuencia y acceso por etapas del plan en la lógica local.
 - Registro y validación manual de KPIs; objetivos ascendentes y descendentes.
 - CONTROL Score resumido por dimensión, Execution Score y Health Score separados, con fórmulas demo explícitas.
-- Portafolio filtrable, Cliente 360, intervenciones, notas compartidas y soporte local.
+- Portafolio filtrable, Cliente 360 con resumen operativo, bitácora de seguimiento, intervenciones, notas compartidas y soporte local.
+- Administración de módulos por plan y semana, con archivos de apoyo visibles en la biblioteca del cliente.
+- Control financiero demo por cliente: ingresos, costos, estados de cobro, contribución y resumen de cartera.
+- Gestión local de usuarios con roles, alta, suspensión/reactivación y eliminación protegida del administrador principal.
+- Pantallas ligeras y adaptables de inicio de sesión y registro para validar la experiencia de acceso.
 - Sesión ilustrativa, asistencia y conversión de acuerdos en tareas.
 - Biblioteca con cinco plantillas CSV de ejemplo.
 - Versiones de planes que no migran automáticamente contratos existentes.
@@ -47,7 +52,7 @@ No cargar datos reales ni confidenciales. **Todo el estado, incluidas notas e in
 
 Incluye una base inicial de PostgreSQL/Supabase versionada en `supabase/migrations`, con RLS multiempresa y bucket privado de evidencias. La interfaz demo todavía usa `localStorage`: aún no está conectada a Auth, REST ni Storage y las políticas requieren pruebas de aislamiento antes de producción.
 
-No incluye cuentas e invitaciones completas, 2FA, API de aplicación, cifrado adicional, auditoría automática inmutable, backups verificados, envío de email, jobs, integraciones, CMS completo, importación de KPIs, facturación ni contratos.
+No incluye autenticación real, cuentas e invitaciones de servidor, 2FA, API de aplicación, cifrado adicional, auditoría automática inmutable, backups verificados, envío de email, jobs, integraciones, CMS completo, importación de KPIs, procesamiento de pagos, facturación ni contratos. Los archivos seleccionados no se suben: únicamente se conserva nombre, tipo y tamaño en `localStorage`.
 
 Los videos y materiales originales no se proporcionaron. Se incluyen textos y plantillas de ejemplo, no una migración del campus.
 
@@ -59,7 +64,7 @@ Los consentimientos, onboarding, elegibilidad Partnership, revisión legal, vers
 
 ## Verificación
 
-Comprobado durante esta entrega: 30/30 pruebas de dominio, TypeScript y lint del código de aplicación sin errores, compilación de producción completada. Tras actualizar las dependencias, npm audit reportó 0 vulnerabilidades conocidas. Esto no certifica seguridad de aplicación ni sustituye pruebas manuales.
+Comprobado durante esta entrega: pruebas de dominio, TypeScript y lint del código de aplicación sin errores, compilación de producción completada. Esto no certifica seguridad de aplicación ni sustituye pruebas manuales.
 
 ```powershell
 node --test tests/domain.test.mjs
@@ -67,21 +72,21 @@ npx tsc --noEmit
 npm run build
 ```
 
-30 pruebas de dominio cubren evidencias obligatorias, conservación de versiones, secuencia, plan, KPIs inválidos/duplicados, aprobación, inmutabilidad de estado, objetivos decrecientes, deduplicación de intervenciones y el ciclo de una semana.
+Las pruebas de dominio cubren evidencias y adjuntos, conservación de versiones, secuencia, plan, KPIs inválidos/duplicados, aprobación, inmutabilidad, objetivos, intervenciones, módulos, usuarios, finanzas y seguimientos.
 
 Estas pruebas no sustituyen E2E, pruebas de permisos servidor ni QA visual. No se realizó interacción automatizada de navegador. WebMCP se registra si existe document.modelContext; su contrato no se verificó en un contexto de navegador compatible.
 
 ## Trazabilidad al PDF
 
-| Entrega demo | Secciones de referencia |
-| --- | --- |
-| Ruta y microacciones | 2, 6.3–6.5, 19 |
-| Gates y evidencia | 8.1–8.2, 8.8, 15.2 |
-| Objetivos e indicadores | 6.6, 6.10, 8.3–8.5 |
-| Portafolio e intervenciones | 7.1–7.3 |
-| Planes y versionado parcial | 3, 7.6 |
-| Diseño y estados | 11 |
-| Trabajo productivo pendiente | 12, 16–17, 23–24 |
+| Entrega demo                 | Secciones de referencia |
+| ---------------------------- | ----------------------- |
+| Ruta y microacciones         | 2, 6.3–6.5, 19          |
+| Gates y evidencia            | 8.1–8.2, 8.8, 15.2      |
+| Objetivos e indicadores      | 6.6, 6.10, 8.3–8.5      |
+| Portafolio e intervenciones  | 7.1–7.3                 |
+| Planes y versionado parcial  | 3, 7.6                  |
+| Diseño y estados             | 11                      |
+| Trabajo productivo pendiente | 12, 16–17, 23–24        |
 
 ## Siguiente fase productiva
 

@@ -1,5 +1,11 @@
 // Demo domain only. These checks are NOT a server authorization boundary.
 export type Mode = 'client' | 'admin';
+export type Attachment = {
+  id: string;
+  name: string;
+  size: number;
+  type: 'PDF' | 'WORD' | 'EXCEL';
+};
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'REVIEW' | 'DONE';
 export type Evidence = {
   id: string;
@@ -7,6 +13,7 @@ export type Evidence = {
   at: string;
   status: 'SUBMITTED' | 'ACCEPTED' | 'CHANGES_REQUESTED';
   feedback: string;
+  files: Attachment[];
 };
 export type Task = {
   id: string;
@@ -61,6 +68,23 @@ export type Goal = {
   unit: string;
   due: string;
 };
+export type FinanceEntry = {
+  id: string;
+  kind: 'INGRESO' | 'EGRESO';
+  category: string;
+  amount: number;
+  date: string;
+  status: 'PAGADO' | 'PENDIENTE' | 'VENCIDO';
+  note: string;
+};
+export type FollowUp = {
+  id: string;
+  at: string;
+  summary: string;
+  owner: string;
+  due: string;
+  status: 'ABIERTO' | 'COMPLETADO';
+};
 export type Org = {
   id: string;
   name: string;
@@ -79,6 +103,8 @@ export type Org = {
   notes: { text: string; shared: boolean }[];
   session: { title: string; date: string; agenda: string; attended: boolean };
   support: { id: string; text: string; reply: string }[];
+  finances: FinanceEntry[];
+  followUps: FollowUp[];
 };
 export type Plan = {
   id: string;
@@ -95,6 +121,24 @@ export type State = {
   plans: Plan[];
   thresholds: { green: number; amber: number };
   selected: string;
+  modules: {
+    id: string;
+    title: string;
+    description: string;
+    week: number;
+    planId: string;
+    files: Attachment[];
+    createdAt: string;
+  }[];
+  users: {
+    id: string;
+    name: string;
+    email: string;
+    role: 'CLIENTE' | 'CONSULTOR' | 'OPERADOR' | 'ADMIN';
+    orgId: string;
+    status: 'ACTIVO' | 'SUSPENDIDO';
+    lastAccess: string;
+  }[];
 };
 export const stages = [
   'Claridad y Diagnóstico',
@@ -293,6 +337,13 @@ export const statusLabels: Record<string, string> = {
   SUBMITTED: 'Enviada',
   ACCEPTED: 'Aceptada',
   CHANGES_REQUESTED: 'Cambios solicitados',
+  ACTIVO: 'Activo',
+  SUSPENDIDO: 'Suspendido',
+  PAGADO: 'Pagado',
+  PENDIENTE: 'Pendiente',
+  VENCIDO: 'Vencido',
+  ABIERTO: 'Abierto',
+  COMPLETADO: 'Completado',
 };
 export const now = () => new Date().toISOString();
 const id = () => globalThis.crypto.randomUUID();
@@ -306,7 +357,7 @@ export function seed(): State {
   const plans: Plan[] = [
     {
       id: 'diagnostico-v1',
-      name: 'CONTROL Diagnóstico',
+      name: 'CONTROL Score',
       version: 1,
       stages: [1],
       team: 1,
@@ -315,7 +366,7 @@ export function seed(): State {
     },
     {
       id: 'implementacion-v1',
-      name: 'CONTROL Implementación',
+      name: 'CONTROL 90',
       version: 1,
       stages: [1, 2, 3],
       team: 5,
@@ -324,7 +375,7 @@ export function seed(): State {
     },
     {
       id: 'partnership-v1',
-      name: 'CONTROL Partnership',
+      name: 'CONTROL Partner',
       version: 1,
       stages: [1, 2, 3, 4],
       team: 10,
@@ -388,6 +439,7 @@ export function seed(): State {
                     at: date(-12),
                     status: 'ACCEPTED',
                     feedback: 'Validación ilustrativa',
+                    files: [],
                   },
                 ]
               : [],
@@ -459,6 +511,36 @@ export function seed(): State {
         attended: false,
       },
       support: [],
+      finances: [
+        {
+          id: 'finance-' + base.id + '-1',
+          kind: 'INGRESO',
+          category: 'Programa CONTROL',
+          amount: 2400 + index * 900,
+          date: date(-12),
+          status: index === 1 ? 'PENDIENTE' : 'PAGADO',
+          note: 'Movimiento ficticio de demostración',
+        },
+        {
+          id: 'finance-' + base.id + '-2',
+          kind: 'EGRESO',
+          category: 'Horas de consultoría',
+          amount: 620 + index * 120,
+          date: date(-7),
+          status: 'PAGADO',
+          note: 'Costo interno estimado',
+        },
+      ],
+      followUps: [
+        {
+          id: 'follow-' + base.id,
+          at: now(),
+          summary: 'Revisar entregables y acordar el siguiente hito.',
+          owner: 'Consultor demo',
+          due: date(4),
+          status: 'ABIERTO',
+        },
+      ],
     }),
   );
   return {
@@ -467,6 +549,117 @@ export function seed(): State {
     plans,
     thresholds: { green: 75, amber: 50 },
     selected: 'norte',
+    modules: [
+      [
+        'module-w1',
+        'Mapa de Fugas™',
+        'Detecta fugas financieras, operativas y comerciales antes de intentar vender más.',
+        1,
+        'Mapa_de_Fugas.xlsx',
+        'EXCEL',
+      ],
+      [
+        'module-w2',
+        'Founder Freedom Map™',
+        'Clasifica actividades para eliminar, automatizar, delegar o mantener.',
+        2,
+        'Founder_Freedom_Map.xlsx',
+        'EXCEL',
+      ],
+      [
+        'module-w3',
+        'Profit per Client™',
+        'Analiza ingresos, costos y margen real de cada cliente.',
+        3,
+        'Profit_per_Client.xlsx',
+        'EXCEL',
+      ],
+      [
+        'module-w4',
+        'Agency KPI Board™',
+        'Convierte ingresos, utilidad, margen, CAC, LTV y tiempo del fundador en señales de decisión.',
+        4,
+        'Agency_KPI_Board.xlsx',
+        'EXCEL',
+      ],
+      [
+        'module-w5',
+        'SOP Fast Track™',
+        'Documenta los procesos críticos con owner y criterio de salida.',
+        5,
+        'SOP_Fast_Track.docx',
+        'WORD',
+      ],
+      [
+        'module-w6',
+        'Pricing Profit Calculator™',
+        'Calcula el precio mínimo compatible con costos y margen objetivo.',
+        6,
+        'Pricing_Profit_Calculator.xlsx',
+        'EXCEL',
+      ],
+      [
+        'module-w7',
+        'CEO Control Review™',
+        'Guía una revisión ejecutiva de resultados, fugas y decisiones.',
+        8,
+        'CEO_Control_Review.pdf',
+        'PDF',
+      ],
+    ].map(([moduleId, title, description, week, fileName, type]) => ({
+      id: String(moduleId),
+      title: String(title),
+      description: String(description),
+      week: Number(week),
+      planId: 'all',
+      files: [
+        {
+          id: 'file-' + moduleId,
+          name: String(fileName),
+          size: 184320,
+          type: type as Attachment['type'],
+        },
+      ],
+      createdAt: now(),
+    })),
+    users: [
+      {
+        id: 'user-admin',
+        name: 'Carla Control',
+        email: 'admin@control.demo',
+        role: 'ADMIN',
+        orgId: '',
+        status: 'ACTIVO',
+        lastAccess: now(),
+      },
+      {
+        id: 'user-norte',
+        name: 'Ana Pérez',
+        email: 'ana@estudionorte.demo',
+        role: 'CLIENTE',
+        orgId: 'norte',
+        status: 'ACTIVO',
+        lastAccess: now(),
+      },
+      {
+        id: 'user-orbita',
+        name: 'Diego Ruiz',
+        email: 'diego@orbita.demo',
+        role: 'CLIENTE',
+        orgId: 'orbita',
+        status: 'SUSPENDIDO',
+        lastAccess: date(-9),
+      },
+      {
+        id: 'user-consultor',
+        name: 'Mario Consultor',
+        email: 'mario@control.demo',
+        role: 'CONSULTOR',
+        orgId: '',
+        status: 'ACTIVO',
+        lastAccess: date(-1),
+      },
+    ],
   };
 }
 export function getOrg(s: State, orgId: string) {
@@ -625,6 +818,17 @@ export type Command = {
   planId?: string;
   green?: number;
   amber?: number;
+  files?: Attachment[];
+  description?: string;
+  status?: string;
+  role?: string;
+  email?: string;
+  name?: string;
+  orgId?: string;
+  amount?: number;
+  kind?: string;
+  category?: string;
+  note?: string;
 };
 export function execute(
   s: State,
@@ -645,6 +849,14 @@ export function execute(
     'thresholds',
     'reply',
     'validateKpi',
+    'createModule',
+    'deleteModule',
+    'createUser',
+    'toggleUser',
+    'deleteUser',
+    'finance',
+    'followUp',
+    'completeFollowUp',
   ];
   if (staff.includes(c.type) && mode !== 'admin')
     throw Error('Esta acción corresponde a la vista de administración.');
@@ -662,6 +874,35 @@ export function execute(
     )
       throw Error('Fecha no válida.');
     return x;
+  };
+  const validFiles = (files: Attachment[] | undefined, required = false) => {
+    if (required && !files?.length)
+      throw Error('Adjunta al menos un PDF, Word o Excel.');
+    const result = files || [];
+    if (result.length > 10) throw Error('Adjunta un máximo de 10 archivos.');
+    if (
+      result.some((file) => {
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        const expected =
+          extension === 'pdf'
+            ? 'PDF'
+            : extension === 'doc' || extension === 'docx'
+              ? 'WORD'
+              : extension === 'xls' || extension === 'xlsx'
+                ? 'EXCEL'
+                : '';
+        return (
+          !file.name ||
+          !expected ||
+          file.type !== expected ||
+          !Number.isFinite(file.size) ||
+          file.size <= 0 ||
+          file.size > 15 * 1024 * 1024
+        );
+      })
+    )
+      throw Error('Solo se aceptan PDF, Word o Excel de hasta 15 MB.');
+    return result;
   };
   const weekly = () => {
     const w = c.week;
@@ -682,12 +923,14 @@ export function execute(
       throw Error('La semana está en revisión.');
     if (c.type === 'submit') {
       const text = needText(c.text, 10);
+      const files = validFiles(c.files);
       t.evidence.push({
         id: id(),
         text,
         at: now(),
         status: 'SUBMITTED',
         feedback: '',
+        files,
       });
       t.status = 'REVIEW';
       t.blocker = '';
@@ -904,6 +1147,110 @@ export function execute(
       ' v' +
       v +
       ' creada; contratos anteriores conservados';
+    internal = true;
+  } else if (c.type === 'createModule') {
+    const week = Number(c.week);
+    if (!Number.isInteger(week) || week < 1 || week > 12)
+      throw Error('Selecciona una semana válida.');
+    if (c.planId !== 'all' && !next.plans.some((p) => p.id === c.planId))
+      throw Error('Plan no válido.');
+    const files = validFiles(c.files, true);
+    next.modules.unshift({
+      id: id(),
+      title: needText(c.title),
+      description: needText(c.description),
+      week,
+      planId: c.planId || 'all',
+      files,
+      createdAt: now(),
+    });
+    event = 'Módulo creado: ' + c.title;
+    internal = true;
+  } else if (c.type === 'deleteModule') {
+    const before = next.modules.length;
+    next.modules = next.modules.filter((m) => m.id !== c.targetId);
+    if (before === next.modules.length) throw Error('Módulo no encontrado.');
+    event = 'Módulo eliminado';
+    internal = true;
+  } else if (c.type === 'createUser') {
+    const email = needText(c.email).toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      throw Error('Correo no válido.');
+    if (next.users.some((u) => u.email.toLowerCase() === email))
+      throw Error('El correo ya está registrado.');
+    const role = c.role as State['users'][number]['role'];
+    if (!['CLIENTE', 'CONSULTOR', 'OPERADOR', 'ADMIN'].includes(role))
+      throw Error('Rol no válido.');
+    if (role === 'CLIENTE' && !next.orgs.some((item) => item.id === c.orgId))
+      throw Error('Asigna una empresa al cliente.');
+    next.users.unshift({
+      id: id(),
+      name: needText(c.name),
+      email,
+      role,
+      orgId: c.orgId || '',
+      status: 'ACTIVO',
+      lastAccess: '',
+    });
+    event = 'Usuario creado: ' + c.name;
+    internal = true;
+  } else if (c.type === 'toggleUser') {
+    const user = next.users.find((u) => u.id === c.targetId);
+    if (!user) throw Error('Usuario no encontrado.');
+    if (user.id === 'user-admin')
+      throw Error('El administrador principal no puede suspenderse.');
+    user.status = user.status === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO';
+    event =
+      (user.status === 'ACTIVO'
+        ? 'Usuario reactivado: '
+        : 'Usuario suspendido: ') + user.name;
+    internal = true;
+  } else if (c.type === 'deleteUser') {
+    const user = next.users.find((u) => u.id === c.targetId);
+    if (!user) throw Error('Usuario no encontrado.');
+    if (user.id === 'user-admin')
+      throw Error('El administrador principal no puede eliminarse.');
+    next.users = next.users.filter((u) => u.id !== c.targetId);
+    event = 'Usuario eliminado: ' + user.name;
+    internal = true;
+  } else if (c.type === 'finance') {
+    const amount = Number(c.amount);
+    if (!Number.isFinite(amount) || amount <= 0)
+      throw Error('Importe no válido.');
+    const kind = c.kind as FinanceEntry['kind'];
+    const status = c.status as FinanceEntry['status'];
+    if (
+      !['INGRESO', 'EGRESO'].includes(kind) ||
+      !['PAGADO', 'PENDIENTE', 'VENCIDO'].includes(status)
+    )
+      throw Error('Clasificación financiera no válida.');
+    o.finances.unshift({
+      id: id(),
+      kind,
+      category: needText(c.category),
+      amount,
+      date: validDate(c.period),
+      status,
+      note: needText(c.note),
+    });
+    event = 'Movimiento financiero registrado: ' + c.category;
+    internal = true;
+  } else if (c.type === 'followUp') {
+    o.followUps.unshift({
+      id: id(),
+      at: now(),
+      summary: needText(c.text),
+      owner: needText(c.owner),
+      due: validDate(c.due),
+      status: 'ABIERTO',
+    });
+    event = 'Seguimiento programado: ' + c.text;
+    internal = true;
+  } else if (c.type === 'completeFollowUp') {
+    const follow = o.followUps.find((f) => f.id === c.targetId);
+    if (!follow) throw Error('Seguimiento no encontrado.');
+    follow.status = 'COMPLETADO';
+    event = 'Seguimiento completado: ' + follow.summary;
     internal = true;
   } else throw Error('Acción no reconocida.');
   o.events.unshift({ id: id(), at: now(), actor: mode, text: event, internal });

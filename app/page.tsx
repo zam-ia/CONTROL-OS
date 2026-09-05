@@ -15,7 +15,10 @@ import {
   ClipboardCheck,
   Clock3,
   Download,
+  FileSpreadsheet,
+  FileText,
   Flag,
+  FolderPlus,
   LayoutDashboard,
   LockKeyhole,
   MessageSquare,
@@ -28,7 +31,10 @@ import {
   Settings,
   ShieldCheck,
   Target,
+  Trash2,
+  UserPlus,
   Users,
+  WalletCards,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -74,6 +80,7 @@ import {
   statusLabels,
   weeks,
   type Command,
+  type Attachment,
   type Mode,
   type Org,
   type State,
@@ -87,6 +94,10 @@ type Field = {
   min?: number;
   max?: number;
   options?: { value: string; label: string }[];
+  accept?: string;
+  multiple?: boolean;
+  required?: boolean;
+  hint?: string;
 };
 type FormSpec = {
   title: string;
@@ -120,9 +131,21 @@ const navAdmin = [
   { id: 'cliente', label: 'Cliente 360', icon: Users },
   { id: 'revisiones', label: 'Revisiones', icon: ClipboardCheck },
   { id: 'intervenciones', label: 'Intervenciones', icon: Flag },
+  { id: 'modulos', label: 'Módulos', icon: FolderPlus },
+  { id: 'finanzas', label: 'Finanzas', icon: WalletCards },
   { id: 'planes', label: 'Planes y accesos', icon: ShieldCheck },
   { id: 'configuracion', label: 'Configuración', icon: Settings },
 ];
+const fileKind = (name: string): Attachment['type'] => {
+  const extension = name.split('.').pop()?.toLowerCase();
+  if (extension === 'pdf') return 'PDF';
+  if (extension === 'doc' || extension === 'docx') return 'WORD';
+  return 'EXCEL';
+};
+const fileSize = (bytes: number) =>
+  bytes < 1048576
+    ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+    : (bytes / 1048576).toFixed(1) + ' MB';
 const today = () => new Date().toISOString().slice(0, 10);
 const displayDate = (date: string) =>
   new Intl.DateTimeFormat('es-PE', {
@@ -225,6 +248,176 @@ function Meter({
     </div>
   );
 }
+function FileChips({ files }: { files: Attachment[] }) {
+  if (!files.length) return null;
+  return (
+    <div className="file-chips">
+      {files.map((file) => (
+        <span key={file.id} title={file.name}>
+          {file.type === 'EXCEL' ? (
+            <FileSpreadsheet size={15} />
+          ) : (
+            <FileText size={15} />
+          )}
+          <b>{file.name}</b>
+          <small>
+            {file.type} · {fileSize(file.size)}
+          </small>
+        </span>
+      ))}
+    </div>
+  );
+}
+function AuthScreen({ onEnter }: { onEnter: (message: string) => void }) {
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [error, setError] = useState('');
+  return (
+    <main className="auth-shell">
+      <section className="auth-brand-panel">
+        <div className="auth-brand">
+          <Image
+            src="/crisdal-agency.png"
+            alt="Crisdal Agency"
+            width={190}
+            height={190}
+            priority
+          />
+          <span>
+            CONTROL <b>OS</b>
+          </span>
+        </div>
+        <div>
+          <p className="eyebrow">ESCALAMIENTO CON CONTROL</p>
+          <h1>Todo el acompañamiento, en un solo lugar.</h1>
+          <p>
+            Avances, evidencias, finanzas y decisiones con una ruta clara para
+            cada cliente.
+          </p>
+        </div>
+        <small>Experiencia de demostración · no ingreses datos reales</small>
+      </section>
+      <section className="auth-card">
+        <div className="auth-tabs" role="tablist" aria-label="Tipo de acceso">
+          <button
+            role="tab"
+            aria-selected={tab === 'login'}
+            onClick={() => {
+              setTab('login');
+              setError('');
+            }}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === 'signup'}
+            onClick={() => {
+              setTab('signup');
+              setError('');
+            }}
+          >
+            Crear cuenta
+          </button>
+        </div>
+        <div>
+          <p className="eyebrow">CONTROL OS</p>
+          <h2>
+            {tab === 'login' ? 'Bienvenido de vuelta' : 'Comienza tu espacio'}
+          </h2>
+          <p className="muted">
+            {tab === 'login'
+              ? 'Accede a la demostración con cualquier correo válido.'
+              : 'Previsualiza el alta. La cuenta no se envía ni se crea en un servidor.'}
+          </p>
+        </div>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const rawEmail = data.get('email');
+            const rawPassword = data.get('password');
+            const email = typeof rawEmail === 'string' ? rawEmail : '';
+            const password = typeof rawPassword === 'string' ? rawPassword : '';
+            if (
+              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+              password.length < 8
+            ) {
+              setError(
+                'Usa un correo válido y una contraseña de al menos 8 caracteres.',
+              );
+              return;
+            }
+            try {
+              sessionStorage.setItem('control-os-demo-session', 'true');
+            } catch {}
+            onEnter(
+              tab === 'login'
+                ? 'Sesión demo iniciada.'
+                : 'Vista previa de cuenta creada.',
+            );
+          }}
+        >
+          {tab === 'signup' && (
+            <label className="field" htmlFor="auth-name">
+              <span>Nombre completo</span>
+              <Input
+                id="auth-name"
+                name="name"
+                required
+                placeholder="Tu nombre"
+              />
+            </label>
+          )}
+          {tab === 'signup' && (
+            <label className="field" htmlFor="auth-company">
+              <span>Empresa</span>
+              <Input
+                id="auth-company"
+                name="company"
+                required
+                placeholder="Nombre de la empresa"
+              />
+            </label>
+          )}
+          <label className="field" htmlFor="auth-email">
+            <span>Correo</span>
+            <Input
+              id="auth-email"
+              name="email"
+              type="email"
+              required
+              placeholder="nombre@empresa.com"
+            />
+          </label>
+          <label className="field" htmlFor="auth-password">
+            <span>Contraseña</span>
+            <Input
+              id="auth-password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              placeholder="8 caracteres o más"
+            />
+          </label>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <Button className="full" type="submit">
+            {tab === 'login' ? 'Entrar a la demo' : 'Crear cuenta demo'}{' '}
+            <ArrowRight />
+          </Button>
+        </form>
+        <p className="caption">
+          Autenticación visual. Producción requiere Supabase Auth, verificación
+          de correo, recuperación, 2FA y RBAC en servidor.
+        </p>
+      </section>
+    </main>
+  );
+}
 function FormDialog({
   form,
   onClose,
@@ -252,7 +445,27 @@ function FormDialog({
               e.preventDefault();
               const data = new FormData(e.currentTarget);
               const c: Command = { ...form.command };
+              let fileError = '';
               form.fields.forEach((f) => {
+                if (f.type === 'file') {
+                  const selected = data
+                    .getAll(f.key)
+                    .filter(
+                      (item): item is File =>
+                        item instanceof File && item.size > 0,
+                    );
+                  if (selected.some((item) => item.size > 15 * 1024 * 1024)) {
+                    fileError = 'Cada archivo debe pesar como máximo 15 MB.';
+                    return;
+                  }
+                  c.files = selected.map((item) => ({
+                    id: crypto.randomUUID(),
+                    name: item.name,
+                    size: item.size,
+                    type: fileKind(item.name),
+                  }));
+                  return;
+                }
                 const raw = data.get(f.key);
                 (c as Record<string, unknown>)[f.key] =
                   f.type === 'number'
@@ -261,6 +474,10 @@ function FormDialog({
                       ? raw
                       : '';
               });
+              if (fileError) {
+                setError(fileError);
+                return;
+              }
               if (onSave(c)) onClose();
               else
                 setError(
@@ -271,7 +488,21 @@ function FormDialog({
             {form.fields.map((f) => (
               <label className="field" key={f.key}>
                 <span>{f.label}</span>
-                {f.type === 'textarea' ? (
+                {f.type === 'file' ? (
+                  <>
+                    <Input
+                      name={f.key}
+                      type="file"
+                      accept={f.accept}
+                      multiple={f.multiple}
+                      required={f.required}
+                    />
+                    <small>
+                      {f.hint ||
+                        'PDF, Word o Excel · máximo 15 MB por archivo.'}
+                    </small>
+                  </>
+                ) : f.type === 'textarea' ? (
                   <Textarea
                     name={f.key}
                     defaultValue={f.value}
@@ -279,7 +510,11 @@ function FormDialog({
                     maxLength={10000}
                   />
                 ) : f.options ? (
-                  <select name={f.key} defaultValue={f.value} required>
+                  <select
+                    name={f.key}
+                    defaultValue={f.value}
+                    required={f.required !== false}
+                  >
                     {f.options.map((o) => (
                       <option value={o.value} key={o.value}>
                         {o.label}
@@ -294,7 +529,7 @@ function FormDialog({
                     min={f.min}
                     max={f.max}
                     step={f.type === 'number' ? 'any' : undefined}
-                    required
+                    required={f.required !== false}
                     maxLength={500}
                   />
                 )}
@@ -319,6 +554,7 @@ function FormDialog({
 }
 export default function Home() {
   const [state, setState] = useState<State | null>(null);
+  const [sessionActive, setSessionActive] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mode, setMode] = useState<Mode>('client');
@@ -354,6 +590,36 @@ export default function Home() {
           candidate.orgs.forEach((o: Org) => {
             if (o.weeks.length !== 12 || !o.tasks || !o.kpis || !o.events)
               throw Error('invalid');
+            const freshOrg = s.orgs.find((item) => item.id === o.id)!;
+            o.finances = Array.isArray(o.finances)
+              ? o.finances
+              : freshOrg.finances;
+            o.followUps = Array.isArray(o.followUps)
+              ? o.followUps
+              : freshOrg.followUps;
+            o.tasks.forEach((task) =>
+              task.evidence.forEach((evidence) => {
+                evidence.files = Array.isArray(evidence.files)
+                  ? evidence.files
+                  : [];
+              }),
+            );
+          });
+          candidate.modules = Array.isArray(candidate.modules)
+            ? candidate.modules
+            : s.modules;
+          candidate.users = Array.isArray(candidate.users)
+            ? candidate.users
+            : s.users;
+          candidate.plans.forEach((savedPlan: State['plans'][number]) => {
+            savedPlan.name =
+              savedPlan.name === 'CONTROL Diagnóstico'
+                ? 'CONTROL Score'
+                : savedPlan.name === 'CONTROL Implementación'
+                  ? 'CONTROL 90'
+                  : savedPlan.name === 'CONTROL Partnership'
+                    ? 'CONTROL Partner'
+                    : savedPlan.name;
           });
           s = candidate;
           getOrg(s, s.selected);
@@ -366,6 +632,13 @@ export default function Home() {
       stateRef.current = s;
       setState(s);
       setWeek(getOrg(s, s.selected).current);
+      try {
+        setSessionActive(
+          sessionStorage.getItem('control-os-demo-session') === 'true',
+        );
+      } catch {
+        setSessionActive(false);
+      }
     });
     return () => {
       active = false;
@@ -473,9 +746,18 @@ export default function Home() {
     } catch {}
     return () => controller.abort();
   }, []);
-  if (!state)
+  if (!state || sessionActive === null)
     return (
       <output className="loading">Preparando tu espacio de CONTROL OS…</output>
+    );
+  if (!sessionActive)
+    return (
+      <AuthScreen
+        onEnter={(message) => {
+          setSessionActive(true);
+          setNotice(message);
+        }}
+      />
     );
   const org = getOrg(state, state.selected);
   const plan = getPlan(state, org);
@@ -870,6 +1152,8 @@ export default function Home() {
     revisiones: 'El avance merece validación',
     intervenciones: 'Actúa antes del estancamiento',
     planes: 'Acceso claro. Alcance definido.',
+    modulos: 'Contenido que acompaña la ejecución',
+    finanzas: 'Rentabilidad por cliente, sin perder contexto',
     configuracion: 'Reglas de la demostración',
     notificaciones: 'Actividad y notificaciones',
     semana: weeks[week - 1].title,
@@ -1364,6 +1648,32 @@ export default function Home() {
           Plantillas editoriales de ejemplo · v1.0 · no son los archivos
           originales del programa.
         </p>
+        {state.modules
+          .filter(
+            (module) =>
+              module.week <= org.current &&
+              (module.planId === 'all' || module.planId === org.planId),
+          )
+          .map((module) => (
+            <Section
+              title={module.title}
+              key={module.id}
+              className="module-feature"
+            >
+              <div className="section-top">
+                <p className="muted">
+                  Semana {module.week} · material asignado por el equipo
+                </p>
+                <Badge value="Disponible" color="blue" />
+              </div>
+              <p>{module.description}</p>
+              <FileChips files={module.files} />
+              <p className="caption">
+                En esta demo se conserva el nombre y tipo del archivo; la
+                descarga privada requiere Storage.
+              </p>
+            </Section>
+          ))}
         <div className="cards-grid">
           {[
             'Rastreador de tiempo real',
@@ -1477,7 +1787,304 @@ export default function Home() {
         )}
       </>
     );
-  else if (page === 'portafolio') {
+  else if (page === 'modulos')
+    body = (
+      <>
+        <div className="toolbar">
+          <p className="muted">
+            Organiza material por semana y plan. Los archivos se registran como
+            metadatos en esta demo.
+          </p>
+          <Button
+            onClick={() =>
+              setForm({
+                title: 'Añadir módulo',
+                description:
+                  'Publica un recurso de apoyo con PDF, Word o Excel. La carga real requiere un bucket privado de Supabase Storage.',
+                command: { type: 'createModule' },
+                fields: [
+                  { key: 'title', label: 'Nombre del módulo' },
+                  {
+                    key: 'description',
+                    label: 'Objetivo y uso esperado',
+                    type: 'textarea',
+                  },
+                  {
+                    key: 'week',
+                    label: 'Semana',
+                    type: 'number',
+                    min: 1,
+                    max: 12,
+                    value: org.current,
+                  },
+                  {
+                    key: 'planId',
+                    label: 'Disponible para',
+                    value: 'all',
+                    options: [
+                      { value: 'all', label: 'Todos los planes' },
+                      ...state.plans.map((item) => ({
+                        value: item.id,
+                        label: item.name + ' v' + item.version,
+                      })),
+                    ],
+                  },
+                  {
+                    key: 'files',
+                    label: 'Archivos adjuntos',
+                    type: 'file',
+                    accept: '.pdf,.doc,.docx,.xls,.xlsx',
+                    multiple: true,
+                    required: true,
+                  },
+                ],
+                button: 'Publicar módulo',
+              })
+            }
+          >
+            <Plus /> Añadir módulo
+          </Button>
+        </div>
+        <div className="cards-grid">
+          {state.modules.map((module) => (
+            <Section
+              key={module.id}
+              title={module.title}
+              action={<Badge value={'Semana ' + module.week} color="gray" />}
+            >
+              <p>{module.description}</p>
+              <p className="muted text-small">
+                {module.planId === 'all'
+                  ? 'Todos los planes'
+                  : state.plans.find((item) => item.id === module.planId)?.name}
+              </p>
+              <FileChips files={module.files} />
+              <div className="inline-actions spaced-small">
+                <small className="muted">
+                  Creado {displayDate(module.createdAt)}
+                </small>
+                {module.id !== 'module-w1' && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          '¿Eliminar este módulo de la demostración?',
+                        )
+                      )
+                        act({ type: 'deleteModule', targetId: module.id });
+                    }}
+                  >
+                    <Trash2 size={16} /> Eliminar
+                  </Button>
+                )}
+              </div>
+            </Section>
+          ))}
+        </div>
+      </>
+    );
+  else if (page === 'finanzas') {
+    const portfolioIncome = state.orgs.reduce(
+      (sum, item) =>
+        sum +
+        item.finances
+          .filter(
+            (entry) => entry.kind === 'INGRESO' && entry.status === 'PAGADO',
+          )
+          .reduce((acc, entry) => acc + entry.amount, 0),
+      0,
+    );
+    const portfolioExpense = state.orgs.reduce(
+      (sum, item) =>
+        sum +
+        item.finances
+          .filter(
+            (entry) => entry.kind === 'EGRESO' && entry.status === 'PAGADO',
+          )
+          .reduce((acc, entry) => acc + entry.amount, 0),
+      0,
+    );
+    const pending = state.orgs.reduce(
+      (sum, item) =>
+        sum +
+        item.finances
+          .filter(
+            (entry) => entry.kind === 'INGRESO' && entry.status !== 'PAGADO',
+          )
+          .reduce((acc, entry) => acc + entry.amount, 0),
+      0,
+    );
+    body = (
+      <>
+        <div className="stats-grid">
+          <Section title="Ingresos cobrados">
+            <div className="finance-number">
+              S/ {portfolioIncome.toLocaleString('es-PE')}
+            </div>
+            <small className="muted">Cartera demo</small>
+          </Section>
+          <Section title="Costo registrado">
+            <div className="finance-number">
+              S/ {portfolioExpense.toLocaleString('es-PE')}
+            </div>
+            <small className="muted">Movimientos pagados</small>
+          </Section>
+          <Section title="Margen de cartera">
+            <div className="finance-number">
+              {portfolioIncome
+                ? Math.round(
+                    ((portfolioIncome - portfolioExpense) / portfolioIncome) *
+                      100,
+                  )
+                : 0}
+              %
+            </div>
+            <small className="muted">Estimación demo</small>
+          </Section>
+          <Section title="Por cobrar">
+            <div className="finance-number">
+              S/ {pending.toLocaleString('es-PE')}
+            </div>
+            <small className="muted">Pendiente o vencido</small>
+          </Section>
+        </div>
+        <Section title="Rentabilidad por cliente" className="spaced">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {[
+                  'Cliente',
+                  'Cobrado',
+                  'Costo',
+                  'Contribución',
+                  'Pendiente',
+                ].map((label) => (
+                  <TableHead key={label}>{label}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {state.orgs.map((item) => {
+                const income = item.finances
+                  .filter(
+                    (entry) =>
+                      entry.kind === 'INGRESO' && entry.status === 'PAGADO',
+                  )
+                  .reduce((sum, entry) => sum + entry.amount, 0);
+                const expense = item.finances
+                  .filter(
+                    (entry) =>
+                      entry.kind === 'EGRESO' && entry.status === 'PAGADO',
+                  )
+                  .reduce((sum, entry) => sum + entry.amount, 0);
+                const due = item.finances
+                  .filter(
+                    (entry) =>
+                      entry.kind === 'INGRESO' && entry.status !== 'PAGADO',
+                  )
+                  .reduce((sum, entry) => sum + entry.amount, 0);
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <strong>{item.name}</strong>
+                      <small>{item.person}</small>
+                    </TableCell>
+                    <TableCell>S/ {income.toLocaleString('es-PE')}</TableCell>
+                    <TableCell>S/ {expense.toLocaleString('es-PE')}</TableCell>
+                    <TableCell>
+                      <Badge
+                        value={
+                          'S/ ' + (income - expense).toLocaleString('es-PE')
+                        }
+                        color={income - expense >= 0 ? '' : 'red'}
+                      />
+                    </TableCell>
+                    <TableCell>S/ {due.toLocaleString('es-PE')}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Section>
+        <Section
+          title={'Movimientos · ' + org.name}
+          className="spaced"
+          action={
+            <Button
+              onClick={() =>
+                setForm({
+                  title: 'Registrar movimiento',
+                  description:
+                    'Control interno por cliente. No emite comprobantes ni procesa pagos.',
+                  command: { type: 'finance' },
+                  fields: [
+                    {
+                      key: 'kind',
+                      label: 'Tipo',
+                      value: 'INGRESO',
+                      options: [
+                        { value: 'INGRESO', label: 'Ingreso' },
+                        { value: 'EGRESO', label: 'Egreso / costo' },
+                      ],
+                    },
+                    { key: 'category', label: 'Categoría' },
+                    {
+                      key: 'amount',
+                      label: 'Importe (PEN)',
+                      type: 'number',
+                      min: 0.01,
+                    },
+                    {
+                      key: 'period',
+                      label: 'Fecha',
+                      type: 'date',
+                      value: today(),
+                    },
+                    {
+                      key: 'status',
+                      label: 'Estado',
+                      value: 'PAGADO',
+                      options: ['PAGADO', 'PENDIENTE', 'VENCIDO'].map(
+                        (value) => ({ value, label: statusLabels[value] }),
+                      ),
+                    },
+                    {
+                      key: 'note',
+                      label: 'Concepto y referencia',
+                      type: 'textarea',
+                    },
+                  ],
+                  button: 'Registrar movimiento',
+                })
+              }
+            >
+              <Plus /> Movimiento
+            </Button>
+          }
+        >
+          {org.finances.map((entry) => (
+            <div className="task-row" key={entry.id}>
+              <span className={'finance-icon ' + entry.kind.toLowerCase()}>
+                {entry.kind === 'INGRESO' ? '+' : '−'}
+              </span>
+              <div className="task-title">
+                <strong>{entry.category}</strong>
+                <small>
+                  {displayDate(entry.date)} · {entry.note}
+                </small>
+              </div>
+              <strong>
+                {entry.kind === 'EGRESO' ? '−' : '+'} S/{' '}
+                {entry.amount.toLocaleString('es-PE')}
+              </strong>
+              <Badge value={entry.status} />
+            </div>
+          ))}
+        </Section>
+      </>
+    );
+  } else if (page === 'portafolio') {
     const clients = state.orgs.filter(
       (o) =>
         o.name.toLowerCase().includes(query.toLowerCase()) &&
@@ -1622,6 +2229,51 @@ export default function Home() {
           </div>
           <Button onClick={() => intervene()}>Crear intervención</Button>
         </div>
+        <div className="tracking-strip" aria-label="Resumen de seguimiento">
+          <div>
+            <small>Ruta</small>
+            <strong>
+              Semana {org.current} de {plan.stages.length * 3}
+            </strong>
+            <span>{programProgress(state, org)}% aprobado</span>
+          </div>
+          <div>
+            <small>Ejecución</small>
+            <strong>{execution(org)}%</strong>
+            <span>
+              {
+                org.tasks.filter(
+                  (task) => task.week <= org.current && task.status !== 'DONE',
+                ).length
+              }{' '}
+              acciones abiertas
+            </span>
+          </div>
+          <div>
+            <small>Sustentos</small>
+            <strong>
+              {org.tasks.filter((task) => task.status === 'REVIEW').length}
+            </strong>
+            <span>pendientes de validar</span>
+          </div>
+          <div>
+            <small>Próxima sesión</small>
+            <strong>{displayDate(org.session.date)}</strong>
+            <span>
+              {org.session.attended ? 'Asistencia confirmada' : 'Por confirmar'}
+            </span>
+          </div>
+          <div>
+            <small>Intervenciones</small>
+            <strong>
+              {
+                org.interventions.filter((item) => item.status === 'OPEN')
+                  .length
+              }
+            </strong>
+            <span>acciones internas abiertas</span>
+          </div>
+        </div>
         <div className="dashboard-grid">
           {scoreCard}
           <Section title="Contexto y riesgo">
@@ -1751,6 +2403,71 @@ export default function Home() {
             <p className="muted">Sin consultas abiertas.</p>
           )}
         </Section>
+        <Section
+          title="Bitácora de seguimiento"
+          className="spaced"
+          action={
+            <Button
+              variant="outline"
+              onClick={() =>
+                setForm({
+                  title: 'Programar seguimiento',
+                  description:
+                    'Deja un siguiente paso verificable con responsable y fecha límite.',
+                  command: { type: 'followUp' },
+                  fields: [
+                    {
+                      key: 'text',
+                      label: 'Acuerdo o siguiente paso',
+                      type: 'textarea',
+                    },
+                    {
+                      key: 'owner',
+                      label: 'Responsable',
+                      value: 'Consultor demo',
+                    },
+                    {
+                      key: 'due',
+                      label: 'Fecha límite',
+                      type: 'date',
+                      value: today(),
+                    },
+                  ],
+                  button: 'Programar',
+                })
+              }
+            >
+              <Plus /> Seguimiento
+            </Button>
+          }
+        >
+          {org.followUps.map((follow) => (
+            <div className="task-row" key={follow.id}>
+              <Clock3 size={18} />
+              <div className="task-title">
+                <strong>{follow.summary}</strong>
+                <small>
+                  {follow.owner} · vence {displayDate(follow.due)} · registrado{' '}
+                  {displayDate(follow.at)}
+                </small>
+              </div>
+              <Badge
+                value={follow.status}
+                color={follow.status === 'COMPLETADO' ? '' : 'amber'}
+              />
+              {follow.status === 'ABIERTO' && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    act({ type: 'completeFollowUp', targetId: follow.id })
+                  }
+                >
+                  <Check size={16} /> Completar
+                </Button>
+              )}
+            </div>
+          ))}
+        </Section>
         <Section title="Timeline de la empresa" className="spaced">
           {timeline(true)}
         </Section>
@@ -1873,7 +2590,7 @@ export default function Home() {
                 <br />
                 Biblioteca {p.advanced ? 'completa' : 'básica'}
               </p>
-              {p.name === 'CONTROL Implementación' && (
+              {p.name === 'CONTROL 90' && (
                 <Button
                   variant="outline"
                   onClick={() =>
@@ -1899,6 +2616,129 @@ export default function Home() {
   else if (page === 'configuracion')
     body = (
       <div className="dashboard-grid">
+        <Section
+          title="Usuarios y accesos"
+          className="wide"
+          action={
+            <Button
+              onClick={() =>
+                setForm({
+                  title: 'Crear usuario',
+                  description:
+                    'Alta local para validar roles y estados. Producción debe invitar y autorizar desde el servidor.',
+                  command: { type: 'createUser' },
+                  fields: [
+                    { key: 'name', label: 'Nombre completo' },
+                    { key: 'email', label: 'Correo', type: 'email' },
+                    {
+                      key: 'role',
+                      label: 'Rol',
+                      value: 'CLIENTE',
+                      options: [
+                        { value: 'CLIENTE', label: 'Cliente / alumno' },
+                        { value: 'CONSULTOR', label: 'Consultor' },
+                        { value: 'OPERADOR', label: 'Operador' },
+                        { value: 'ADMIN', label: 'Administrador' },
+                      ],
+                    },
+                    {
+                      key: 'orgId',
+                      label: 'Empresa (obligatoria para cliente)',
+                      value: org.id,
+                      options: [
+                        { value: '', label: 'Sin empresa' },
+                        ...state.orgs.map((item) => ({
+                          value: item.id,
+                          label: item.name,
+                        })),
+                      ],
+                    },
+                  ],
+                  button: 'Crear usuario',
+                })
+              }
+            >
+              <UserPlus /> Crear usuario
+            </Button>
+          }
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {[
+                  'Usuario',
+                  'Rol',
+                  'Empresa',
+                  'Estado',
+                  'Último acceso',
+                  'Acciones',
+                ].map((label) => (
+                  <TableHead key={label}>{label}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {state.users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <strong>{user.name}</strong>
+                    <small>{user.email}</small>
+                  </TableCell>
+                  <TableCell>{user.role}</TableCell>
+                  <TableCell>
+                    {state.orgs.find((item) => item.id === user.orgId)?.name ||
+                      'Equipo interno'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      value={user.status}
+                      color={user.status === 'SUSPENDIDO' ? 'red' : ''}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {user.lastAccess
+                      ? displayDate(user.lastAccess)
+                      : 'Sin acceso'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="table-actions">
+                      <Button
+                        variant="outline"
+                        disabled={user.id === 'user-admin'}
+                        onClick={() =>
+                          act({ type: 'toggleUser', targetId: user.id })
+                        }
+                      >
+                        {user.status === 'ACTIVO' ? 'Suspender' : 'Reactivar'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={user.id === 'user-admin'}
+                        aria-label={'Eliminar a ' + user.name}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              '¿Eliminar a ' +
+                                user.name +
+                                '? Esta acción solo afecta la demo local.',
+                            )
+                          )
+                            act({ type: 'deleteUser', targetId: user.id });
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <p className="caption">
+            Suspender conserva el histórico; eliminar retira el acceso demo. No
+            se crean identidades reales.
+          </p>
+        </Section>
         <Section title="Umbrales de Client Health">
           <p className="muted">
             Configuración provisional aplicada al portafolio demo.
@@ -1966,10 +2806,10 @@ export default function Home() {
         </Section>
         <Section title="Pendiente para producción" className="wide">
           <p>
-            Autenticación e invitaciones, 2FA, RBAC servidor, base de datos
-            multi-tenant, archivos privados, auditoría inmutable, backups,
-            rúbrica de score aprobada, CMS versionado, integraciones y pruebas
-            de seguridad/UAT.
+            Conectar las pantallas de acceso a Supabase Auth, invitaciones, 2FA,
+            RBAC servidor, base de datos multi-tenant, archivos privados,
+            auditoría inmutable, backups, rúbrica de score aprobada, CMS
+            versionado, integraciones y pruebas de seguridad/UAT.
           </p>
           <p className="muted">
             Arquitectura recomendada por el PDF: Laravel + PostgreSQL +
@@ -2145,7 +2985,20 @@ export default function Home() {
             >
               <Bell size={18} />
             </Button>
-            <span className="avatar">{mode === 'admin' ? 'CC' : 'AP'}</span>
+            <button
+              className="avatar"
+              type="button"
+              aria-label="Cerrar sesión de demostración"
+              title="Cerrar sesión demo"
+              onClick={() => {
+                try {
+                  sessionStorage.removeItem('control-os-demo-session');
+                } catch {}
+                setSessionActive(false);
+              }}
+            >
+              {mode === 'admin' ? 'CC' : 'AP'}
+            </button>
           </div>
         </header>
         <div className="content">
@@ -2212,8 +3065,8 @@ export default function Home() {
         <DialogContent className="control-dialog task-dialog">
           <DialogTitle>{selectedTask?.title}</DialogTitle>
           <DialogDescription>
-            Semana {selectedTask?.week} · {org.person} · Evidencia de texto. Los
-            archivos privados no están implementados.
+            Semana {selectedTask?.week} · {org.person} · Sustento con
+            descripción y archivos.
           </DialogDescription>
           {selectedTask && (
             <>
@@ -2230,6 +3083,7 @@ export default function Home() {
                         <Badge value={e.status} />
                       </div>
                       <p>{e.text}</p>
+                      <FileChips files={e.files || []} />
                       {e.feedback && <p className="feedback">{e.feedback}</p>}
                       <small className="muted">{displayDate(e.at)}</small>
                     </div>
@@ -2250,7 +3104,7 @@ export default function Home() {
                           setForm({
                             title: 'Enviar evidencia',
                             description:
-                              'Describe el entregable y su fuente. Mínimo 10 caracteres. No ingreses datos confidenciales.',
+                              'Describe el entregable y complementa el sustento con PDF, Word o Excel. En la demo solo se conserva la metadata.',
                             command: {
                               type: 'submit',
                               taskId: selectedTask.id,
@@ -2260,6 +3114,14 @@ export default function Home() {
                                 key: 'text',
                                 label: 'Evidencia / referencia verificable',
                                 type: 'textarea',
+                              },
+                              {
+                                key: 'files',
+                                label: 'Archivos de sustento (opcional)',
+                                type: 'file',
+                                accept: '.pdf,.doc,.docx,.xls,.xlsx',
+                                multiple: true,
+                                required: false,
                               },
                             ],
                             button: 'Enviar a revisión',

@@ -395,9 +395,9 @@ with check (bucket_id = 'control-os-evidence' and app_private.can_manage((storag
 with inserted as (
   insert into public.plans (code, name, description)
   values
-    ('CONTROL-START', 'CONTROL Start', 'Base operativa y hábitos de ejecución.'),
-    ('CONTROL-GROWTH', 'CONTROL Growth', 'Ejecución con indicadores y acompañamiento.'),
-    ('CONTROL-SCALE', 'CONTROL Scale', 'Escalamiento con gobierno y control avanzado.')
+    ('CONTROL-START', 'CONTROL Score', 'Diagnóstico de rentabilidad y escalabilidad.'),
+    ('CONTROL-GROWTH', 'CONTROL 90', 'Sistema de 90 días para recuperar rentabilidad y control.'),
+    ('CONTROL-SCALE', 'CONTROL Partner', 'Partnership de rentabilidad y crecimiento controlado.')
   on conflict (code) do update set name = excluded.name, description = excluded.description
   returning id, code
 )

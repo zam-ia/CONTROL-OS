@@ -314,3 +314,116 @@ test('same state serialization retains submitted evidence', () => {
     requirements(getOrg(s, org), 1),
   );
 });
+test('evidence keeps allowed file metadata beside the description', () => {
+  const files = [{ id: 'f1', name: 'sustento.pdf', size: 1200, type: 'PDF' }];
+  const s = run(seed(), {
+    type: 'submit',
+    taskId: 'norte-1-0',
+    text: 'Sustento con documento verificable',
+    files,
+  });
+  assert.deepEqual(getOrg(s, org).tasks[0].evidence[0].files, files);
+});
+test('admin creates a module with plan, week and files', () => {
+  const s = run(
+    seed(),
+    {
+      type: 'createModule',
+      title: 'Finanzas prácticas',
+      description: 'Material para completar el tablero financiero.',
+      week: 6,
+      planId: 'all',
+      files: [{ id: 'f2', name: 'tablero.xlsx', size: 3200, type: 'EXCEL' }],
+    },
+    'admin',
+  );
+  assert.equal(s.modules[0].week, 6);
+  assert.equal(s.modules[0].files[0].type, 'EXCEL');
+});
+test('module rejects disguised or unsupported file metadata', () => {
+  assert.throws(
+    () =>
+      run(
+        seed(),
+        {
+          type: 'createModule',
+          title: 'Archivo inválido',
+          description: 'No debe aceptar ejecutables disfrazados.',
+          week: 1,
+          planId: 'all',
+          files: [{ id: 'bad', name: 'archivo.exe', size: 100, type: 'EXCEL' }],
+        },
+        'admin',
+      ),
+    /Solo se aceptan/,
+  );
+});
+test('client cannot manage modules or users', () => {
+  assert.throws(
+    () => run(seed(), { type: 'deleteModule', targetId: 'module-w1' }),
+    /administración/,
+  );
+  assert.throws(
+    () => run(seed(), { type: 'toggleUser', targetId: 'user-orbita' }),
+    /administración/,
+  );
+});
+test('suspending a user preserves the record', () => {
+  const s = run(
+    seed(),
+    { type: 'toggleUser', targetId: 'user-orbita' },
+    'admin',
+  );
+  assert.equal(
+    s.users.find((user) => user.id === 'user-orbita').status,
+    'ACTIVO',
+  );
+});
+test('finance rejects non-positive amounts and records valid entries', () => {
+  assert.throws(
+    () =>
+      run(
+        seed(),
+        {
+          type: 'finance',
+          kind: 'INGRESO',
+          amount: 0,
+          category: 'Cuota',
+          period: '2026-09-04',
+          status: 'PAGADO',
+          note: 'Pago demo',
+        },
+        'admin',
+      ),
+    /Importe/,
+  );
+  const s = run(
+    seed(),
+    {
+      type: 'finance',
+      kind: 'INGRESO',
+      amount: 500,
+      category: 'Cuota',
+      period: '2026-09-04',
+      status: 'PAGADO',
+      note: 'Pago demo',
+    },
+    'admin',
+  );
+  assert.equal(getOrg(s, org).finances[0].amount, 500);
+});
+test('follow-up records owner and can be completed', () => {
+  let s = run(
+    seed(),
+    {
+      type: 'followUp',
+      text: 'Validar la propuesta final',
+      owner: 'Consultor',
+      due: '2026-09-10',
+    },
+    'admin',
+  );
+  const follow = getOrg(s, org).followUps[0];
+  s = run(s, { type: 'completeFollowUp', targetId: follow.id }, 'admin');
+  assert.equal(getOrg(s, org).followUps[0].status, 'COMPLETADO');
+});
