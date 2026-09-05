@@ -268,7 +268,11 @@ function FileChips({ files }: { files: Attachment[] }) {
     </div>
   );
 }
-function AuthScreen({ onEnter }: { onEnter: (message: string) => void }) {
+function AuthScreen({
+  onEnter,
+}: {
+  onEnter: (email: string, action: 'login' | 'signup') => string;
+}) {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [error, setError] = useState('');
   return (
@@ -347,14 +351,14 @@ function AuthScreen({ onEnter }: { onEnter: (message: string) => void }) {
               );
               return;
             }
+            const accessError = onEnter(email.toLowerCase(), tab);
+            if (accessError) {
+              setError(accessError);
+              return;
+            }
             try {
               sessionStorage.setItem('control-os-demo-session', 'true');
             } catch {}
-            onEnter(
-              tab === 'login'
-                ? 'Sesión demo iniciada.'
-                : 'Vista previa de cuenta creada.',
-            );
           }}
         >
           {tab === 'signup' && (
@@ -611,6 +615,15 @@ export default function Home() {
           candidate.users = Array.isArray(candidate.users)
             ? candidate.users
             : s.users;
+          const primaryAdmin = candidate.users.find(
+            (user: State['users'][number]) => user.id === 'user-admin',
+          );
+          if (primaryAdmin) {
+            primaryAdmin.name = 'Administrador Crisdal';
+            primaryAdmin.email = 'admin@crisdalcompany.com';
+            primaryAdmin.role = 'ADMIN';
+            primaryAdmin.status = 'ACTIVO';
+          }
           candidate.plans.forEach((savedPlan: State['plans'][number]) => {
             savedPlan.name =
               savedPlan.name === 'CONTROL Diagnóstico'
@@ -753,9 +766,30 @@ export default function Home() {
   if (!sessionActive)
     return (
       <AuthScreen
-        onEnter={(message) => {
+        onEnter={(email, action) => {
+          if (action === 'login') {
+            const account = state.users.find(
+              (user) => user.email.toLowerCase() === email,
+            );
+            if (!account)
+              return 'La cuenta no está registrada en esta demostración.';
+            if (account.status === 'SUSPENDIDO')
+              return 'Esta cuenta está suspendida. Contacta al administrador.';
+            const nextMode: Mode =
+              account.role === 'CLIENTE' ? 'client' : 'admin';
+            setMode(nextMode);
+            setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
+          } else {
+            setMode('client');
+            setPage('inicio');
+          }
           setSessionActive(true);
-          setNotice(message);
+          setNotice(
+            action === 'login'
+              ? 'Sesión demo iniciada.'
+              : 'Vista previa de cuenta creada.',
+          );
+          return '';
         }}
       />
     );

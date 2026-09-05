@@ -31,6 +31,18 @@ set global_role = 'SUPER_ADMIN'
 where id = '<USER_UUID>';
 ```
 
+Para el administrador principal definido en la interfaz, crea primero el usuario `admin@crisdalcompany.com` desde **Authentication → Users**. Después puedes promoverlo sin copiar el UUID manualmente:
+
+```sql
+update public.profiles p
+set global_role = 'SUPER_ADMIN', status = 'ACTIVE'
+from auth.users u
+where p.id = u.id
+  and lower(u.email) = 'admin@crisdalcompany.com';
+```
+
+La contraseña se configura exclusivamente en Supabase Auth. No debe añadirse a migraciones, variables `NEXT_PUBLIC_*` ni archivos del repositorio.
+
 ## Archivos de evidencia
 
 El bucket `control-os-evidence` es privado. Usa rutas con el UUID de la organización como primer segmento:

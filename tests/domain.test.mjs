@@ -41,6 +41,13 @@ test('seed: one organization per plan and 12 weeks each', () => {
     assert.equal(o.tasks.length, 36);
   });
 });
+test('seed includes one protected primary administrator', () => {
+  const s = seed();
+  const admin = s.users.find((user) => user.id === 'user-admin');
+  assert.equal(admin.email, 'admin@crisdalcompany.com');
+  assert.equal(admin.role, 'ADMIN');
+  assert.equal(admin.status, 'ACTIVO');
+});
 test('week 2 requires approved week 1', () => {
   const s = seed();
   assert.match(available(s, getOrg(s, org), 2), /semana 1/);

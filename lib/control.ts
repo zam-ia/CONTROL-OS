@@ -625,8 +625,8 @@ export function seed(): State {
     users: [
       {
         id: 'user-admin',
-        name: 'Carla Control',
-        email: 'admin@control.demo',
+        name: 'Administrador Crisdal',
+        email: 'admin@crisdalcompany.com',
         role: 'ADMIN',
         orgId: '',
         status: 'ACTIVO',
