@@ -64,9 +64,13 @@ export type Goal = {
   title: string;
   baseline: number;
   target: number;
-  current: number;
   unit: string;
   due: string;
+  checkpoints: {
+    id: string;
+    title: string;
+    completed: boolean;
+  }[];
 };
 export type FinanceEntry = {
   id: string;
@@ -173,7 +177,7 @@ export type State = {
   users: {
     id: string;
     name: string;
-    email: string;
+    username: string;
     role: 'CLIENTE' | 'CONSULTOR' | 'OPERADOR' | 'ADMIN';
     orgId: string;
     status: 'ACTIVO' | 'SUSPENDIDO';
@@ -396,6 +400,87 @@ export const statusLabels: Record<string, string> = {
 };
 export const now = () => new Date().toISOString();
 const id = () => globalThis.crypto.randomUUID();
+function createOrganizationWorkspace(
+  organizationId: string,
+  name: string,
+  person: string,
+  planId: string,
+  lessons: Lesson[],
+): Org {
+  const futureDate = (days: number) => {
+    const value = new Date();
+    value.setUTCDate(value.getUTCDate() + days);
+    return value.toISOString().slice(0, 10);
+  };
+  return {
+    id: organizationId,
+    name,
+    person,
+    planId,
+    current: 1,
+    baseline: [0, 0, 0, 0],
+    control: [0, 0, 0, 0],
+    lastActivity: now(),
+    tasks: weeks.flatMap((week, weekIndex) =>
+      week.tasks.map((title, taskIndex) => ({
+        id: organizationId + '-' + (weekIndex + 1) + '-' + taskIndex,
+        week: weekIndex + 1,
+        title,
+        due: futureDate(2 + taskIndex + weekIndex * 7),
+        priority: taskIndex === 0 ? 'Alta' : 'Media',
+        status: 'TODO',
+        evidence: [],
+        blocker: '',
+      })),
+    ),
+    weeks: weeks.map((_, index) => ({
+      number: index + 1,
+      content: false,
+      checklist: false,
+      kpi: false,
+      gate: 'OPEN',
+      feedback: '',
+    })),
+    kpis: [],
+    goals: [],
+    events: [
+      {
+        id: id(),
+        at: now(),
+        actor: 'admin',
+        text: 'Empresa y espacio de trabajo creados.',
+        internal: true,
+      },
+    ],
+    interventions: [],
+    notes: [],
+    session: {
+      title: 'Sesión de bienvenida',
+      date: futureDate(3) + 'T15:00:00Z',
+      agenda: 'Onboarding, objetivos y próximos pasos.',
+      attended: false,
+    },
+    support: [],
+    finances: [],
+    followUps: [],
+    lessonRuns: lessons
+      .filter(
+        (lesson) =>
+          lesson.publication === 'PUBLICADO' &&
+          (lesson.planId === 'all' || lesson.planId === planId),
+      )
+      .map((lesson, index) => ({
+        lessonId: lesson.id,
+        videoCompleted: false,
+        status: 'NO_INICIADO',
+        response: '',
+        feedback: '',
+        due: lesson.due,
+        manuallyUnlocked: index === 0,
+        requirementSkipped: false,
+      })),
+  };
+}
 export function seed(): State {
   const today = new Date();
   const date = (days: number) => {
@@ -631,18 +716,34 @@ export function seed(): State {
           title: 'Mejorar el margen operativo',
           baseline: 12 + index * 3,
           target: 22 + index * 3,
-          current: 12 + index * 3,
           unit: '%',
           due: date(30),
+          checkpoints: [
+            'Validar la línea base del margen',
+            'Aplicar la acción prioritaria de rentabilidad',
+            'Validar el resultado final con evidencia',
+          ].map((title, checkpointIndex) => ({
+            id: 'goal-margin-' + checkpointIndex,
+            title,
+            completed: false,
+          })),
         },
         {
           id: 'goal-hours',
           title: 'Recuperar tiempo del fundador',
           baseline: 45 - index * 7,
           target: 30 - index * 7,
-          current: 45 - index * 7,
           unit: 'h/sem',
           due: date(60),
+          checkpoints: [
+            'Registrar la distribución actual del tiempo',
+            'Delegar o eliminar una actividad crítica',
+            'Validar la nueva carga semanal',
+          ].map((title, checkpointIndex) => ({
+            id: 'goal-hours-' + checkpointIndex,
+            title,
+            completed: false,
+          })),
         },
       ],
       events: [
@@ -806,7 +907,7 @@ export function seed(): State {
       {
         id: 'user-admin',
         name: 'Administrador Crisdal',
-        email: 'admin@crisdalcompany.com',
+        username: 'admin',
         role: 'ADMIN',
         orgId: '',
         status: 'ACTIVO',
@@ -815,7 +916,7 @@ export function seed(): State {
       {
         id: 'user-norte',
         name: 'Ana Pérez',
-        email: 'ana@estudionorte.example',
+        username: 'cliente.norte',
         role: 'CLIENTE',
         orgId: 'norte',
         status: 'ACTIVO',
@@ -824,7 +925,7 @@ export function seed(): State {
       {
         id: 'user-orbita',
         name: 'Diego Ruiz',
-        email: 'diego@orbita.example',
+        username: 'cliente.orbita',
         role: 'CLIENTE',
         orgId: 'orbita',
         status: 'SUSPENDIDO',
@@ -833,7 +934,7 @@ export function seed(): State {
       {
         id: 'user-consultor',
         name: 'Mario Consultor',
-        email: 'mario@crisdalcompany.example',
+        username: 'consultor.control',
         role: 'CONSULTOR',
         orgId: '',
         status: 'ACTIVO',
@@ -947,13 +1048,9 @@ export function lessonAvailable(s: State, o: Org, lessonId: string) {
   );
 }
 export function goalProgress(g: Goal) {
-  if (g.target === g.baseline) return g.current === g.target ? 100 : 0;
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(((g.current - g.baseline) / (g.target - g.baseline)) * 100),
-    ),
+  return Math.round(
+    (100 * g.checkpoints.filter((checkpoint) => checkpoint.completed).length) /
+      Math.max(1, g.checkpoints.length),
   );
 }
 export function execution(o: Org) {
@@ -1052,9 +1149,14 @@ export type Command = {
   description?: string;
   status?: string;
   role?: string;
-  email?: string;
+  username?: string;
   name?: string;
   orgId?: string;
+  newOrgName?: string;
+  newOrgPlanId?: string;
+  checkpoint1?: string;
+  checkpoint2?: string;
+  checkpoint3?: string;
   amount?: number;
   kind?: string;
   category?: string;
@@ -1289,12 +1391,16 @@ export function execute(
     if (!k) throw Error('KPI no encontrado.');
     k.status = 'VALIDATED';
     event = 'Dato KPI validado por consultor';
-  } else if (c.type === 'goal') {
+  } else if (c.type === 'goalCheckpoint') {
     const g = o.goals.find((g) => g.id === c.targetId);
-    if (!g || typeof c.value !== 'number' || !Number.isFinite(c.value))
-      throw Error('Objetivo o valor inválido.');
-    g.current = c.value;
-    event = 'Avance actualizado: ' + g.title;
+    const checkpoint = g?.checkpoints.find((item) => item.id === c.code);
+    if (!g || !checkpoint || typeof c.checked !== 'boolean')
+      throw Error('Objetivo o checkpoint inválido.');
+    checkpoint.completed = c.checked;
+    event =
+      'Checkpoint ' +
+      (c.checked ? 'completado: ' : 'reabierto: ') +
+      checkpoint.title;
   } else if (c.type === 'createGoal') {
     if (
       ![c.baseline, c.target].every(
@@ -1306,10 +1412,16 @@ export function execute(
       id: id(),
       title: needText(c.title),
       baseline: c.baseline!,
-      current: c.baseline!,
       target: c.target!,
       unit: needText(c.unit, 1),
       due: validDate(c.due),
+      checkpoints: [c.checkpoint1, c.checkpoint2, c.checkpoint3].map(
+        (checkpoint) => ({
+          id: id(),
+          title: needText(checkpoint, 5),
+          completed: false,
+        }),
+      ),
     });
     event = 'Objetivo creado: ' + c.title;
   } else if (c.type === 'intervene') {
@@ -1566,22 +1678,55 @@ export function execute(
     event = 'Módulo eliminado';
     internal = true;
   } else if (c.type === 'createUser') {
-    const email = needText(c.email).toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      throw Error('Correo no válido.');
-    if (next.users.some((u) => u.email.toLowerCase() === email))
-      throw Error('El correo ya está registrado.');
+    const username = needText(c.username).toLowerCase();
+    if (!/^[a-z0-9._-]{3,40}$/.test(username))
+      throw Error(
+        'El usuario debe tener entre 3 y 40 caracteres: letras, números, punto, guion o guion bajo.',
+      );
+    if (next.users.some((u) => u.username.toLowerCase() === username))
+      throw Error('El nombre de usuario ya está registrado.');
     const role = c.role as State['users'][number]['role'];
     if (!['CLIENTE', 'CONSULTOR', 'OPERADOR', 'ADMIN'].includes(role))
       throw Error('Rol no válido.');
-    if (role === 'CLIENTE' && !next.orgs.some((item) => item.id === c.orgId))
+    let organizationId = c.orgId || '';
+    const newOrganizationName =
+      typeof c.newOrgName === 'string' ? c.newOrgName.trim() : '';
+    if (newOrganizationName) {
+      if (role !== 'CLIENTE')
+        throw Error('La empresa nueva debe asignarse a un cliente o alumno.');
+      if (
+        next.orgs.some(
+          (organization) =>
+            organization.name.toLowerCase() ===
+            newOrganizationName.toLowerCase(),
+        )
+      )
+        throw Error('Ya existe una empresa con ese nombre.');
+      const planId = needText(c.newOrgPlanId);
+      if (!next.plans.some((plan) => plan.id === planId))
+        throw Error('Selecciona un plan válido para la empresa.');
+      organizationId = id();
+      next.orgs.push(
+        createOrganizationWorkspace(
+          organizationId,
+          needText(newOrganizationName),
+          needText(c.name),
+          planId,
+          next.lessons,
+        ),
+      );
+    }
+    if (
+      role === 'CLIENTE' &&
+      !next.orgs.some((item) => item.id === organizationId)
+    )
       throw Error('Asigna una empresa al cliente.');
     next.users.unshift({
       id: id(),
       name: needText(c.name),
-      email,
+      username,
       role,
-      orgId: c.orgId || '',
+      orgId: role === 'CLIENTE' ? organizationId : '',
       status: 'ACTIVO',
       lastAccess: '',
     });

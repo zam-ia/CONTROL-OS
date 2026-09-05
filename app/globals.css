@@ -366,6 +366,30 @@
 .goal-numbers svg {
   color: #80948f;
 }
+.goal-checkpoints {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.goal-checkpoint {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #faf9f6;
+  font-size: 11px;
+}
+.goal-checkpoint:has([data-state='checked']) {
+  border-color: #a8d6c1;
+  background: #f2faf6;
+  color: #267553;
+}
+.goal-checkpoint:has([data-state='checked']) span {
+  text-decoration: line-through;
+  text-decoration-color: #8ebaa7;
+}
 .formula {
   list-style: none;
   padding: 0;
@@ -489,6 +513,18 @@
 }
 .field textarea {
   min-height: 110px;
+}
+.select-with-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.select-with-action select {
+  width: 100%;
+}
+.select-with-action button {
+  white-space: nowrap;
 }
 .form-footer {
   display: flex;
@@ -965,6 +1001,12 @@ footer {
   }
 }
 @media (max-width: 650px) {
+  .select-with-action {
+    grid-template-columns: 1fr;
+  }
+  .select-with-action button {
+    width: 100%;
+  }
   .route-gallery,
   .stats-grid {
     grid-template-columns: 1fr;

@@ -26,6 +26,7 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 - Registro y validación de KPIs, CONTROL Score, Execution Score y Health Score.
 - Cliente 360 con seguimiento operativo, intervenciones, sesiones, notas y soporte.
 - Gestión de usuarios con roles, creación, suspensión, reactivación y eliminación protegida del administrador principal.
+- Acceso mediante usuario único —DNI, RUC o alias— y creación de una empresa nueva dentro del alta del cliente.
 - Control financiero por cliente con ingresos, costos, cobros, contribución y resumen de cartera.
 - Versionado de planes, biblioteca de recursos y exportación administrativa en JSON.
 
@@ -43,6 +44,7 @@ El esquema versionado está en `supabase/migrations`:
 2. Usuarios, módulos, archivos, finanzas y seguimientos.
 3. Clases, enlaces de YouTube, avance, revisión y desbloqueos.
 4. Checkpoints binarios para clase vista y actividad completada.
+5. Usuarios únicos, creación de empresas y checkpoints de objetivos.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 
@@ -50,7 +52,7 @@ Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orde
 
 La interfaz actual conserva su estado en `localStorage` para permitir validación funcional. Todavía no está conectada a Supabase Auth, REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
 
-Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. El avance de las clases se mide por checkpoints completados, no mediante porcentajes ingresados por el usuario.
+Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. El avance de clases y objetivos se mide por checkpoints completados, no mediante porcentajes ingresados por el usuario.
 
 También siguen pendientes 2FA, invitaciones por correo, auditoría inmutable, backups verificados, email transaccional, pagos, facturación, políticas de retención y UAT con usuarios reales.
 

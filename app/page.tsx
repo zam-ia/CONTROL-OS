@@ -103,6 +103,8 @@ type Field = {
   multiple?: boolean;
   required?: boolean;
   hint?: string;
+  createOrganization?: boolean;
+  showForNewOrganization?: boolean;
 };
 type FormSpec = {
   title: string;
@@ -300,7 +302,7 @@ function FileChips({ files }: { files: Attachment[] }) {
 function AuthScreen({
   onEnter,
 }: {
-  onEnter: (email: string, action: 'login' | 'signup') => string;
+  onEnter: (username: string, action: 'login' | 'signup') => string;
 }) {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [error, setError] = useState('');
@@ -367,20 +369,21 @@ function AuthScreen({
           onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
-            const rawEmail = data.get('email');
+            const rawUsername = data.get('username');
             const rawPassword = data.get('password');
-            const email = typeof rawEmail === 'string' ? rawEmail : '';
+            const username =
+              typeof rawUsername === 'string' ? rawUsername.trim() : '';
             const password = typeof rawPassword === 'string' ? rawPassword : '';
             if (
-              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+              !/^[a-zA-Z0-9._-]{3,40}$/.test(username) ||
               password.length < 8
             ) {
               setError(
-                'Usa un correo válido y una contraseña de al menos 8 caracteres.',
+                'Usa un identificador válido y una contraseña de al menos 8 caracteres.',
               );
               return;
             }
-            const accessError = onEnter(email.toLowerCase(), tab);
+            const accessError = onEnter(username.toLowerCase(), tab);
             if (accessError) {
               setError(accessError);
               return;
@@ -412,14 +415,18 @@ function AuthScreen({
               />
             </label>
           )}
-          <label className="field" htmlFor="auth-email">
-            <span>Correo</span>
+          <label className="field" htmlFor="auth-username">
+            <span>Usuario</span>
             <Input
-              id="auth-email"
-              name="email"
-              type="email"
+              id="auth-username"
+              name="username"
+              type="text"
               required
-              placeholder="nombre@empresa.com"
+              autoComplete="username"
+              minLength={3}
+              maxLength={40}
+              pattern="[A-Za-z0-9._-]+"
+              placeholder="DNI, RUC o usuario asignado"
             />
           </label>
           <label className="field" htmlFor="auth-password">
@@ -430,6 +437,9 @@ function AuthScreen({
               type="password"
               required
               minLength={8}
+              autoComplete={
+                tab === 'login' ? 'current-password' : 'new-password'
+              }
               placeholder="8 caracteres o más"
             />
           </label>
@@ -459,6 +469,7 @@ function FormDialog({
   onSave: (c: Command) => boolean;
 }) {
   const [error, setError] = useState('');
+  const [creatingOrganization, setCreatingOrganization] = useState(false);
   return (
     <Dialog
       open={!!form}
@@ -516,10 +527,11 @@ function FormDialog({
                 );
             }}
           >
-            {form.fields.map((f) => (
-              <label className="field" key={f.key}>
-                <span>{f.label}</span>
-                {f.type === 'file' ? (
+            {form.fields.map((f) => {
+              if (f.showForNewOrganization && !creatingOrganization)
+                return null;
+              const control =
+                f.type === 'file' ? (
                   <>
                     <Input
                       name={f.key}
@@ -544,6 +556,7 @@ function FormDialog({
                   <select
                     name={f.key}
                     defaultValue={f.value}
+                    disabled={f.createOrganization && creatingOrganization}
                     required={f.required !== false}
                   >
                     {f.options.map((o) => (
@@ -563,9 +576,37 @@ function FormDialog({
                     required={f.required !== false}
                     maxLength={500}
                   />
-                )}
-              </label>
-            ))}
+                );
+              if (f.createOrganization)
+                return (
+                  <div className="field" key={f.key}>
+                    <span>{f.label}</span>
+                    <div className="select-with-action">
+                      {control}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        aria-expanded={creatingOrganization}
+                        onClick={() =>
+                          setCreatingOrganization((current) => !current)
+                        }
+                      >
+                        <Plus size={16} />
+                        {creatingOrganization
+                          ? 'Usar existente'
+                          : 'Nueva empresa'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              return (
+                <label className="field" key={f.key}>
+                  <span>{f.label}</span>
+                  {control}
+                  {f.hint && f.type !== 'file' && <small>{f.hint}</small>}
+                </label>
+              );
+            })}
             {error && (
               <p role="alert" className="error">
                 {error}
@@ -656,6 +697,36 @@ export default function Home() {
                   : [];
               }),
             );
+            o.goals.forEach((goal) => {
+              const legacyGoal = goal as Org['goals'][number] & {
+                current?: number;
+              };
+              if (!Array.isArray(legacyGoal.checkpoints)) {
+                const rawProgress =
+                  legacyGoal.current === undefined ||
+                  legacyGoal.target === legacyGoal.baseline
+                    ? 0
+                    : Math.max(
+                        0,
+                        Math.min(
+                          1,
+                          (legacyGoal.current - legacyGoal.baseline) /
+                            (legacyGoal.target - legacyGoal.baseline),
+                        ),
+                      );
+                const completed = Math.round(rawProgress * 3);
+                legacyGoal.checkpoints = [
+                  'Validar la línea base',
+                  'Completar la acción prioritaria',
+                  'Validar el resultado con evidencia',
+                ].map((title, index) => ({
+                  id: goal.id + '-checkpoint-' + index,
+                  title,
+                  completed: index < completed,
+                }));
+              }
+              delete legacyGoal.current;
+            });
           });
           candidate.modules = Array.isArray(candidate.modules)
             ? candidate.modules
@@ -671,18 +742,26 @@ export default function Home() {
           );
           if (primaryAdmin) {
             primaryAdmin.name = 'Administrador Crisdal';
-            primaryAdmin.email = 'admin@crisdalcompany.com';
+            primaryAdmin.username = 'admin';
             primaryAdmin.role = 'ADMIN';
             primaryAdmin.status = 'ACTIVO';
           }
-          const professionalEmails: Record<string, string> = {
-            'user-norte': 'ana@estudionorte.example',
-            'user-orbita': 'diego@orbita.example',
-            'user-consultor': 'mario@crisdalcompany.example',
+          const defaultUsernames: Record<string, string> = {
+            'user-admin': 'admin',
+            'user-norte': 'cliente.norte',
+            'user-orbita': 'cliente.orbita',
+            'user-consultor': 'consultor.control',
           };
           candidate.users.forEach((user: State['users'][number]) => {
-            if (professionalEmails[user.id])
-              user.email = professionalEmails[user.id];
+            const legacyUser = user as State['users'][number] & {
+              email?: string;
+            };
+            if (!legacyUser.username)
+              legacyUser.username =
+                defaultUsernames[user.id] ||
+                legacyUser.email?.split('@')[0].toLowerCase() ||
+                'usuario.' + user.id.slice(0, 8).toLowerCase();
+            delete legacyUser.email;
           });
           candidate.plans.forEach((savedPlan: State['plans'][number]) => {
             savedPlan.name =
@@ -826,10 +905,10 @@ export default function Home() {
   if (!sessionActive)
     return (
       <AuthScreen
-        onEnter={(email, action) => {
+        onEnter={(username, action) => {
           if (action === 'login') {
             const account = state.users.find(
-              (user) => user.email.toLowerCase() === email,
+              (user) => user.username.toLowerCase() === username,
             );
             if (!account) return 'La cuenta no está registrada.';
             if (account.status === 'SUSPENDIDO')
@@ -1020,13 +1099,19 @@ export default function Home() {
         <Section key={g.id} title={g.title} action={<Target size={19} />}>
           <Badge
             value={
-              goalProgress(g) === 100 ? 'Meta alcanzada' : 'Avance reportado'
+              goalProgress(g) === 100
+                ? 'Meta alcanzada'
+                : g.checkpoints.filter((checkpoint) => checkpoint.completed)
+                    .length +
+                  ' de ' +
+                  g.checkpoints.length +
+                  ' checkpoints'
             }
             color={goalProgress(g) === 100 ? '' : 'blue'}
           />
           <div className="goal-numbers">
             <strong>
-              {g.current} <small>{g.unit}</small>
+              {g.baseline} <small>{g.unit}</small>
             </strong>
             <ArrowRight size={18} />
             <span>
@@ -1034,31 +1119,26 @@ export default function Home() {
               <small>Meta · {displayDate(g.due)}</small>
             </span>
           </div>
-          <Meter
-            label={'Desde baseline ' + g.baseline + ' ' + g.unit}
-            value={goalProgress(g)}
-          />
-          <Button
-            variant="outline"
-            onClick={() =>
-              setForm({
-                title: 'Actualizar objetivo',
-                description:
-                  g.title + ' · avance manual; no actualiza el KPI de origen.',
-                command: { type: 'goal', targetId: g.id },
-                fields: [
-                  {
-                    key: 'value',
-                    label: 'Valor actual (' + g.unit + ')',
-                    type: 'number',
-                    value: g.current,
-                  },
-                ],
-              })
-            }
-          >
-            Actualizar avance
-          </Button>
+          <Meter label="Checkpoints completados" value={goalProgress(g)} />
+          <div className="goal-checkpoints">
+            {g.checkpoints.map((checkpoint) => (
+              <div className="goal-checkpoint" key={checkpoint.id}>
+                <Checkbox
+                  aria-label={'Marcar checkpoint: ' + checkpoint.title}
+                  checked={checkpoint.completed}
+                  onCheckedChange={(checked) =>
+                    act({
+                      type: 'goalCheckpoint',
+                      targetId: g.id,
+                      code: checkpoint.id,
+                      checked: checked === true,
+                    })
+                  }
+                />
+                <span>{checkpoint.title}</span>
+              </div>
+            ))}
+          </div>
         </Section>
       ))}
     </div>
@@ -1757,7 +1837,7 @@ export default function Home() {
       <>
         <div className="toolbar">
           <span className="muted">
-            Horizonte mensual y 90 días · avances manuales
+            Horizonte mensual y 90 días · avance por checkpoints
           </span>
           <Button
             onClick={() =>
@@ -1776,6 +1856,21 @@ export default function Home() {
                   },
                   { key: 'target', label: 'Meta', type: 'number', value: 100 },
                   { key: 'unit', label: 'Unidad', value: '%' },
+                  {
+                    key: 'checkpoint1',
+                    label: 'Checkpoint 1',
+                    value: 'Validar la línea base',
+                  },
+                  {
+                    key: 'checkpoint2',
+                    label: 'Checkpoint 2',
+                    value: 'Completar la acción prioritaria',
+                  },
+                  {
+                    key: 'checkpoint3',
+                    label: 'Checkpoint 3',
+                    value: 'Validar el resultado con evidencia',
+                  },
                   {
                     key: 'due',
                     label: 'Fecha objetivo',
@@ -3360,11 +3455,15 @@ export default function Home() {
                 setForm({
                   title: 'Crear usuario',
                   description:
-                    'Alta local para validar roles y estados. Producción debe invitar y autorizar desde el servidor.',
+                    'Crea el acceso y asígnalo a una empresa existente o registra una nueva.',
                   command: { type: 'createUser' },
                   fields: [
                     { key: 'name', label: 'Nombre completo' },
-                    { key: 'email', label: 'Correo', type: 'email' },
+                    {
+                      key: 'username',
+                      label: 'Usuario',
+                      hint: 'Puede ser DNI, RUC o un identificador interno.',
+                    },
                     {
                       key: 'role',
                       label: 'Rol',
@@ -3387,6 +3486,22 @@ export default function Home() {
                           label: item.name,
                         })),
                       ],
+                      createOrganization: true,
+                    },
+                    {
+                      key: 'newOrgName',
+                      label: 'Nombre de la nueva empresa',
+                      showForNewOrganization: true,
+                    },
+                    {
+                      key: 'newOrgPlanId',
+                      label: 'Plan de la nueva empresa',
+                      value: plan.id,
+                      options: state.plans.map((item) => ({
+                        value: item.id,
+                        label: item.name + ' · v' + item.version,
+                      })),
+                      showForNewOrganization: true,
                     },
                   ],
                   button: 'Crear usuario',
@@ -3417,7 +3532,7 @@ export default function Home() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <strong>{user.name}</strong>
-                    <small>{user.email}</small>
+                    <small>@{user.username}</small>
                   </TableCell>
                   <TableCell>{user.role}</TableCell>
                   <TableCell>

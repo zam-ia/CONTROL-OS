@@ -47,7 +47,7 @@ test('seed: one organization per plan and 12 weeks each', () => {
 test('seed includes one protected primary administrator', () => {
   const s = seed();
   const admin = s.users.find((user) => user.id === 'user-admin');
-  assert.equal(admin.email, 'admin@crisdalcompany.com');
+  assert.equal(admin.username, 'admin');
   assert.equal(admin.role, 'ADMIN');
   assert.equal(admin.status, 'ACTIVO');
 });
@@ -246,9 +246,33 @@ test('KPI does not modify CONTROL Score', () => {
   const s = ready();
   assert.deepEqual(getOrg(s, org).control, [10, 12, 16, 10]);
 });
-test('descending goals calculate progress correctly', () => {
-  assert.equal(goalProgress({ baseline: 40, target: 20, current: 30 }), 50);
-  assert.equal(goalProgress({ baseline: 40, target: 20, current: 15 }), 100);
+test('goals calculate progress only from checkpoints', () => {
+  assert.equal(
+    goalProgress({
+      checkpoints: [
+        { completed: true },
+        { completed: false },
+        { completed: true },
+        { completed: false },
+      ],
+    }),
+    50,
+  );
+});
+test('goal advancement rejects manual values and accepts checkpoints', () => {
+  const initial = seed();
+  const goal = getOrg(initial, org).goals[0];
+  assert.throws(
+    () => run(initial, { type: 'goal', targetId: goal.id, value: 55 }),
+    /no reconocida/,
+  );
+  const updated = run(initial, {
+    type: 'goalCheckpoint',
+    targetId: goal.id,
+    code: goal.checkpoints[0].id,
+    checked: true,
+  });
+  assert.equal(goalProgress(getOrg(updated, org).goals[0]), 33);
 });
 test('new plan version preserves enrolled contract', () => {
   const s = seed(),
@@ -388,6 +412,57 @@ test('suspending a user preserves the record', () => {
     s.users.find((user) => user.id === 'user-orbita').status,
     'ACTIVO',
   );
+});
+test('admin creates access with a unique username and no email', () => {
+  const s = run(
+    seed(),
+    {
+      type: 'createUser',
+      name: 'Nuevo alumno',
+      username: '20123456789',
+      role: 'CLIENTE',
+      orgId: 'norte',
+    },
+    'admin',
+  );
+  assert.equal(s.users[0].username, '20123456789');
+  assert.equal('email' in s.users[0], false);
+  assert.throws(
+    () =>
+      run(
+        s,
+        {
+          type: 'createUser',
+          name: 'Usuario repetido',
+          username: '20123456789',
+          role: 'CLIENTE',
+          orgId: 'norte',
+        },
+        'admin',
+      ),
+    /ya está registrado/,
+  );
+});
+test('admin creates a new company while creating client access', () => {
+  const before = seed();
+  const s = run(
+    before,
+    {
+      type: 'createUser',
+      name: 'Cliente Nuevo',
+      username: '87654321',
+      role: 'CLIENTE',
+      orgId: '',
+      newOrgName: 'Empresa Nueva',
+      newOrgPlanId: 'implementacion-v1',
+    },
+    'admin',
+  );
+  const company = s.orgs.find((item) => item.name === 'Empresa Nueva');
+  assert.equal(s.orgs.length, before.orgs.length + 1);
+  assert.equal(company.planId, 'implementacion-v1');
+  assert.equal(company.tasks.length, 36);
+  assert.equal(s.users[0].orgId, company.id);
 });
 test('finance rejects non-positive amounts and records valid entries', () => {
   assert.throws(

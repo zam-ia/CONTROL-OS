@@ -18,8 +18,9 @@ Opción Dashboard: abre **SQL Editor** y ejecuta, en orden y una sola vez:
 2. `supabase/migrations/20260904020000_admin_modules_finance.sql`
 3. `supabase/migrations/20260904030000_implementation_classes.sql`
 4. `supabase/migrations/20260904040000_lesson_checkpoints.sql`
+5. `supabase/migrations/20260905010000_usernames_organizations_goal_checkpoints.sql`
 
-La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`.
+La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance.
 
 La clave publicable/anon permite usar Auth, REST y Storage bajo RLS, pero no ejecutar DDL. Para aplicar migraciones se necesita una sesión administrativa de Supabase o la contraseña de la base de datos. La clave `service_role` o secret jamás debe exponerse con prefijo `NEXT_PUBLIC_` ni versionarse.
 
@@ -33,7 +34,7 @@ set global_role = 'SUPER_ADMIN'
 where id = '<USER_UUID>';
 ```
 
-Para el administrador principal definido en la interfaz, crea primero el usuario `admin@crisdalcompany.com` desde **Authentication → Users**. Después puedes promoverlo sin copiar el UUID manualmente:
+Para el administrador principal definido en la interfaz, crea primero la identidad interna `admin@crisdalcompany.com` desde **Authentication → Users**. Este correo no se muestra como acceso en CONTROL OS; la interfaz utiliza el usuario `admin`. Después puedes promoverlo sin copiar el UUID manualmente:
 
 ```sql
 update public.profiles p
@@ -43,7 +44,7 @@ where p.id = u.id
   and lower(u.email) = 'admin@crisdalcompany.com';
 ```
 
-La contraseña se configura exclusivamente en Supabase Auth. No debe añadirse a migraciones, variables `NEXT_PUBLIC_*` ni archivos del repositorio.
+La contraseña se configura exclusivamente en Supabase Auth. No debe añadirse a migraciones, variables `NEXT_PUBLIC_*` ni archivos del repositorio. La integración productiva deberá resolver el usuario hacia la identidad de Auth exclusivamente desde el servidor, sin exponer correos internos al navegador.
 
 ## Archivos de evidencia
 
