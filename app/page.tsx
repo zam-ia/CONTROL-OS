@@ -72,6 +72,9 @@ import {
   getPlan,
   goalProgress,
   health,
+  lessonAvailable,
+  lessonMetrics,
+  lessonsFor,
   programProgress,
   progress,
   requirements,
@@ -82,6 +85,7 @@ import {
   type Command,
   type Attachment,
   type Mode,
+  type Lesson,
   type Org,
   type State,
   type Task,
@@ -117,6 +121,7 @@ function download(filename: string, text: string, type = 'text/plain') {
 }
 const navClient = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
+  { id: 'onboarding', label: 'Etapa 00', icon: BookOpen },
   { id: 'ruta', label: 'Mi Ruta', icon: Route },
   { id: 'tareas', label: 'Tareas', icon: CheckSquare },
   { id: 'objetivos', label: 'Objetivos', icon: Target },
@@ -131,6 +136,7 @@ const navAdmin = [
   { id: 'cliente', label: 'Cliente 360', icon: Users },
   { id: 'revisiones', label: 'Revisiones', icon: ClipboardCheck },
   { id: 'intervenciones', label: 'Intervenciones', icon: Flag },
+  { id: 'clases', label: 'Clases', icon: BookOpen },
   { id: 'modulos', label: 'Módulos', icon: FolderPlus },
   { id: 'finanzas', label: 'Finanzas', icon: WalletCards },
   { id: 'planes', label: 'Planes y accesos', icon: ShieldCheck },
@@ -146,6 +152,28 @@ const fileSize = (bytes: number) =>
   bytes < 1048576
     ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
     : (bytes / 1048576).toFixed(1) + ' MB';
+const youtubeEmbedUrl = (value: string) => {
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, '');
+    const id =
+      host === 'youtu.be'
+        ? url.pathname.slice(1).split('/')[0]
+        : host === 'youtube.com' || host === 'm.youtube.com'
+          ? url.pathname.startsWith('/embed/')
+            ? url.pathname.split('/')[2]
+            : url.pathname.startsWith('/shorts/')
+              ? url.pathname.split('/')[2]
+              : url.searchParams.get('v') || ''
+          : '';
+    return /^[A-Za-z0-9_-]{6,20}$/.test(id)
+      ? 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0'
+      : '';
+  } catch {
+    return '';
+  }
+};
 const today = () => new Date().toISOString().slice(0, 10);
 const displayDate = (date: string) =>
   new Intl.DateTimeFormat('es-PE', {
@@ -298,7 +326,7 @@ function AuthScreen({
             cada cliente.
           </p>
         </div>
-        <small>Experiencia de demostración · no ingreses datos reales</small>
+        <small>Plataforma de implementación para clientes y equipo</small>
       </section>
       <section className="auth-card">
         <div className="auth-tabs" role="tablist" aria-label="Tipo de acceso">
@@ -330,8 +358,8 @@ function AuthScreen({
           </h2>
           <p className="muted">
             {tab === 'login'
-              ? 'Accede a la demostración con cualquier correo válido.'
-              : 'Previsualiza el alta. La cuenta no se envía ni se crea en un servidor.'}
+              ? 'Ingresa con la cuenta asignada por tu administrador.'
+              : 'Registra tus datos para comenzar el proceso de acceso.'}
           </p>
         </div>
         <form
@@ -410,13 +438,11 @@ function AuthScreen({
             </p>
           )}
           <Button className="full" type="submit">
-            {tab === 'login' ? 'Entrar a la demo' : 'Crear cuenta demo'}{' '}
-            <ArrowRight />
+            {tab === 'login' ? 'Ingresar' : 'Crear cuenta'} <ArrowRight />
           </Button>
         </form>
         <p className="caption">
-          Autenticación visual. Producción requiere Supabase Auth, verificación
-          de correo, recuperación, 2FA y RBAC en servidor.
+          Acceso personal · no compartas tus credenciales.
         </p>
       </section>
     </main>
@@ -601,6 +627,21 @@ export default function Home() {
             o.followUps = Array.isArray(o.followUps)
               ? o.followUps
               : freshOrg.followUps;
+            o.lessonRuns = Array.isArray(o.lessonRuns)
+              ? o.lessonRuns
+              : freshOrg.lessonRuns;
+            o.events.forEach((event) => {
+              if (event.text.includes('Workspace de demostración'))
+                event.text = 'Espacio de trabajo activado.';
+            });
+            o.finances.forEach((entry) => {
+              if (entry.note.includes('ficticio'))
+                entry.note = 'Movimiento inicial registrado';
+            });
+            o.followUps.forEach((follow) => {
+              if (follow.owner === 'Consultor demo')
+                follow.owner = 'Consultor asignado';
+            });
             o.tasks.forEach((task) =>
               task.evidence.forEach((evidence) => {
                 evidence.files = Array.isArray(evidence.files)
@@ -615,6 +656,9 @@ export default function Home() {
           candidate.users = Array.isArray(candidate.users)
             ? candidate.users
             : s.users;
+          candidate.lessons = Array.isArray(candidate.lessons)
+            ? candidate.lessons
+            : s.lessons;
           const primaryAdmin = candidate.users.find(
             (user: State['users'][number]) => user.id === 'user-admin',
           );
@@ -624,6 +668,15 @@ export default function Home() {
             primaryAdmin.role = 'ADMIN';
             primaryAdmin.status = 'ACTIVO';
           }
+          const professionalEmails: Record<string, string> = {
+            'user-norte': 'ana@estudionorte.example',
+            'user-orbita': 'diego@orbita.example',
+            'user-consultor': 'mario@crisdalcompany.example',
+          };
+          candidate.users.forEach((user: State['users'][number]) => {
+            if (professionalEmails[user.id])
+              user.email = professionalEmails[user.id];
+          });
           candidate.plans.forEach((savedPlan: State['plans'][number]) => {
             savedPlan.name =
               savedPlan.name === 'CONTROL Diagnóstico'
@@ -639,7 +692,7 @@ export default function Home() {
         }
       } catch {
         setStorageError(
-          'No se pudo recuperar la demo anterior; se cargó una sesión nueva. Puedes exportarla antes de salir.',
+          'No se pudo recuperar la sesión anterior; se inició un espacio nuevo.',
         );
       }
       stateRef.current = s;
@@ -672,14 +725,14 @@ export default function Home() {
       localStorage.setItem(STORAGE, JSON.stringify(s));
     } catch {
       setStorageError(
-        'Los cambios están en memoria, pero el navegador no permitió guardarlos. Exporta la demo para conservarlos.',
+        'Los cambios están en memoria, pero el navegador no permitió guardarlos. Exporta los datos para conservarlos.',
       );
     }
   };
   const act = (c: Command) => {
     try {
       const current = stateRef.current;
-      if (!current) throw Error('Espera a que cargue la demo.');
+      if (!current) throw Error('Espera a que cargue CONTROL OS.');
       const next = execute(current, current.selected, mode, c);
       persist(next);
       setNotice(getOrg(next, next.selected).events[0].text);
@@ -727,7 +780,7 @@ export default function Home() {
             name: 'control_os_open_week',
             title: 'Abrir semana CONTROL OS',
             description:
-              'Abre una semana de la demo; no envía evidencia ni cambia progreso.',
+              'Abre una semana de CONTROL OS; no envía evidencia ni cambia progreso.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -742,7 +795,7 @@ export default function Home() {
               if (!Number.isInteger(w) || !w || w < 1 || w > 12)
                 throw Error('Semana inválida');
               const s = stateRef.current;
-              if (!s) throw Error('Demo no cargada');
+              if (!s) throw Error('CONTROL OS no ha terminado de cargar');
               const message = available(s, getOrg(s, s.selected), w);
               if (message) throw Error(message);
               flushSync(() => {
@@ -771,8 +824,7 @@ export default function Home() {
             const account = state.users.find(
               (user) => user.email.toLowerCase() === email,
             );
-            if (!account)
-              return 'La cuenta no está registrada en esta demostración.';
+            if (!account) return 'La cuenta no está registrada.';
             if (account.status === 'SUSPENDIDO')
               return 'Esta cuenta está suspendida. Contacta al administrador.';
             const nextMode: Mode =
@@ -785,9 +837,7 @@ export default function Home() {
           }
           setSessionActive(true);
           setNotice(
-            action === 'login'
-              ? 'Sesión demo iniciada.'
-              : 'Vista previa de cuenta creada.',
+            action === 'login' ? 'Sesión iniciada.' : 'Cuenta registrada.',
           );
           return '';
         }}
@@ -798,6 +848,12 @@ export default function Home() {
   const h = health(state, org);
   const currentRun = org.weeks[org.current - 1];
   const selectedTask = org.tasks.find((t) => t.id === taskId);
+  const implementationLessons = lessonsFor(state, org);
+  const implementationMetrics = lessonMetrics(state, org);
+  const implementationGaps = state.orgs.filter((item) => {
+    const metrics = lessonMetrics(state, item);
+    return metrics.learning >= 50 && metrics.execution + 30 < metrics.learning;
+  });
   const nav = mode === 'client' ? navClient : navAdmin;
   const switchOrg = (v: string) => {
     persist({ ...state, selected: v });
@@ -837,7 +893,7 @@ export default function Home() {
         {
           key: 'source',
           label: 'Fuente del dato',
-          value: 'Registro manual de demostración',
+          value: 'Registro manual',
         },
       ],
     });
@@ -863,7 +919,7 @@ export default function Home() {
           value:
             'Revisar el bloqueo con el cliente y acordar el próximo entregable.',
         },
-        { key: 'owner', label: 'Responsable', value: 'Consultor demo' },
+        { key: 'owner', label: 'Responsable', value: 'Consultor asignado' },
         { key: 'due', label: 'Fecha límite', type: 'date', value: today() },
         {
           key: 'severity',
@@ -1012,7 +1068,7 @@ export default function Home() {
               {e.text}
               <small>
                 {displayDate(e.at)} ·{' '}
-                {e.actor === 'admin' ? 'Consultor demo' : 'Cliente demo'}
+                {e.actor === 'admin' ? 'Equipo CONTROL' : 'Cliente'}
                 {e.internal ? ' · Interno' : ''}
               </small>
             </p>
@@ -1032,7 +1088,7 @@ export default function Home() {
               timeZone: 'America/Lima',
             })}
           </strong>
-          <small>America/Lima · sesión de demostración</small>
+          <small>America/Lima · sesión de acompañamiento</small>
         </div>
       </div>
       <p className="muted">{org.session.agenda}</p>
@@ -1043,9 +1099,7 @@ export default function Home() {
             act({ type: 'attendance', checked: !org.session.attended })
           }
         >
-          {org.session.attended
-            ? 'Retirar asistencia'
-            : 'Registrar asistencia demo'}
+          {org.session.attended ? 'Retirar asistencia' : 'Registrar asistencia'}
         </Button>
         <Button
           variant="ghost"
@@ -1144,7 +1198,7 @@ export default function Home() {
                 setForm({
                   title: 'Solicitar ajustes',
                   description:
-                    'Se conserva la evidencia original y el cliente recibe esta observación en la demo.',
+                    'Se conserva la evidencia original y el cliente recibe esta observación.',
                   command: { type: 'changesGate', week: w },
                   fields: [
                     {
@@ -1165,14 +1219,15 @@ export default function Home() {
           </small>
         )}
         <p className="caption">
-          Gate híbrido de demostración: validación de mínimos + revisión humana.
-          No evalúa automáticamente la calidad de los datos.
+          Gate híbrido: validación de mínimos + revisión humana. No evalúa
+          automáticamente la calidad de los datos.
         </p>
       </Section>
     );
   };
   const allTitles: Record<string, string> = {
     inicio: 'Menos ruido. Más control.',
+    onboarding: 'Etapa 00 · Onboarding y bienvenida',
     ruta: 'Tu ruta de implementación',
     tareas: 'De la intención a la evidencia',
     objetivos: 'Resultados que importan',
@@ -1185,10 +1240,11 @@ export default function Home() {
     cliente: org.name + ' · Cliente 360',
     revisiones: 'El avance merece validación',
     intervenciones: 'Actúa antes del estancamiento',
+    clases: 'Aprender, aplicar, entregar y avanzar',
     planes: 'Acceso claro. Alcance definido.',
     modulos: 'Contenido que acompaña la ejecución',
     finanzas: 'Rentabilidad por cliente, sin perder contexto',
-    configuracion: 'Reglas de la demostración',
+    configuracion: 'Configuración y gobierno',
     notificaciones: 'Actividad y notificaciones',
     semana: weeks[week - 1].title,
   };
@@ -1293,6 +1349,177 @@ export default function Home() {
         </Section>
       </>
     );
+  else if (page === 'onboarding')
+    body = (
+      <>
+        <div className="implementation-metrics">
+          <Section title="Aprendizaje">
+            <div className="big-number">{implementationMetrics.learning}%</div>
+            <Meter
+              label="Contenido consumido"
+              value={implementationMetrics.learning}
+            />
+          </Section>
+          <Section title="Ejecución">
+            <div className="big-number">{implementationMetrics.execution}%</div>
+            <Meter
+              label="Actividades entregadas"
+              value={implementationMetrics.execution}
+            />
+          </Section>
+          <Section title="Validación">
+            <div className="big-number">
+              {implementationMetrics.validation}%
+            </div>
+            <Meter
+              label="Entregables aprobados"
+              value={implementationMetrics.validation}
+            />
+          </Section>
+        </div>
+        <div className="method-rule">
+          <ShieldCheck size={22} />
+          <div>
+            <strong>Ninguna clase termina al ver el video.</strong>
+            <span>
+              Contenido ≥ 90% + actividad entregada + validación requerida.
+            </span>
+          </div>
+        </div>
+        <div className="lesson-grid">
+          {implementationLessons.map((lesson) => {
+            const run = org.lessonRuns.find(
+              (item) => item.lessonId === lesson.id,
+            )!;
+            const unlocked = lessonAvailable(state, org, lesson.id);
+            const nextPlayback = Math.min(100, (run?.playback || 0) + 25) as
+              | 25
+              | 50
+              | 75
+              | 100;
+            const complete = run?.playback >= 90 && run.status === 'APROBADO';
+            const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
+            return (
+              <Section
+                key={lesson.id}
+                title={lesson.code + ' · ' + lesson.title}
+                action={
+                  <Badge
+                    value={complete ? 'APROBADO' : run?.status || 'NO_INICIADO'}
+                    color={!unlocked ? 'gray' : undefined}
+                  />
+                }
+              >
+                {!unlocked ? (
+                  <div className="video-placeholder locked">
+                    <LockKeyhole size={30} />
+                    <span>Completa la clase anterior para desbloquear</span>
+                  </div>
+                ) : youtubeUrl ? (
+                  <div className="video-player">
+                    <iframe
+                      src={youtubeUrl}
+                      title={lesson.title}
+                      loading="lazy"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : lesson.videoUrl ? (
+                  <div className="video-placeholder pending">
+                    <BookOpen size={30} />
+                    <span>El enlace debe ser un video válido de YouTube</span>
+                  </div>
+                ) : (
+                  <div className="video-placeholder pending">
+                    <BookOpen size={30} />
+                    <span>Video pendiente de publicación</span>
+                  </div>
+                )}
+                <Meter
+                  label="Reproducción"
+                  value={run?.playback || 0}
+                  right={(run?.playback || 0) + '%'}
+                />
+                <p>{lesson.description}</p>
+                <div className="lesson-structure">
+                  <div>
+                    <small>QUÉ APRENDERÁS</small>
+                    <p>{lesson.learnings.join(' · ')}</p>
+                  </div>
+                  <div>
+                    <small>QUÉ DEBES HACER</small>
+                    <p>{lesson.action}</p>
+                  </div>
+                  <div>
+                    <small>ENTREGABLE</small>
+                    <p>{lesson.deliverable}</p>
+                  </div>
+                </div>
+                {run?.feedback && (
+                  <p className="feedback">Feedback: {run.feedback}</p>
+                )}
+                <div className="inline-actions">
+                  <Badge value={lesson.resourceType} color="gray" />
+                  {unlocked && youtubeUrl && run.playback < 100 && (
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        act({
+                          type: 'watchLesson',
+                          targetId: lesson.id,
+                          value: nextPlayback,
+                        })
+                      }
+                    >
+                      Confirmar {nextPlayback}% visto
+                    </Button>
+                  )}
+                  {unlocked &&
+                    run.playback >= 90 &&
+                    !['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(
+                      run.status,
+                    ) && (
+                      <Button
+                        onClick={() =>
+                          setForm({
+                            title: 'Entregar actividad',
+                            description:
+                              lesson.deliverable +
+                              ' · La evidencia queda vinculada a esta clase.',
+                            command: {
+                              type: 'submitLesson',
+                              targetId: lesson.id,
+                            },
+                            fields: [
+                              {
+                                key: 'text',
+                                label: 'Respuesta, evidencia o URL',
+                                type: 'textarea',
+                                value: run.response,
+                              },
+                            ],
+                            button: lesson.requiresReview
+                              ? 'Enviar a revisión'
+                              : 'Completar actividad',
+                          })
+                        }
+                      >
+                        Entregar actividad
+                      </Button>
+                    )}
+                </div>
+                <p className="caption">
+                  Cierre: video ≥ 90% + actividad completada
+                  {lesson.requiresReview ? ' + aprobación del equipo' : ''}.
+                  Vence {displayDate(run?.due || lesson.due)}.
+                </p>
+              </Section>
+            );
+          })}
+        </div>
+      </>
+    );
   else if (page === 'ruta')
     body = (
       <div className="route-gallery">
@@ -1376,8 +1603,8 @@ export default function Home() {
                     entregable a una decisión del negocio.
                   </p>
                   <p className="muted">
-                    Contenido editorial de demostración. Los videos y materiales
-                    originales del programa están pendientes de carga.
+                    Los videos y materiales se administran desde el módulo de
+                    Clases y se publican según plan y avance.
                   </p>
                   <label className="check-label">
                     <Checkbox
@@ -1404,9 +1631,7 @@ export default function Home() {
                   <p className="feedback" key={i}>
                     {n.text}
                     <small>
-                      {n.shared
-                        ? 'Compartida con consultor (simulación)'
-                        : 'Solo yo (simulación)'}
+                      {n.shared ? 'Compartida con consultor' : 'Solo yo'}
                     </small>
                   </p>
                 ))}
@@ -1416,8 +1641,7 @@ export default function Home() {
                     onClick={() =>
                       setForm({
                         title: 'Nota personal',
-                        description:
-                          'Visibilidad simulada en este navegador. No escribas información confidencial.',
+                        description: 'Define quién puede consultar esta nota.',
                         command: { type: 'note', shared: false },
                         fields: [
                           {
@@ -1437,7 +1661,7 @@ export default function Home() {
                       setForm({
                         title: 'Nota compartida',
                         description:
-                          'Visible en Cliente 360 dentro de esta demo.',
+                          'Visible en Cliente 360 para el equipo asignado.',
                         command: { type: 'note', shared: true },
                         fields: [
                           {
@@ -1560,9 +1784,7 @@ export default function Home() {
     body = (
       <>
         <div className="toolbar">
-          <p className="muted">
-            Datos ficticios · moneda PEN · fuente y validación explícitas
-          </p>
+          <p className="muted">Moneda PEN · fuente y validación explícitas</p>
           <Button onClick={() => kpiForm()}>
             <Plus /> Registrar indicador
           </Button>
@@ -1637,7 +1859,7 @@ export default function Home() {
       <>
         <p className="muted">
           Un logro aparece únicamente cuando un cierre fue aprobado por el
-          consultor en la demostración.
+          equipo responsable.
         </p>
         <div className="cards-grid">
           {org.weeks
@@ -1654,7 +1876,7 @@ export default function Home() {
               >
                 <p>{weeks[w.number - 1].title}</p>
                 <p className="muted">
-                  {w.feedback || 'Validación de demostración precargada.'}
+                  {w.feedback || 'Validación registrada por el equipo.'}
                 </p>
                 <Button variant="outline" onClick={() => openWeek(w.number)}>
                   Ver evidencia
@@ -1703,8 +1925,8 @@ export default function Home() {
               <p>{module.description}</p>
               <FileChips files={module.files} />
               <p className="caption">
-                En esta demo se conserva el nombre y tipo del archivo; la
-                descarga privada requiere Storage.
+                El acceso al archivo se habilita mediante almacenamiento
+                privado.
               </p>
             </Section>
           ))}
@@ -1781,7 +2003,7 @@ export default function Home() {
               setForm({
                 title: 'Abrir consulta',
                 description:
-                  'Tu consulta aparecerá en Cliente 360 para simular la respuesta del equipo.',
+                  'Tu consulta aparecerá en Cliente 360 para el equipo asignado.',
                 command: { type: 'support' },
                 fields: [
                   {
@@ -1821,13 +2043,404 @@ export default function Home() {
         )}
       </>
     );
+  else if (page === 'clases')
+    body = (
+      <>
+        <div className="toolbar">
+          <p className="muted">
+            Cada clase exige una acción y un criterio de cierre. Añade un enlace
+            de YouTube para reproducirlo dentro de CONTROL OS sin cargar el
+            servidor.
+          </p>
+          <Button
+            onClick={() =>
+              setForm({
+                title: 'Crear clase de implementación',
+                description:
+                  'La clase no puede publicarse sin acción, entregable y criterio de avance.',
+                command: { type: 'createLesson' },
+                fields: [
+                  { key: 'title', label: 'Nombre de la clase' },
+                  {
+                    key: 'value',
+                    label: 'Etapa',
+                    value: 0,
+                    options: [
+                      { value: '0', label: 'Etapa 00 · Onboarding' },
+                      ...stages.map((stage, index) => ({
+                        value: String(index + 1),
+                        label: 'Etapa ' + (index + 1) + ' · ' + stage,
+                      })),
+                    ],
+                  },
+                  {
+                    key: 'week',
+                    label: 'Semana (0 para onboarding)',
+                    type: 'number',
+                    min: 0,
+                    max: 12,
+                    value: 0,
+                  },
+                  {
+                    key: 'planId',
+                    label: 'Asignar a',
+                    value: 'all',
+                    options: [
+                      { value: 'all', label: 'Todos los planes' },
+                      ...state.plans.map((item) => ({
+                        value: item.id,
+                        label: item.name + ' v' + item.version,
+                      })),
+                      {
+                        value: 'org:' + org.id,
+                        label: 'Extraordinaria · solo ' + org.name,
+                      },
+                    ],
+                  },
+                  {
+                    key: 'videoUrl',
+                    label: 'Enlace de YouTube',
+                    type: 'url',
+                  },
+                  {
+                    key: 'thumbnailUrl',
+                    label: 'URL HTTPS de miniatura (opcional)',
+                    type: 'url',
+                    required: false,
+                  },
+                  {
+                    key: 'duration',
+                    label: 'Duración (minutos)',
+                    type: 'number',
+                    min: 1,
+                    max: 600,
+                    value: 8,
+                  },
+                  {
+                    key: 'description',
+                    label: 'Descripción',
+                    type: 'textarea',
+                  },
+                  {
+                    key: 'objective',
+                    label: 'Qué aprenderá',
+                    type: 'textarea',
+                  },
+                  { key: 'action', label: 'Qué debe hacer', type: 'textarea' },
+                  {
+                    key: 'resourceType',
+                    label: 'Tipo de recurso',
+                    value: 'PLANTILLA',
+                    options: [
+                      'PDF',
+                      'EXCEL',
+                      'GOOGLE SHEET',
+                      'DOCX',
+                      'PLANTILLA',
+                      'CHECKLIST',
+                      'ENLACE',
+                      'FORMULARIO',
+                      'CALCULADORA',
+                      'SOP',
+                      'CANVAS',
+                      'EJEMPLO',
+                    ].map((value) => ({ value, label: value })),
+                  },
+                  {
+                    key: 'deliverable',
+                    label: 'Entregable obligatorio',
+                    type: 'textarea',
+                  },
+                  {
+                    key: 'due',
+                    label: 'Fecha límite',
+                    type: 'date',
+                    value: today(),
+                  },
+                  {
+                    key: 'points',
+                    label: 'Puntos / logro',
+                    type: 'number',
+                    min: 0,
+                    max: 1000,
+                    value: 10,
+                  },
+                  {
+                    key: 'requiresReview',
+                    label: 'Requiere revisión',
+                    value: 'yes',
+                    options: [
+                      { value: 'yes', label: 'Sí' },
+                      { value: 'no', label: 'No' },
+                    ],
+                  },
+                  {
+                    key: 'requiredForUnlock',
+                    label: 'Bloquea la siguiente clase',
+                    value: 'yes',
+                    options: [
+                      { value: 'yes', label: 'Sí' },
+                      { value: 'no', label: 'No' },
+                    ],
+                  },
+                  {
+                    key: 'publication',
+                    label: 'Estado editorial',
+                    value: 'BORRADOR',
+                    options: [
+                      { value: 'BORRADOR', label: 'Borrador' },
+                      { value: 'PUBLICADO', label: 'Publicado' },
+                    ],
+                  },
+                ],
+                button: 'Crear clase',
+              })
+            }
+          >
+            <Plus /> Crear clase
+          </Button>
+        </div>
+        <div className="implementation-metrics compact">
+          <Section title="Aprendizaje">
+            <div className="big-number">{implementationMetrics.learning}%</div>
+            <small className="muted">Contenido consumido</small>
+          </Section>
+          <Section title="Ejecución">
+            <div className="big-number">{implementationMetrics.execution}%</div>
+            <small className="muted">Actividades entregadas</small>
+          </Section>
+          <Section title="Validación">
+            <div className="big-number">
+              {implementationMetrics.validation}%
+            </div>
+            <small className="muted">Entregables aprobados</small>
+          </Section>
+        </div>
+        {implementationMetrics.learning >= 50 &&
+          implementationMetrics.execution + 30 <
+            implementationMetrics.learning && (
+            <div className="implementation-alert">
+              <Flag size={20} />
+              <div>
+                <strong>Consumo alto y ejecución baja · {org.name}</strong>
+                <span>
+                  {org.lessonRuns.filter((run) => run.playback >= 90).length}{' '}
+                  clases vistas /{' '}
+                  {
+                    org.lessonRuns.filter((run) =>
+                      [
+                        'ENVIADO',
+                        'EN_REVISION',
+                        'OBSERVADO',
+                        'APROBADO',
+                      ].includes(run.status),
+                    ).length
+                  }{' '}
+                  actividades entregadas.
+                </span>
+              </div>
+              <Button variant="outline" onClick={() => intervene()}>
+                Intervenir
+              </Button>
+            </div>
+          )}
+        <div className="lesson-grid admin-lessons">
+          {state.lessons
+            .toSorted((a, b) => a.code.localeCompare(b.code))
+            .map((lesson: Lesson) => {
+              const run = org.lessonRuns.find(
+                (item) => item.lessonId === lesson.id,
+              );
+              const assigned = Boolean(run);
+              const unlocked =
+                assigned && lessonAvailable(state, org, lesson.id);
+              return (
+                <Section
+                  key={lesson.id}
+                  title={lesson.code + ' · ' + lesson.title}
+                  action={
+                    <Badge
+                      value={lesson.publication}
+                      color={lesson.publication === 'BORRADOR' ? 'gray' : ''}
+                    />
+                  }
+                >
+                  <p>{lesson.description}</p>
+                  <div className="class-meta">
+                    <span>Etapa {String(lesson.stage).padStart(2, '0')}</span>
+                    <span>Semana {lesson.week}</span>
+                    <span>{lesson.duration} min</span>
+                    <span>{lesson.points} pts</span>
+                    <span>
+                      {lesson.videoUrl
+                        ? 'YouTube vinculado'
+                        : 'Video pendiente'}
+                    </span>
+                  </div>
+                  <div className="lesson-structure">
+                    <div>
+                      <small>ACCIÓN</small>
+                      <p>{lesson.action}</p>
+                    </div>
+                    <div>
+                      <small>ENTREGABLE</small>
+                      <p>{lesson.deliverable}</p>
+                    </div>
+                    <div>
+                      <small>CIERRE</small>
+                      <p>
+                        Video ≥ 90% + actividad
+                        {lesson.requiresReview ? ' + revisión' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="section-top">
+                    <span className="muted text-small">
+                      {assigned
+                        ? org.name + ' · vence ' + displayDate(run!.due)
+                        : 'No asignada al cliente seleccionado'}
+                    </span>
+                    {assigned && (
+                      <Badge
+                        value={run!.status}
+                        color={!unlocked ? 'gray' : undefined}
+                      />
+                    )}
+                  </div>
+                  {run?.feedback && <p className="feedback">{run.feedback}</p>}
+                  {run && (
+                    <div className="inline-actions">
+                      {!unlocked && (
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            act({
+                              type: 'lessonOverride',
+                              targetId: lesson.id,
+                              override: 'unlock',
+                            })
+                          }
+                        >
+                          Desbloquear
+                        </Button>
+                      )}
+                      {!run.requirementSkipped && run.status !== 'APROBADO' && (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            act({
+                              type: 'lessonOverride',
+                              targetId: lesson.id,
+                              override: 'skip',
+                            })
+                          }
+                        >
+                          Saltar requisito
+                        </Button>
+                      )}
+                      {['APROBADO', 'OBSERVADO'].includes(run.status) && (
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            act({
+                              type: 'lessonOverride',
+                              targetId: lesson.id,
+                              override: 'reopen',
+                            })
+                          }
+                        >
+                          Reabrir actividad
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          setForm({
+                            title: 'Extender fecha límite',
+                            description: lesson.title + ' · ' + org.name,
+                            command: {
+                              type: 'extendLesson',
+                              targetId: lesson.id,
+                            },
+                            fields: [
+                              {
+                                key: 'due',
+                                label: 'Nueva fecha límite',
+                                type: 'date',
+                                value: run.due,
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        <CalendarDays size={16} /> Extender fecha
+                      </Button>
+                      {['ENVIADO', 'EN_REVISION'].includes(run.status) && (
+                        <>
+                          <Button
+                            onClick={() =>
+                              setForm({
+                                title: 'Aprobar actividad',
+                                description: run.response,
+                                command: {
+                                  type: 'reviewLesson',
+                                  targetId: lesson.id,
+                                  checked: true,
+                                },
+                                fields: [
+                                  {
+                                    key: 'text',
+                                    label: 'Feedback y recomendación',
+                                    type: 'textarea',
+                                  },
+                                ],
+                                button: 'Aprobar',
+                              })
+                            }
+                          >
+                            Aprobar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              setForm({
+                                title: 'Solicitar cambios',
+                                description: run.response,
+                                command: {
+                                  type: 'reviewLesson',
+                                  targetId: lesson.id,
+                                  checked: false,
+                                },
+                                fields: [
+                                  {
+                                    key: 'text',
+                                    label: 'Observación o corrección',
+                                    type: 'textarea',
+                                  },
+                                ],
+                                button: 'Solicitar cambios',
+                              })
+                            }
+                          >
+                            Observar
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </Section>
+              );
+            })}
+        </div>
+      </>
+    );
   else if (page === 'modulos')
     body = (
       <>
         <div className="toolbar">
           <p className="muted">
             Organiza material por semana y plan. Los archivos se registran como
-            metadatos en esta demo.
+            metadatos y acceso según permisos.
           </p>
           <Button
             onClick={() =>
@@ -1901,11 +2514,7 @@ export default function Home() {
                   <Button
                     variant="ghost"
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          '¿Eliminar este módulo de la demostración?',
-                        )
-                      )
+                      if (window.confirm('¿Eliminar este módulo?'))
                         act({ type: 'deleteModule', targetId: module.id });
                     }}
                   >
@@ -1956,7 +2565,7 @@ export default function Home() {
             <div className="finance-number">
               S/ {portfolioIncome.toLocaleString('es-PE')}
             </div>
-            <small className="muted">Cartera demo</small>
+            <small className="muted">Cartera activa</small>
           </Section>
           <Section title="Costo registrado">
             <div className="finance-number">
@@ -1974,7 +2583,7 @@ export default function Home() {
                 : 0}
               %
             </div>
-            <small className="muted">Estimación demo</small>
+            <small className="muted">Margen estimado</small>
           </Section>
           <Section title="Por cobrar">
             <div className="finance-number">
@@ -2127,7 +2736,7 @@ export default function Home() {
     body = (
       <>
         <div className="stats-grid">
-          <Section title="Clientes demo">
+          <Section title="Clientes activos">
             <div className="big-number">{state.orgs.length}</div>
             <small className="muted">1 empresa por plan</small>
           </Section>
@@ -2235,6 +2844,50 @@ export default function Home() {
           </Table>
           {!clients.length && <Empty>No hay clientes para este filtro.</Empty>}
         </Section>
+        <Section title="Brechas de implementación" className="spaced">
+          {implementationGaps.length ? (
+            implementationGaps.map((item) => {
+              const metrics = lessonMetrics(state, item);
+              const viewed = item.lessonRuns.filter(
+                (run) => run.playback >= 90,
+              ).length;
+              const delivered = item.lessonRuns.filter((run) =>
+                ['ENVIADO', 'EN_REVISION', 'OBSERVADO', 'APROBADO'].includes(
+                  run.status,
+                ),
+              ).length;
+              return (
+                <div
+                  className="implementation-alert compact-alert"
+                  key={item.id}
+                >
+                  <Flag size={19} />
+                  <div>
+                    <strong>{item.name} · consumo alto, ejecución baja</strong>
+                    <span>
+                      {viewed} clases vistas / {delivered} actividades
+                      entregadas · aprendizaje {metrics.learning}% / ejecución{' '}
+                      {metrics.execution}%.
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      switchOrg(item.id);
+                      navigate('clases');
+                    }}
+                  >
+                    Revisar clases
+                  </Button>
+                </div>
+              );
+            })
+          ) : (
+            <p className="muted">
+              No hay brechas críticas entre consumo y ejecución.
+            </p>
+          )}
+        </Section>
         <Section title="Señales para intervenir" className="spaced">
           {state.orgs
             .filter((o) => health(state, o).reasons.length)
@@ -2272,7 +2925,22 @@ export default function Home() {
             <span>{programProgress(state, org)}% aprobado</span>
           </div>
           <div>
-            <small>Ejecución</small>
+            <small>Aprendizaje</small>
+            <strong>{implementationMetrics.learning}%</strong>
+            <span>contenido consumido</span>
+          </div>
+          <div>
+            <small>Implementación</small>
+            <strong>{implementationMetrics.execution}%</strong>
+            <span>actividades entregadas</span>
+          </div>
+          <div>
+            <small>Validación</small>
+            <strong>{implementationMetrics.validation}%</strong>
+            <span>entregables aprobados</span>
+          </div>
+          <div>
+            <small>Ejecución semanal</small>
             <strong>{execution(org)}%</strong>
             <span>
               {
@@ -2312,7 +2980,7 @@ export default function Home() {
           {scoreCard}
           <Section title="Contexto y riesgo">
             <p>
-              {org.person} · Semana {org.current} · Cohorte demo
+              {org.person} · Semana {org.current} · Cohorte activa
             </p>
             {h.reasons.map((r) => (
               <p className="risk-line" key={r}>
@@ -2322,7 +2990,7 @@ export default function Home() {
             <p className="caption">
               Health: ejecución 25%, actividad 15%, vencidas 15%, KPI 15%,
               asistencia 10%, bloqueos 10%, evaluación manual neutral 5/10.
-              Aproximación demo.
+              Modelo configurable.
             </p>
             <Button
               variant="outline"
@@ -2416,7 +3084,7 @@ export default function Home() {
                     setForm({
                       title: 'Responder consulta',
                       description:
-                        'Respuesta local para el portal cliente de demostración.',
+                        'Respuesta visible en el portal del cliente.',
                       command: { type: 'reply', targetId: t.id },
                       fields: [
                         {
@@ -2458,7 +3126,7 @@ export default function Home() {
                     {
                       key: 'owner',
                       label: 'Responsable',
-                      value: 'Consultor demo',
+                      value: 'Consultor asignado',
                     },
                     {
                       key: 'due',
@@ -2597,8 +3265,8 @@ export default function Home() {
     body = (
       <>
         <div className="demo-notice">
-          Matriz propuesta. Los límites se muestran como referencia; esta demo
-          no gestiona contratos, cobros ni elegibilidad real para Partnership.
+          Matriz de acceso por plan y versión. Los contratos y cobros se
+          gestionan desde el proceso administrativo correspondiente.
         </div>
         <div className="cards-grid">
           {state.plans.map((p) => (
@@ -2754,7 +3422,7 @@ export default function Home() {
                             window.confirm(
                               '¿Eliminar a ' +
                                 user.name +
-                                '? Esta acción solo afecta la demo local.',
+                                '? El historial de actividad se conservará por separado.',
                             )
                           )
                             act({ type: 'deleteUser', targetId: user.id });
@@ -2769,14 +3437,11 @@ export default function Home() {
             </TableBody>
           </Table>
           <p className="caption">
-            Suspender conserva el histórico; eliminar retira el acceso demo. No
-            se crean identidades reales.
+            Suspender conserva el histórico; eliminar retira el acceso asignado.
           </p>
         </Section>
         <Section title="Umbrales de Client Health">
-          <p className="muted">
-            Configuración provisional aplicada al portafolio demo.
-          </p>
+          <p className="muted">Configuración aplicada a todo el portafolio.</p>
           <p>
             Verde: {state.thresholds.green}–100
             <br />
@@ -2816,29 +3481,30 @@ export default function Home() {
             Editar umbrales
           </Button>
         </Section>
-        <Section title="Datos de esta demostración">
+        <Section title="Infraestructura y datos">
           <p className="muted">
-            Los cambios se guardan solo en este navegador. No existe backend,
-            autenticación, aislamiento seguro de empresas ni envío de email.
+            Mientras se completa la conexión con Supabase, los cambios de esta
+            versión se conservan en el navegador. No cargues información
+            sensible.
           </p>
           <Button
             variant="outline"
             onClick={() =>
               download(
-                'control-os-demo.json',
+                'control-os-export.json',
                 JSON.stringify(state, null, 2),
                 'application/json',
               )
             }
           >
-            <Download /> Exportar datos demo
+            <Download /> Exportar datos
           </Button>
           <p className="caption">
-            El archivo incluye las tres empresas ficticias y las notas locales.
-            No cargues datos reales.
+            El archivo incluye organizaciones, seguimiento y configuraciones del
+            navegador.
           </p>
         </Section>
-        <Section title="Pendiente para producción" className="wide">
+        <Section title="Integraciones y seguridad" className="wide">
           <p>
             Conectar las pantallas de acceso a Supabase Auth, invitaciones, 2FA,
             RBAC servidor, base de datos multi-tenant, archivos privados,
@@ -2847,8 +3513,8 @@ export default function Home() {
           </p>
           <p className="muted">
             Arquitectura recomendada por el PDF: Laravel + PostgreSQL +
-            React/TypeScript. Esta interfaz React es un prototipo funcional para
-            validar los flujos, no sustituye esa implementación.
+            React/TypeScript. La siguiente fase conecta estos flujos con
+            servicios de autenticación, datos y almacenamiento privados.
           </p>
         </Section>
       </div>
@@ -2857,8 +3523,8 @@ export default function Home() {
     body = (
       <Section title="Actividad local" action={<Bell size={19} />}>
         <p className="muted">
-          Timeline de esta demostración; no son notificaciones enviadas por
-          email.
+          Actividad registrada en CONTROL OS. El envío por email se configura
+          por separado.
         </p>
         {timeline(mode === 'admin')}
       </Section>
@@ -2920,9 +3586,9 @@ export default function Home() {
           </button>
         </div>
         <div className="workspace">
-          <small>EMPRESA DE DEMOSTRACIÓN</small>
+          <small>ORGANIZACIÓN</small>
           <Pick
-            label="Empresa de demostración"
+            label="Organización activa"
             value={state.selected}
             options={state.orgs.map((o) => ({ value: o.id, label: o.name }))}
             onChange={switchOrg}
@@ -2963,7 +3629,7 @@ export default function Home() {
             <br />
             <strong>Un dueño en control.</strong>
           </p>
-          <span>CRISDAL AGENCY · demo funcional</span>
+          <span>CRISDAL AGENCY · CONTROL OS</span>
         </div>
       </aside>
       <button
@@ -2999,7 +3665,7 @@ export default function Home() {
           </div>
           <div className="header-right">
             <Pick
-              label="Vista de demostración, no acceso autenticado"
+              label="Cambiar espacio de trabajo"
               value={mode}
               options={[
                 { value: 'client', label: 'Vista cliente' },
@@ -3022,8 +3688,8 @@ export default function Home() {
             <button
               className="avatar"
               type="button"
-              aria-label="Cerrar sesión de demostración"
-              title="Cerrar sesión demo"
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
               onClick={() => {
                 try {
                   sessionStorage.removeItem('control-os-demo-session');
@@ -3058,11 +3724,6 @@ export default function Home() {
               </Button>
             )}
           </div>
-          <div className="demo-notice">
-            <span className="demo-dot" /> DEMO · Datos ficticios, guardados solo
-            en este navegador. El selector de vistas no es autenticación. No
-            ingreses datos reales.
-          </div>
           {storageError && (
             <p className="error" role="alert">
               {storageError}
@@ -3070,10 +3731,7 @@ export default function Home() {
           )}
           {body}
           <footer>
-            CONTROL OS{' '}
-            <span>
-              Escalamiento con Control · Prototipo basado en especificación v1.0
-            </span>
+            CONTROL OS <span>Escalamiento con Control · Método CONTROL™</span>
             <span>America/Lima · PEN</span>
           </footer>
         </div>
@@ -3138,7 +3796,7 @@ export default function Home() {
                           setForm({
                             title: 'Enviar evidencia',
                             description:
-                              'Describe el entregable y complementa el sustento con PDF, Word o Excel. En la demo solo se conserva la metadata.',
+                              'Describe el entregable y complementa el sustento con PDF, Word o Excel.',
                             command: {
                               type: 'submit',
                               taskId: selectedTask.id,
@@ -3205,8 +3863,7 @@ export default function Home() {
                                 key: 'text',
                                 label: 'Comentario de revisión',
                                 type: 'textarea',
-                                value:
-                                  'Evidencia de demostración revisada y aceptada.',
+                                value: 'Evidencia revisada y aceptada.',
                               },
                             ],
                           });

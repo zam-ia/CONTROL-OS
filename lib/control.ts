@@ -1,4 +1,4 @@
-// Demo domain only. These checks are NOT a server authorization boundary.
+// Local prototype domain. These checks are NOT a server authorization boundary.
 export type Mode = 'client' | 'admin';
 export type Attachment = {
   id: string;
@@ -85,6 +85,45 @@ export type FollowUp = {
   due: string;
   status: 'ABIERTO' | 'COMPLETADO';
 };
+export type LessonStatus =
+  | 'NO_INICIADO'
+  | 'EN_PROGRESO'
+  | 'ENVIADO'
+  | 'EN_REVISION'
+  | 'OBSERVADO'
+  | 'APROBADO';
+export type Lesson = {
+  id: string;
+  code: string;
+  title: string;
+  stage: number;
+  week: number;
+  planId: string;
+  publication: 'BORRADOR' | 'PUBLICADO';
+  description: string;
+  objective: string;
+  duration: number;
+  videoUrl: string;
+  thumbnailUrl: string;
+  learnings: string[];
+  action: string;
+  resourceType: string;
+  deliverable: string;
+  due: string;
+  points: number;
+  requiresReview: boolean;
+  requiredForUnlock: boolean;
+};
+export type LessonRun = {
+  lessonId: string;
+  playback: 0 | 25 | 50 | 75 | 100;
+  status: LessonStatus;
+  response: string;
+  feedback: string;
+  due: string;
+  manuallyUnlocked: boolean;
+  requirementSkipped: boolean;
+};
 export type Org = {
   id: string;
   name: string;
@@ -105,6 +144,7 @@ export type Org = {
   support: { id: string; text: string; reply: string }[];
   finances: FinanceEntry[];
   followUps: FollowUp[];
+  lessonRuns: LessonRun[];
 };
 export type Plan = {
   id: string;
@@ -139,6 +179,7 @@ export type State = {
     status: 'ACTIVO' | 'SUSPENDIDO';
     lastAccess: string;
   }[];
+  lessons: Lesson[];
 };
 export const stages = [
   'Claridad y Diagnóstico',
@@ -344,6 +385,14 @@ export const statusLabels: Record<string, string> = {
   VENCIDO: 'Vencido',
   ABIERTO: 'Abierto',
   COMPLETADO: 'Completado',
+  NO_INICIADO: 'No iniciado',
+  EN_PROGRESO: 'En progreso',
+  ENVIADO: 'Enviado',
+  EN_REVISION: 'En revisión',
+  OBSERVADO: 'Observado',
+  APROBADO: 'Aprobado',
+  BORRADOR: 'Borrador',
+  PUBLICADO: 'Publicado',
 };
 export const now = () => new Date().toISOString();
 const id = () => globalThis.crypto.randomUUID();
@@ -383,6 +432,109 @@ export function seed(): State {
       advanced: true,
     },
   ];
+  const onboardingLessons: Lesson[] = [
+    [
+      '00.1',
+      'Bienvenida a CONTROL',
+      'Conoce el propósito del programa y cómo aprovechar el acompañamiento.',
+      'Comprender el punto de partida y el compromiso de implementación.',
+      'Ver el video completo.',
+      'VIDEO',
+      'Confirmar visualización y compromiso.',
+    ],
+    [
+      '00.2',
+      'Cómo funciona la metodología',
+      'Recorre el mapa CONTROL y la lógica de sus etapas.',
+      'Entender el camino completo antes de comenzar.',
+      'Revisar las etapas del método.',
+      'MAPA',
+      'Confirmar que revisaste el mapa CONTROL.',
+    ],
+    [
+      '00.3',
+      'Cómo usar CONTROL OS',
+      'Aprende a navegar, ejecutar y enviar sustentos.',
+      'Usar la plataforma sin depender del equipo.',
+      'Completar el recorrido guiado.',
+      'CHECKLIST',
+      'Completar el checklist de navegación.',
+    ],
+    [
+      '00.4',
+      'Reglas de trabajo',
+      'Alinea expectativas, tiempos y responsabilidades.',
+      'Trabajar con una cadencia y reglas explícitas.',
+      'Aceptar los compromisos de trabajo.',
+      'DOCUMENTO',
+      'Confirmar la aceptación de compromisos.',
+    ],
+    [
+      '00.5',
+      'Conoce tu punto de partida',
+      'Registra la información esencial del negocio.',
+      'Construir una línea base útil y verificable.',
+      'Completar el formulario del negocio.',
+      'FORMULARIO',
+      'Enviar la información inicial del negocio.',
+    ],
+    [
+      '00.6',
+      'CONTROL Score inicial',
+      'Evalúa las cuatro dimensiones del sistema.',
+      'Generar el diagnóstico inicial de madurez.',
+      'Completar la evaluación CONTROL Score.',
+      'DIAGNOSTICO',
+      'Generar y enviar el score inicial.',
+    ],
+    [
+      '00.7',
+      'Tus primeros 90 días',
+      'Convierte el diagnóstico en un objetivo prioritario.',
+      'Definir un resultado medible para el ciclo.',
+      'Registrar el objetivo principal.',
+      'PLANTILLA',
+      'Registrar el objetivo de los primeros 90 días.',
+    ],
+    [
+      '00.8',
+      'Sesión de Kickoff',
+      'Prepara la agenda de inicio y los acuerdos clave.',
+      'Salir con responsables y próximos pasos.',
+      'Agendar o asistir a la sesión.',
+      'SESION',
+      'Completar la sesión de kickoff.',
+    ],
+  ].map(
+    (
+      [code, title, description, objective, action, resourceType, deliverable],
+      index,
+    ) => ({
+      id: 'lesson-' + String(code).replace('.', '-'),
+      code: String(code),
+      title: String(title),
+      stage: 0,
+      week: 0,
+      planId: 'all',
+      publication: 'PUBLICADO',
+      description: String(description),
+      objective: String(objective),
+      duration: 4 + index,
+      videoUrl: '',
+      thumbnailUrl: '',
+      learnings: [
+        String(objective),
+        'Identificar la acción concreta de cierre.',
+      ],
+      action: String(action),
+      resourceType: String(resourceType),
+      deliverable: String(deliverable),
+      due: date(index + 1),
+      points: 10,
+      requiresReview: index >= 4,
+      requiredForUnlock: true,
+    }),
+  );
   const orgs: Org[] = [
     {
       id: 'norte',
@@ -435,7 +587,7 @@ export function seed(): State {
               ? [
                   {
                     id: 'seed-' + i + '-' + j,
-                    text: 'Evidencia ficticia validada para demostrar el histórico.',
+                    text: 'Evidencia histórica validada por el equipo.',
                     at: date(-12),
                     status: 'ACCEPTED',
                     feedback: 'Validación ilustrativa',
@@ -459,7 +611,7 @@ export function seed(): State {
           code: 'margin',
           value: 12 + index * 3,
           period: date(-30),
-          source: 'Línea base ficticia',
+          source: 'Línea base registrada',
           at: date(-30),
           status: 'VALIDATED',
         },
@@ -498,7 +650,7 @@ export function seed(): State {
           id: 'welcome',
           at: now(),
           actor: 'admin',
-          text: 'Workspace de demostración activado. Datos ficticios.',
+          text: 'Espacio de trabajo activado.',
           internal: false,
         },
       ],
@@ -519,7 +671,7 @@ export function seed(): State {
           amount: 2400 + index * 900,
           date: date(-12),
           status: index === 1 ? 'PENDIENTE' : 'PAGADO',
-          note: 'Movimiento ficticio de demostración',
+          note: 'Movimiento inicial registrado',
         },
         {
           id: 'finance-' + base.id + '-2',
@@ -536,11 +688,44 @@ export function seed(): State {
           id: 'follow-' + base.id,
           at: now(),
           summary: 'Revisar entregables y acordar el siguiente hito.',
-          owner: 'Consultor demo',
+          owner: 'Consultor asignado',
           due: date(4),
           status: 'ABIERTO',
         },
       ],
+      lessonRuns: onboardingLessons.map((lesson, lessonIndex) => {
+        const advancedProgress = index === 2 && lessonIndex < 5;
+        const secondClientProgress = index === 1 && lessonIndex === 0;
+        return {
+          lessonId: lesson.id,
+          playback:
+            advancedProgress || secondClientProgress
+              ? 100
+              : lessonIndex === 0
+                ? 25
+                : 0,
+          status: advancedProgress
+            ? lessonIndex === 0
+              ? 'APROBADO'
+              : 'EN_PROGRESO'
+            : secondClientProgress
+              ? 'APROBADO'
+              : lessonIndex === 0
+                ? 'EN_PROGRESO'
+                : 'NO_INICIADO',
+          response:
+            advancedProgress && lessonIndex === 0
+              ? 'Bienvenida completada.'
+              : '',
+          feedback: '',
+          due: lesson.due,
+          manuallyUnlocked:
+            advancedProgress ||
+            lessonIndex === 0 ||
+            (index === 1 && lessonIndex === 1),
+          requirementSkipped: false,
+        } as LessonRun;
+      }),
     }),
   );
   return {
@@ -635,7 +820,7 @@ export function seed(): State {
       {
         id: 'user-norte',
         name: 'Ana Pérez',
-        email: 'ana@estudionorte.demo',
+        email: 'ana@estudionorte.example',
         role: 'CLIENTE',
         orgId: 'norte',
         status: 'ACTIVO',
@@ -644,7 +829,7 @@ export function seed(): State {
       {
         id: 'user-orbita',
         name: 'Diego Ruiz',
-        email: 'diego@orbita.demo',
+        email: 'diego@orbita.example',
         role: 'CLIENTE',
         orgId: 'orbita',
         status: 'SUSPENDIDO',
@@ -653,13 +838,14 @@ export function seed(): State {
       {
         id: 'user-consultor',
         name: 'Mario Consultor',
-        email: 'mario@control.demo',
+        email: 'mario@crisdalcompany.example',
         role: 'CONSULTOR',
         orgId: '',
         status: 'ACTIVO',
         lastAccess: date(-1),
       },
     ],
+    lessons: onboardingLessons,
   };
 }
 export function getOrg(s: State, orgId: string) {
@@ -714,6 +900,61 @@ export function programProgress(s: State, o: Org) {
   return Math.round(
     (100 * allowed.filter((w) => w.gate === 'APPROVED').length) /
       Math.max(1, allowed.length),
+  );
+}
+export function lessonsFor(s: State, o: Org) {
+  return s.lessons
+    .filter(
+      (lesson) =>
+        lesson.publication === 'PUBLICADO' &&
+        (lesson.planId === 'all' ||
+          lesson.planId === o.planId ||
+          lesson.planId === 'org:' + o.id),
+    )
+    .toSorted((a, b) => a.code.localeCompare(b.code));
+}
+export function lessonMetrics(s: State, o: Org) {
+  const lessons = lessonsFor(s, o);
+  const runs = new Map(o.lessonRuns.map((run) => [run.lessonId, run]));
+  const total = Math.max(1, lessons.length);
+  const learning = Math.round(
+    lessons.reduce(
+      (sum, lesson) => sum + (runs.get(lesson.id)?.playback || 0),
+      0,
+    ) / total,
+  );
+  const submitted = new Set([
+    'ENVIADO',
+    'EN_REVISION',
+    'OBSERVADO',
+    'APROBADO',
+  ]);
+  const execution = Math.round(
+    (100 *
+      lessons.filter((lesson) =>
+        submitted.has(runs.get(lesson.id)?.status || ''),
+      ).length) /
+      total,
+  );
+  const validation = Math.round(
+    (100 *
+      lessons.filter((lesson) => runs.get(lesson.id)?.status === 'APROBADO')
+        .length) /
+      total,
+  );
+  return { learning, execution, validation, total };
+}
+export function lessonAvailable(s: State, o: Org, lessonId: string) {
+  const lessons = lessonsFor(s, o);
+  const index = lessons.findIndex((lesson) => lesson.id === lessonId);
+  if (index < 0) return false;
+  const run = o.lessonRuns.find((item) => item.lessonId === lessonId);
+  if (run?.manuallyUnlocked || index === 0) return true;
+  const previous = o.lessonRuns.find(
+    (item) => item.lessonId === lessons[index - 1].id,
+  );
+  return Boolean(
+    previous?.status === 'APROBADO' || previous?.requirementSkipped,
   );
 }
 export function goalProgress(g: Goal) {
@@ -829,6 +1070,17 @@ export type Command = {
   kind?: string;
   category?: string;
   note?: string;
+  objective?: string;
+  duration?: number;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  resourceType?: string;
+  deliverable?: string;
+  points?: number;
+  publication?: string;
+  requiresReview?: string;
+  requiredForUnlock?: string;
+  override?: string;
 };
 export function execute(
   s: State,
@@ -857,6 +1109,10 @@ export function execute(
     'finance',
     'followUp',
     'completeFollowUp',
+    'createLesson',
+    'reviewLesson',
+    'lessonOverride',
+    'extendLesson',
   ];
   if (staff.includes(c.type) && mode !== 'admin')
     throw Error('Esta acción corresponde a la vista de administración.');
@@ -874,6 +1130,27 @@ export function execute(
     )
       throw Error('Fecha no válida.');
     return x;
+  };
+  const youtubeVideoId = (value: string) => {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'https:') return '';
+      const host = url.hostname.replace(/^www\./, '');
+      const videoId =
+        host === 'youtu.be'
+          ? url.pathname.slice(1).split('/')[0]
+          : host === 'youtube.com' || host === 'm.youtube.com'
+            ? url.pathname.startsWith('/embed/') ||
+              url.pathname.startsWith('/shorts/')
+              ? url.pathname.split('/')[2]
+              : url.pathname === '/watch'
+                ? url.searchParams.get('v') || ''
+                : ''
+            : '';
+      return /^[A-Za-z0-9_-]{6,20}$/.test(videoId) ? videoId : '';
+    } catch {
+      return '';
+    }
   };
   const validFiles = (files: Attachment[] | undefined, required = false) => {
     if (required && !files?.length)
@@ -1147,6 +1424,132 @@ export function execute(
       ' v' +
       v +
       ' creada; contratos anteriores conservados';
+    internal = true;
+  } else if (c.type === 'watchLesson' || c.type === 'submitLesson') {
+    const lesson = next.lessons.find((item) => item.id === c.targetId);
+    const run = o.lessonRuns.find((item) => item.lessonId === c.targetId);
+    if (!lesson || !run || !lessonAvailable(next, o, lesson.id))
+      throw Error('La clase todavía no está disponible.');
+    if (c.type === 'watchLesson') {
+      if (![0, 25, 50, 75, 100].includes(Number(c.value)))
+        throw Error('Progreso de reproducción no válido.');
+      run.playback = Math.max(
+        run.playback,
+        Number(c.value),
+      ) as LessonRun['playback'];
+      if (run.status === 'NO_INICIADO') run.status = 'EN_PROGRESO';
+      event =
+        'Reproducción registrada: ' + lesson.title + ' · ' + run.playback + '%';
+    } else {
+      if (run.playback < 90)
+        throw Error(
+          'Completa al menos el 90% del contenido antes de entregar.',
+        );
+      run.response = needText(c.text, 5);
+      run.status = lesson.requiresReview ? 'ENVIADO' : 'APROBADO';
+      run.feedback = '';
+      event = 'Actividad entregada: ' + lesson.title;
+    }
+  } else if (c.type === 'reviewLesson') {
+    const lesson = next.lessons.find((item) => item.id === c.targetId);
+    const run = o.lessonRuns.find((item) => item.lessonId === c.targetId);
+    if (!lesson || !run || !['ENVIADO', 'EN_REVISION'].includes(run.status))
+      throw Error('No hay una actividad pendiente de revisión.');
+    run.feedback = needText(c.text);
+    run.status = c.checked ? 'APROBADO' : 'OBSERVADO';
+    event =
+      (c.checked ? 'Clase aprobada: ' : 'Cambios solicitados: ') + lesson.title;
+  } else if (c.type === 'createLesson') {
+    const stage = Number(c.value);
+    const week = Number(c.week);
+    const duration = Number(c.duration);
+    const points = Number(c.points);
+    if (!Number.isInteger(stage) || stage < 0 || stage > 4)
+      throw Error('Etapa no válida.');
+    if (!Number.isInteger(week) || week < 0 || week > 12)
+      throw Error('Semana no válida.');
+    if (!Number.isFinite(duration) || duration <= 0 || duration > 600)
+      throw Error('Duración no válida.');
+    if (!Number.isInteger(points) || points < 0 || points > 1000)
+      throw Error('Puntos no válidos.');
+    const planId = c.planId || 'all';
+    if (
+      planId !== 'all' &&
+      !next.plans.some((plan) => plan.id === planId) &&
+      !next.orgs.some((organization) => planId === 'org:' + organization.id)
+    )
+      throw Error('Asignación de clase no válida.');
+    const videoUrl = needText(c.videoUrl, 8);
+    if (!youtubeVideoId(videoUrl))
+      throw Error('Usa un enlace HTTPS válido de YouTube.');
+    const lesson: Lesson = {
+      id: id(),
+      code:
+        'E' + stage + '-' + String(next.lessons.length + 1).padStart(2, '0'),
+      title: needText(c.title),
+      stage,
+      week,
+      planId,
+      publication: c.publication === 'BORRADOR' ? 'BORRADOR' : 'PUBLICADO',
+      description: needText(c.description, 10),
+      objective: needText(c.objective, 5),
+      duration,
+      videoUrl,
+      thumbnailUrl:
+        typeof c.thumbnailUrl === 'string' ? c.thumbnailUrl.trim() : '',
+      learnings: [needText(c.objective, 5)],
+      action: needText(c.action, 5),
+      resourceType: needText(c.resourceType, 2),
+      deliverable: needText(c.deliverable, 5),
+      due: validDate(c.due),
+      points,
+      requiresReview: c.requiresReview !== 'no',
+      requiredForUnlock: c.requiredForUnlock !== 'no',
+    };
+    next.lessons.push(lesson);
+    next.orgs
+      .filter(
+        (organization) =>
+          planId === 'all' ||
+          planId === organization.planId ||
+          planId === 'org:' + organization.id,
+      )
+      .forEach((organization) =>
+        organization.lessonRuns.push({
+          lessonId: lesson.id,
+          playback: 0,
+          status: 'NO_INICIADO',
+          response: '',
+          feedback: '',
+          due: lesson.due,
+          manuallyUnlocked: planId.startsWith('org:'),
+          requirementSkipped: false,
+        }),
+      );
+    event = 'Clase creada: ' + lesson.title;
+    internal = true;
+  } else if (c.type === 'lessonOverride') {
+    const run = o.lessonRuns.find((item) => item.lessonId === c.targetId);
+    if (!run) throw Error('Clase no asignada a este cliente.');
+    if (c.override === 'unlock') run.manuallyUnlocked = true;
+    else if (c.override === 'skip') run.requirementSkipped = true;
+    else if (c.override === 'reopen') {
+      run.status = 'EN_PROGRESO';
+      run.feedback = '';
+      run.requirementSkipped = false;
+    } else throw Error('Control administrativo no válido.');
+    event =
+      c.override === 'unlock'
+        ? 'Clase desbloqueada manualmente'
+        : c.override === 'skip'
+          ? 'Requisito de clase omitido'
+          : 'Actividad reabierta';
+    internal = true;
+  } else if (c.type === 'extendLesson') {
+    const run = o.lessonRuns.find((item) => item.lessonId === c.targetId);
+    if (!run) throw Error('Clase no asignada a este cliente.');
+    run.due = validDate(c.due);
+    event = 'Fecha límite de clase extendida hasta ' + run.due;
     internal = true;
   } else if (c.type === 'createModule') {
     const week = Number(c.week);

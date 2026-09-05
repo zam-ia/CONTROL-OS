@@ -16,8 +16,9 @@ Opción Dashboard: abre **SQL Editor** y ejecuta, en orden y una sola vez:
 
 1. `supabase/migrations/20260904010000_control_os_foundation.sql`
 2. `supabase/migrations/20260904020000_admin_modules_finance.sql`
+3. `supabase/migrations/20260904030000_implementation_classes.sql`
 
-La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos.
+La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos.
 
 La clave publicable/anon permite usar Auth, REST y Storage bajo RLS, pero no ejecutar DDL. Para aplicar migraciones se necesita una sesión administrativa de Supabase o la contraseña de la base de datos. La clave `service_role` o secret jamás debe exponerse con prefijo `NEXT_PUBLIC_` ni versionarse.
 
@@ -56,3 +57,7 @@ Las políticas de Storage validan ese primer segmento contra la membresía del u
 ## Archivos de módulos
 
 El bucket `control-os-modules` también es privado, admite únicamente PDF, Word y Excel y limita cada objeto a 15 MB. Solo el equipo interno activo puede gestionarlo; los usuarios activos autenticados pueden leer los materiales publicados. Antes de producción conviene restringir además la lectura por entitlement del plan y semana habilitada.
+
+## Videos de las clases
+
+Los videos no se cargan a Supabase ni al servidor de CONTROL OS. El administrador pega una URL HTTPS de YouTube y la plataforma conserva únicamente la referencia y el progreso de la clase. Esto reduce almacenamiento, transferencia y carga operativa. Para producción, la medición automática del porcentaje reproducido debe conectarse a los eventos de YouTube IFrame Player API y validarse en el servidor.

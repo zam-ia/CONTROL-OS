@@ -10,6 +10,9 @@ import {
   goalProgress,
   programProgress,
   health,
+  lessonAvailable,
+  lessonMetrics,
+  lessonsFor,
 } from '../lib/control.ts';
 const org = 'norte';
 const run = (s, c, mode = 'client') => execute(s, org, mode, c);
@@ -433,4 +436,146 @@ test('follow-up records owner and can be completed', () => {
   const follow = getOrg(s, org).followUps[0];
   s = run(s, { type: 'completeFollowUp', targetId: follow.id }, 'admin');
   assert.equal(getOrg(s, org).followUps[0].status, 'COMPLETADO');
+});
+test('stage 00 ships eight action-oriented onboarding classes', () => {
+  const s = seed();
+  const lessons = lessonsFor(s, getOrg(s, org));
+  assert.equal(lessons.length, 8);
+  assert.ok(lessons.every((lesson) => lesson.action && lesson.deliverable));
+  assert.ok(lessons.every((lesson) => lesson.stage === 0));
+});
+test('watching a class is not enough to complete it', () => {
+  const lessonId = 'lesson-00-1';
+  const s = run(seed(), {
+    type: 'watchLesson',
+    targetId: lessonId,
+    value: 100,
+  });
+  const progress = getOrg(s, org).lessonRuns.find(
+    (item) => item.lessonId === lessonId,
+  );
+  assert.equal(progress.playback, 100);
+  assert.equal(progress.status, 'EN_PROGRESO');
+});
+test('class completion requires playback and its activity', () => {
+  const lessonId = 'lesson-00-1';
+  let s = run(seed(), { type: 'watchLesson', targetId: lessonId, value: 100 });
+  s = run(s, {
+    type: 'submitLesson',
+    targetId: lessonId,
+    text: 'Confirmo el compromiso de implementación.',
+  });
+  const progress = getOrg(s, org).lessonRuns.find(
+    (item) => item.lessonId === lessonId,
+  );
+  assert.equal(progress.status, 'APROBADO');
+  assert.equal(lessonAvailable(s, getOrg(s, org), 'lesson-00-2'), true);
+});
+test('reviewed class follows submitted to approved workflow', () => {
+  const lessonId = 'lesson-00-5';
+  let s = run(
+    seed(),
+    { type: 'lessonOverride', targetId: lessonId, override: 'unlock' },
+    'admin',
+  );
+  s = run(s, { type: 'watchLesson', targetId: lessonId, value: 100 });
+  s = run(s, {
+    type: 'submitLesson',
+    targetId: lessonId,
+    text: 'Formulario inicial enviado con datos de demostración.',
+  });
+  assert.equal(
+    getOrg(s, org).lessonRuns.find((item) => item.lessonId === lessonId).status,
+    'ENVIADO',
+  );
+  s = run(
+    s,
+    {
+      type: 'reviewLesson',
+      targetId: lessonId,
+      text: 'Información inicial validada.',
+      checked: true,
+    },
+    'admin',
+  );
+  assert.equal(
+    getOrg(s, org).lessonRuns.find((item) => item.lessonId === lessonId).status,
+    'APROBADO',
+  );
+});
+test('learning, execution and validation stay separate', () => {
+  const s = seed();
+  const metrics = lessonMetrics(s, getOrg(s, 'vertice'));
+  assert.deepEqual(metrics, {
+    learning: 63,
+    execution: 13,
+    validation: 13,
+    total: 8,
+  });
+});
+test('client cannot use administrative class overrides', () => {
+  assert.throws(
+    () =>
+      run(seed(), {
+        type: 'lessonOverride',
+        targetId: 'lesson-00-2',
+        override: 'unlock',
+      }),
+    /administración/,
+  );
+});
+test('new class requires an action, deliverable and YouTube link', () => {
+  assert.throws(
+    () =>
+      run(
+        seed(),
+        {
+          type: 'createLesson',
+          title: 'Clase incompleta',
+          value: 1,
+          week: 1,
+          planId: 'all',
+          videoUrl: 'video.mp4',
+          duration: 8,
+          description: 'Descripción suficiente de la clase.',
+          objective: 'Aprender algo útil',
+          action: '',
+          resourceType: 'PDF',
+          deliverable: '',
+          due: '2026-09-10',
+          points: 10,
+        },
+        'admin',
+      ),
+    /YouTube|información/,
+  );
+});
+test('admin can create a class backed by a YouTube link', () => {
+  const before = seed();
+  const after = run(
+    before,
+    {
+      type: 'createLesson',
+      title: 'Clase de seguimiento',
+      value: 1,
+      week: 2,
+      planId: 'all',
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      duration: 12,
+      description: 'Aplicación práctica del seguimiento semanal.',
+      objective: 'Medir avances verificables',
+      action: 'Registrar un avance real',
+      resourceType: 'CHECKLIST',
+      deliverable: 'Registro semanal completado',
+      due: '2026-09-10',
+      points: 20,
+    },
+    'admin',
+  );
+  assert.equal(after.lessons.length, before.lessons.length + 1);
+  assert.match(after.lessons.at(-1).videoUrl, /youtube\.com\/watch/);
+  assert.equal(
+    getOrg(after, org).lessonRuns.at(-1).lessonId,
+    after.lessons.at(-1).id,
+  );
 });
