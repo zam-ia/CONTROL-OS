@@ -13,6 +13,8 @@ import {
   lessonAvailable,
   lessonMetrics,
   lessonsFor,
+  methodSteps,
+  phaseGate,
 } from '../lib/control.ts';
 const org = 'norte';
 const run = (s, c, mode = 'client') => execute(s, org, mode, c);
@@ -514,7 +516,9 @@ test('follow-up records owner and can be completed', () => {
 });
 test('stage 00 ships eight action-oriented onboarding classes', () => {
   const s = seed();
-  const lessons = lessonsFor(s, getOrg(s, org));
+  const lessons = lessonsFor(s, getOrg(s, org)).filter(
+    (lesson) => lesson.stage === 0,
+  );
   assert.equal(lessons.length, 8);
   assert.ok(lessons.every((lesson) => lesson.action && lesson.deliverable));
   assert.ok(lessons.every((lesson) => lesson.stage === 0));
@@ -599,13 +603,36 @@ test('reviewed class follows submitted to approved workflow', () => {
 });
 test('learning, execution and validation stay separate', () => {
   const s = seed();
-  const metrics = lessonMetrics(s, getOrg(s, 'vertice'));
+  const metrics = lessonMetrics(s, getOrg(s, 'vertice'), 0);
   assert.deepEqual(metrics, {
     learning: 63,
     execution: 13,
     validation: 13,
     total: 8,
   });
+});
+test('one methodology exposes 46 internal controls across phases 1 and 2', () => {
+  assert.equal(methodSteps.length, 46);
+  assert.equal(methodSteps.filter((step) => step.phase === 1).length, 22);
+  assert.equal(methodSteps.filter((step) => step.phase === 2).length, 24);
+  assert.ok(methodSteps.every((step) => ['C', 'E', 'C+E', 'A'].includes(step.owner)));
+});
+test('client curriculum stays compact and access grows without changing methodology', () => {
+  const s = seed();
+  const low = lessonsFor(s, getOrg(s, 'orbita'));
+  const medium = lessonsFor(s, getOrg(s, 'norte'));
+  const high = lessonsFor(s, getOrg(s, 'vertice'));
+  assert.equal(low.filter((lesson) => lesson.stage === 1).length, 16);
+  assert.equal(low.filter((lesson) => lesson.stage === 2).length, 0);
+  assert.equal(medium.filter((lesson) => lesson.stage === 2).length, 16);
+  assert.equal(high.filter((lesson) => lesson.stage <= 2).length, 40);
+  assert.equal(s.orgs.every((organization) => organization.lessonRuns.length === 40), true);
+});
+test('phase gates expose evidence-based exit criteria', () => {
+  const gate = phaseGate(seed(), getOrg(seed(), org), 1);
+  assert.equal(gate.requirements.length, 5);
+  assert.equal(gate.ready, false);
+  assert.match(gate.requirements[0].label, /90%/);
 });
 test('client cannot use administrative class overrides', () => {
   assert.throws(

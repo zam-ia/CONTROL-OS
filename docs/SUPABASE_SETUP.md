@@ -19,8 +19,9 @@ Opción Dashboard: abre **SQL Editor** y ejecuta, en orden y una sola vez:
 3. `supabase/migrations/20260904030000_implementation_classes.sql`
 4. `supabase/migrations/20260904040000_lesson_checkpoints.sql`
 5. `supabase/migrations/20260905010000_usernames_organizations_goal_checkpoints.sql`
+6. `supabase/migrations/20260905020000_master_methodology_phase_gates.sql`
 
-La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance.
+La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance. La sexta fija una sola metodología CONTROL, añade niveles de acceso sin pérdida de historial, los 46 controles internos, el expediente empresarial, entregables estructurados y gates de salida por fase.
 
 La clave publicable/anon permite usar Auth, REST y Storage bajo RLS, pero no ejecutar DDL. Para aplicar migraciones se necesita una sesión administrativa de Supabase o la contraseña de la base de datos. La clave `service_role` o secret jamás debe exponerse con prefijo `NEXT_PUBLIC_` ni versionarse.
 

@@ -75,6 +75,9 @@ import {
   lessonAvailable,
   lessonMetrics,
   lessonsFor,
+  methodOwnerLabels,
+  methodSteps,
+  phaseGate,
   programProgress,
   progress,
   requirements,
@@ -136,6 +139,7 @@ const navClient = [
 ];
 const navAdmin = [
   { id: 'portafolio', label: 'Portafolio', icon: LayoutDashboard },
+  { id: 'metodologia', label: 'Metodología', icon: Route },
   { id: 'cliente', label: 'Cliente 360', icon: Users },
   { id: 'revisiones', label: 'Revisiones', icon: ClipboardCheck },
   { id: 'intervenciones', label: 'Intervenciones', icon: Flag },
@@ -144,6 +148,17 @@ const navAdmin = [
   { id: 'finanzas', label: 'Finanzas', icon: WalletCards },
   { id: 'planes', label: 'Planes y accesos', icon: ShieldCheck },
   { id: 'configuracion', label: 'Configuración', icon: Settings },
+];
+const controlFlow = [
+  'Información',
+  'Diagnóstico',
+  'Hallazgo',
+  'Prioridad',
+  'Acción',
+  'Evidencia',
+  'Validación',
+  'Estandarización',
+  'KPI',
 ];
 const fileKind = (name: string): Attachment['type'] => {
   const extension = name.split('.').pop()?.toLowerCase();
@@ -600,23 +615,23 @@ export default function Home() {
           if (
             candidate.schema !== 1 ||
             !Array.isArray(candidate.orgs) ||
-            candidate.orgs.length !== 3 ||
+            candidate.orgs.length < 1 ||
             !Array.isArray(candidate.plans)
           )
             throw Error('invalid');
           candidate.orgs.forEach((o: Org) => {
             if (o.weeks.length !== 12 || !o.tasks || !o.kpis || !o.events)
               throw Error('invalid');
-            const freshOrg = s.orgs.find((item) => item.id === o.id)!;
+            const freshOrg = s.orgs.find((item) => item.id === o.id);
             o.finances = Array.isArray(o.finances)
               ? o.finances
-              : freshOrg.finances;
+              : freshOrg?.finances || [];
             o.followUps = Array.isArray(o.followUps)
               ? o.followUps
-              : freshOrg.followUps;
+              : freshOrg?.followUps || [];
             o.lessonRuns = Array.isArray(o.lessonRuns)
               ? o.lessonRuns
-              : freshOrg.lessonRuns;
+              : freshOrg?.lessonRuns || [];
             o.lessonRuns.forEach((run) => {
               const legacyRun = run as LessonRun & { playback?: number };
               if (typeof legacyRun.videoCompleted !== 'boolean')
@@ -681,7 +696,41 @@ export default function Home() {
             : s.users;
           candidate.lessons = Array.isArray(candidate.lessons)
             ? candidate.lessons
-            : s.lessons;
+            : [];
+          const savedLessons = new Map<string, Lesson>(
+            candidate.lessons.map(
+              (lesson: Lesson): [string, Lesson] => [lesson.id, lesson],
+            ),
+          );
+          s.lessons.forEach((canonicalLesson) => {
+            const savedLesson = savedLessons.get(canonicalLesson.id);
+            if (savedLesson) {
+              savedLesson.owner = canonicalLesson.owner;
+              savedLesson.minAccess = canonicalLesson.minAccess;
+            } else candidate.lessons.push(canonicalLesson);
+          });
+          candidate.lessons.forEach((lesson: Lesson) => {
+            lesson.owner = lesson.owner || 'C+E';
+            lesson.minAccess = lesson.minAccess || 'LOW';
+          });
+          candidate.orgs.forEach((organization: Org) => {
+            const runs = new Set(
+              organization.lessonRuns.map((run) => run.lessonId),
+            );
+            candidate.lessons.forEach((lesson: Lesson) => {
+              if (runs.has(lesson.id)) return;
+              organization.lessonRuns.push({
+                lessonId: lesson.id,
+                videoCompleted: false,
+                status: 'NO_INICIADO',
+                response: '',
+                feedback: '',
+                due: lesson.due,
+                manuallyUnlocked: false,
+                requirementSkipped: false,
+              });
+            });
+          });
           const primaryAdmin = candidate.users.find(
             (user: State['users'][number]) => user.id === 'user-admin',
           );
@@ -717,6 +766,13 @@ export default function Home() {
                   : savedPlan.name === 'CONTROL Partnership'
                     ? 'CONTROL Partner'
                     : savedPlan.name;
+            savedPlan.accessLevel =
+              savedPlan.accessLevel ||
+              (savedPlan.id === 'partnership-v1'
+                ? 'HIGH'
+                : savedPlan.id === 'implementacion-v1'
+                  ? 'MEDIUM'
+                  : 'LOW');
           });
           s = candidate;
           getOrg(s, s.selected);
@@ -874,6 +930,24 @@ export default function Home() {
   const selectedTask = org.tasks.find((t) => t.id === taskId);
   const implementationLessons = lessonsFor(state, org);
   const implementationMetrics = lessonMetrics(state, org);
+  const onboardingLessons = implementationLessons.filter(
+    (lesson) => lesson.stage === 0,
+  );
+  const onboardingMetrics = lessonMetrics(state, org, 0);
+  const phaseGates = new Map(
+    [1, 2].map((phase) => [phase, phaseGate(state, org, phase)] as const),
+  );
+  const gateFor = (phase: number) => phaseGates.get(phase)!;
+  const lessonsThisWeek = implementationLessons.filter(
+    (lesson) => lesson.week === week,
+  );
+  const lessonCountByWeek = new Map<number, number>();
+  implementationLessons.forEach((lesson) =>
+    lessonCountByWeek.set(
+      lesson.week,
+      (lessonCountByWeek.get(lesson.week) || 0) + 1,
+    ),
+  );
   const implementationGaps = state.orgs.filter((item) => {
     const metrics = lessonMetrics(state, item);
     return metrics.learning >= 50 && metrics.execution + 30 < metrics.learning;
@@ -1016,7 +1090,7 @@ export default function Home() {
         />
       </div>
       <p className="muted text-small">
-        Madurez del negocio · evaluación ilustrativa v1
+        Madurez del negocio · evaluación CONTROL v1
       </p>
       {dimensions.map((d, i) => (
         <Meter
@@ -1262,6 +1336,7 @@ export default function Home() {
     sesiones: 'Acompañamiento con propósito',
     soporte: 'Desbloquea tu siguiente paso',
     portafolio: 'Cada cliente, en perspectiva.',
+    metodologia: 'Un proceso maestro. Distintos niveles de acompañamiento.',
     cliente: org.name + ' · Cliente 360',
     revisiones: 'El avance merece validación',
     intervenciones: 'Actúa antes del estancamiento',
@@ -1379,26 +1454,26 @@ export default function Home() {
       <>
         <div className="implementation-metrics">
           <Section title="Aprendizaje">
-            <div className="big-number">{implementationMetrics.learning}%</div>
+            <div className="big-number">{onboardingMetrics.learning}%</div>
             <Meter
               label="Contenido consumido"
-              value={implementationMetrics.learning}
+              value={onboardingMetrics.learning}
             />
           </Section>
           <Section title="Ejecución">
-            <div className="big-number">{implementationMetrics.execution}%</div>
+            <div className="big-number">{onboardingMetrics.execution}%</div>
             <Meter
               label="Actividades entregadas"
-              value={implementationMetrics.execution}
+              value={onboardingMetrics.execution}
             />
           </Section>
           <Section title="Validación">
             <div className="big-number">
-              {implementationMetrics.validation}%
+              {onboardingMetrics.validation}%
             </div>
             <Meter
               label="Entregables aprobados"
-              value={implementationMetrics.validation}
+              value={onboardingMetrics.validation}
             />
           </Section>
         </div>
@@ -1413,7 +1488,7 @@ export default function Home() {
           </div>
         </div>
         <div className="lesson-grid">
-          {implementationLessons.map((lesson) => {
+          {onboardingLessons.map((lesson) => {
             const run = org.lessonRuns.find(
               (item) => item.lessonId === lesson.id,
             )!;
@@ -1430,10 +1505,18 @@ export default function Home() {
                 key={lesson.id}
                 title={lesson.code + ' · ' + lesson.title}
                 action={
-                  <Badge
-                    value={complete ? 'APROBADO' : run?.status || 'NO_INICIADO'}
-                    color={!unlocked ? 'gray' : undefined}
-                  />
+                  <div className="inline-actions">
+                    <span
+                      className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
+                      title={methodOwnerLabels[lesson.owner]}
+                    >
+                      [{lesson.owner}]
+                    </span>
+                    <Badge
+                      value={complete ? 'APROBADO' : run?.status || 'NO_INICIADO'}
+                      color={!unlocked ? 'gray' : undefined}
+                    />
+                  </div>
                 }
               >
                 {!unlocked ? (
@@ -1581,7 +1664,10 @@ export default function Home() {
                     )}
                   </div>
                   <h3>{w.title}</h3>
-                  <p className="muted">{reason || w.objective}</p>
+                  <p className="muted">
+                    {reason ||
+                      `${lessonCountByWeek.get(n) || 0} clases · ${w.objective}`}
+                  </p>
                   <Button variant="outline" onClick={() => openWeek(n)}>
                     {reason ? <LockKeyhole /> : <ArrowRight />}
                     {reason ? 'Ver requisitos' : 'Abrir semana'}
@@ -1589,6 +1675,38 @@ export default function Home() {
                 </div>
               );
             })}
+            {i < 2 && (
+              <div className="phase-gate">
+                <div className="section-top">
+                  <div>
+                    <small>GATE DE SALIDA · FASE {i + 1}</small>
+                    <strong>
+                      {gateFor(i + 1).ready
+                        ? 'Criterios cumplidos'
+                        : 'Validación pendiente'}
+                    </strong>
+                  </div>
+                  <Badge
+                    value={gateFor(i + 1).status}
+                    color={gateFor(i + 1).ready ? '' : 'amber'}
+                  />
+                </div>
+                <div className="gate-checklist">
+                  {gateFor(i + 1).requirements.map(
+                    (requirement) => (
+                      <div key={requirement.label}>
+                        {requirement.ok ? (
+                          <Check size={16} className="green" />
+                        ) : (
+                          <LockKeyhole size={15} />
+                        )}
+                        <span>{requirement.label}</span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
           </Section>
         ))}
       </div>
@@ -1617,6 +1735,138 @@ export default function Home() {
           </Section>
         ) : (
           <div className="dashboard-grid spaced">
+            <Section
+              title={`Clases de la semana ${week}`}
+              className="wide"
+              action={
+                <Badge
+                  value={`${lessonsThisWeek.length} clases`}
+                  color="gray"
+                />
+              }
+            >
+              <div className="week-class-list">
+                {lessonsThisWeek.map((lesson) => {
+                    const run = org.lessonRuns.find(
+                      (item) => item.lessonId === lesson.id,
+                    )!;
+                    const unlocked = lessonAvailable(state, org, lesson.id);
+                    const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
+                    const activityCompleted = [
+                      'ENVIADO',
+                      'EN_REVISION',
+                      'APROBADO',
+                    ].includes(run.status);
+                    return (
+                      <article
+                        className={`week-class ${unlocked ? '' : 'is-locked'}`}
+                        key={lesson.id}
+                      >
+                        <div className="section-top">
+                          <div>
+                            <small>{lesson.code}</small>
+                            <strong>{lesson.title}</strong>
+                          </div>
+                          <div className="inline-actions">
+                            <span
+                              className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
+                              title={methodOwnerLabels[lesson.owner]}
+                            >
+                              [{lesson.owner}]
+                            </span>
+                            <Badge
+                              value={
+                                unlocked ? run.status : 'Bloqueada'
+                              }
+                              color={unlocked ? undefined : 'gray'}
+                            />
+                          </div>
+                        </div>
+                        <p>{lesson.description}</p>
+                        <div className="week-class-detail">
+                          <span>
+                            <small>ACCIÓN</small>
+                            {lesson.action}
+                          </span>
+                          <span>
+                            <small>ENTREGABLE</small>
+                            {lesson.deliverable}
+                          </span>
+                        </div>
+                        {youtubeUrl && unlocked && (
+                          <div className="video-player compact-video">
+                            <iframe
+                              src={youtubeUrl}
+                              title={lesson.title}
+                              loading="lazy"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        )}
+                        <div className="compact-checkpoints">
+                          <div>
+                            <Checkbox
+                              aria-label={`Marcar como vista: ${lesson.title}`}
+                              checked={run.videoCompleted}
+                              disabled={
+                                !unlocked || !youtubeUrl || activityCompleted
+                              }
+                              onCheckedChange={(checked) =>
+                                act({
+                                  type: 'watchLesson',
+                                  targetId: lesson.id,
+                                  checked: checked === true,
+                                })
+                              }
+                            />
+                            Clase vista
+                          </div>
+                          <div>
+                            <Checkbox
+                              aria-label={`Completar actividad: ${lesson.title}`}
+                              checked={activityCompleted}
+                              disabled={
+                                !unlocked ||
+                                !run.videoCompleted ||
+                                activityCompleted
+                              }
+                              onCheckedChange={(checked) => {
+                                if (checked !== true) return;
+                                setForm({
+                                  title: 'Entregar actividad',
+                                  description: `${lesson.deliverable} · La evidencia queda vinculada a esta clase.`,
+                                  command: {
+                                    type: 'submitLesson',
+                                    targetId: lesson.id,
+                                  },
+                                  fields: [
+                                    {
+                                      key: 'text',
+                                      label: 'Respuesta, evidencia o URL',
+                                      type: 'textarea',
+                                      value: run.response,
+                                    },
+                                  ],
+                                  button: lesson.requiresReview
+                                    ? 'Enviar a revisión'
+                                    : 'Completar actividad',
+                                });
+                              }}
+                            />
+                            Actividad completada
+                          </div>
+                        </div>
+                        {!unlocked && (
+                          <small className="muted">
+                            Completa y valida la clase anterior para continuar.
+                          </small>
+                        )}
+                      </article>
+                    );
+                  })}
+              </div>
+            </Section>
             <div>
               <Section title={'Semana ' + week + ' · Objetivo'}>
                 <p>{weeks[week - 1].objective}</p>
@@ -1862,8 +2112,8 @@ export default function Home() {
               </li>
             </ul>
             <small className="muted">
-              Cálculo ilustrativo acumulado hasta la semana actual. La versión
-              productiva requerirá ventanas semanales y SLA aprobados.
+              Cálculo acumulado hasta la semana actual. Las ventanas semanales
+              y SLA se configuran según la operación de cada empresa.
             </small>
           </Section>
         </div>
@@ -2029,8 +2279,8 @@ export default function Home() {
             responsable y evidencia.
           </p>
           <p>
-            La agenda es ilustrativa. Calendario, email y reuniones externas no
-            están conectados.
+            La agenda se administra dentro de CONTROL OS. Las integraciones con
+            calendario, email y reuniones externas están pendientes.
           </p>
           <Badge value="Sin integraciones externas" color="gray" />
         </Section>
@@ -2301,10 +2551,18 @@ export default function Home() {
                   key={lesson.id}
                   title={lesson.code + ' · ' + lesson.title}
                   action={
-                    <Badge
-                      value={lesson.publication}
-                      color={lesson.publication === 'BORRADOR' ? 'gray' : ''}
-                    />
+                    <div className="inline-actions">
+                      <span
+                        className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
+                        title={methodOwnerLabels[lesson.owner]}
+                      >
+                        [{lesson.owner}]
+                      </span>
+                      <Badge
+                        value={lesson.publication}
+                        color={lesson.publication === 'BORRADOR' ? 'gray' : ''}
+                      />
+                    </div>
                   }
                 >
                   <p>{lesson.description}</p>
@@ -2972,7 +3230,121 @@ export default function Home() {
         </Section>
       </>
     );
-  } else if (page === 'cliente')
+  } else if (page === 'metodologia')
+    body = (
+      <>
+        <div className="method-rule methodology-rule">
+          <ShieldCheck size={22} />
+          <div>
+            <strong>Una sola metodología CONTROL para todas las empresas.</strong>
+            <span>
+              El plan modifica acompañamiento, intervención y herramientas;
+              nunca reemplaza el proceso ni borra el historial del cliente.
+            </span>
+          </div>
+        </div>
+        <div className="method-flow" aria-label="Flujo maestro CONTROL">
+          {controlFlow.map((item, index) => (
+            <div key={item}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <strong>{item}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="cards-grid methodology-phases">
+          {[1, 2].map((phase) => {
+            const phaseLessons = state.lessons.filter(
+              (lesson) => lesson.stage === phase,
+            );
+            return (
+              <Section
+                key={phase}
+                title={`Fase ${phase} · ${stages[phase - 1]}`}
+                action={
+                  <Badge
+                    value={`${methodSteps.filter((step) => step.phase === phase).length} controles`}
+                    color="gray"
+                  />
+                }
+              >
+                <p className="muted">
+                  Semanas {phase === 1 ? '1–3' : '4–6'} ·{' '}
+                  {phaseLessons.length} clases visibles para el cliente.
+                </p>
+                <div className="gate-checklist">
+                  {gateFor(phase).requirements.map(
+                    (requirement) => (
+                      <div key={requirement.label}>
+                        {requirement.ok ? (
+                          <Check size={16} className="green" />
+                        ) : (
+                          <LockKeyhole size={15} />
+                        )}
+                        <span>{requirement.label}</span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </Section>
+            );
+          })}
+        </div>
+        <Section
+          title="Workflow interno de consultoría"
+          className="spaced"
+          action={
+            <Pick
+              label="Filtrar controles por fase"
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: 'all', label: 'Fases 1 y 2' },
+                { value: '1', label: 'Fase 1' },
+                { value: '2', label: 'Fase 2' },
+              ]}
+            />
+          }
+        >
+          <p className="muted">
+            El equipo CONTROL ve el detalle completo; el cliente recibe una
+            ruta simplificada por semanas, clases y entregables.
+          </p>
+          <div className="method-legend">
+            {Object.entries(methodOwnerLabels).map(([owner, label]) => (
+              <span className={`owner-chip owner-${owner.replace('+', '')}`} key={owner}>
+                [{owner}] {label}
+              </span>
+            ))}
+          </div>
+          <div className="method-step-list">
+            {methodSteps
+              .filter(
+                (step) => filter === 'all' || String(step.phase) === filter,
+              )
+              .map((step) => (
+                <div className="method-step" key={step.code}>
+                  <span className="method-step-code">
+                    {String(step.code).padStart(2, '0')}
+                  </span>
+                  <div>
+                    <strong>{step.title}</strong>
+                    <small>
+                      Fase {step.phase} · Semana {step.week}
+                    </small>
+                  </div>
+                  <span
+                    className={`owner-chip owner-${step.owner.replace('+', '')}`}
+                    title={methodOwnerLabels[step.owner]}
+                  >
+                    [{step.owner}]
+                  </span>
+                </div>
+              ))}
+          </div>
+        </Section>
+      </>
+    );
+  else if (page === 'cliente')
     body = (
       <>
         <div className="toolbar">
@@ -3330,9 +3702,15 @@ export default function Home() {
   else if (page === 'planes')
     body = (
       <>
-        <div className="demo-notice">
-          Matriz de acceso por plan y versión. Los contratos y cobros se
-          gestionan desde el proceso administrativo correspondiente.
+        <div className="method-rule">
+          <ShieldCheck size={22} />
+          <div>
+            <strong>La metodología no cambia con el plan.</strong>
+            <span>
+              Todos conservan diagnóstico, historial, CONTROL Score y roadmap.
+              Una mejora de plan desbloquea mayor profundidad de intervención.
+            </span>
+          </div>
         </div>
         <div className="cards-grid">
           {state.plans.map((p) => (
@@ -3342,39 +3720,64 @@ export default function Home() {
               action={<Badge value={'v' + p.version} color="gray" />}
             >
               <ul className="plan-list">
-                {stages.map((s, i) => (
-                  <li key={s}>
-                    {p.stages.includes(i + 1) ? (
-                      <Check className="green" size={16} />
-                    ) : (
-                      <LockKeyhole size={15} />
-                    )}
-                    <span>{s}</span>
+                {[
+                  ['Metodología CONTROL', 'Proceso maestro'],
+                  ['Diagnóstico interno', 'Incluido'],
+                  ['Historial y CONTROL Score', 'Incluido'],
+                  ['Roadmap general', 'Incluido'],
+                  [
+                    'Clases',
+                    p.accessLevel === 'LOW'
+                      ? 'Según alcance'
+                      : p.accessLevel === 'MEDIUM'
+                        ? 'Ampliadas'
+                        : 'Completas',
+                  ],
+                  [
+                    'Revisión humana',
+                    p.accessLevel === 'LOW'
+                      ? 'Limitada'
+                      : p.accessLevel === 'MEDIUM'
+                        ? 'Regular'
+                        : 'Intensiva',
+                  ],
+                  [
+                    'Implementación CONTROL',
+                    p.accessLevel === 'LOW'
+                      ? 'Mínima'
+                      : p.accessLevel === 'MEDIUM'
+                        ? 'Parcial'
+                        : 'Alta',
+                  ],
+                  [
+                    'Auditoría profunda',
+                    p.accessLevel === 'HIGH'
+                      ? 'Incluida'
+                      : p.accessLevel === 'MEDIUM'
+                        ? 'Parcial'
+                        : 'No incluida',
+                  ],
+                  [
+                    'Sesiones 1:1',
+                    p.accessLevel === 'HIGH'
+                      ? 'Incluidas'
+                      : p.accessLevel === 'MEDIUM'
+                        ? 'Limitadas'
+                        : 'No incluidas',
+                  ],
+                ].map(([feature, value]) => (
+                  <li key={feature}>
+                    <Check className="green" size={16} />
+                    <span>{feature}</span>
+                    <small>{value}</small>
                   </li>
                 ))}
               </ul>
               <p className="muted">
-                Equipo: {p.team} · Sesiones de referencia: {p.sessions}
-                <br />
-                Biblioteca {p.advanced ? 'completa' : 'básica'}
+                Nivel de acceso: {p.accessLevel === 'LOW' ? 'Base' : p.accessLevel === 'MEDIUM' ? 'Ampliado' : 'Completo'} · Equipo: {p.team} · Sesiones: {p.sessions}
               </p>
-              {p.name === 'CONTROL 90' && (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    act({
-                      type: 'planVersion',
-                      planId: p.id,
-                      checked: !p.stages.includes(4),
-                    })
-                  }
-                >
-                  Crear v. con etapa 4{' '}
-                  {p.stages.includes(4) ? 'excluida' : 'incluida'}
-                </Button>
-              )}
               <p className="caption">
-                Crear versión no migra clientes ni altera su acceso anterior.
+                Al ampliar el plan, el cliente continúa desde su historial actual.
               </p>
             </Section>
           ))}

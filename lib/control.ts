@@ -117,6 +117,8 @@ export type Lesson = {
   points: number;
   requiresReview: boolean;
   requiredForUnlock: boolean;
+  owner: 'C' | 'E' | 'C+E' | 'A';
+  minAccess: 'LOW' | 'MEDIUM' | 'HIGH';
 };
 export type LessonRun = {
   lessonId: string;
@@ -158,6 +160,14 @@ export type Plan = {
   team: number;
   sessions: number;
   advanced: boolean;
+  accessLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+};
+export type MethodStep = {
+  code: number;
+  phase: 1 | 2;
+  week: number;
+  title: string;
+  owner: 'C' | 'E' | 'C+E' | 'A';
 };
 export type State = {
   schema: 1;
@@ -319,6 +329,66 @@ export const weeks = [
     gate: 'Plan de 90 días aprobado con métricas y responsables activos.',
   },
 ];
+export const methodOwnerLabels: Record<MethodStep['owner'], string> = {
+  C: 'Cliente ejecuta',
+  E: 'Equipo CONTROL ejecuta',
+  'C+E': 'Trabajo colaborativo',
+  A: 'Automático del sistema',
+};
+export const methodSteps: MethodStep[] = [
+  [1, 1, 1, 'Levantamiento del tiempo del fundador', 'C'],
+  [2, 1, 1, 'Mapa de carga y dependencia del fundador', 'C+E'],
+  [3, 1, 1, 'Diagnóstico financiero inicial', 'C'],
+  [4, 1, 1, 'P&L simplificado', 'A'],
+  [5, 1, 1, 'Rentabilidad por servicio', 'C+E'],
+  [6, 1, 1, 'Rentabilidad por cliente', 'C+E'],
+  [7, 1, 1, 'Mapa de fugas CONTROL', 'E'],
+  [8, 1, 1, 'Mapa operativo actual AS-IS', 'C+E'],
+  [9, 1, 1, 'Inventario de procesos', 'C'],
+  [10, 1, 1, 'CONTROL Score Día 0', 'A'],
+  [11, 1, 2, 'Foto estratégica actual', 'C'],
+  [12, 1, 2, 'Visión operativa a 12 meses', 'C'],
+  [13, 1, 2, 'Mapa de restricciones', 'C+E'],
+  [14, 1, 2, 'Análisis de portafolio', 'C'],
+  [15, 1, 2, 'Matriz Foco CONTROL', 'A'],
+  [16, 1, 2, 'ICP operativo', 'C+E'],
+  [17, 1, 2, 'Claridad de propuesta', 'C+E'],
+  [18, 1, 3, 'Auditoría de oferta actual', 'C+E'],
+  [19, 1, 3, 'Oferta Mínima Rentable', 'C+E'],
+  [20, 1, 3, 'Priorización de problemas', 'E'],
+  [21, 1, 3, 'Backlog de mejoras', 'A'],
+  [22, 1, 3, 'Roadmap de 90 días', 'C+E'],
+  [23, 2, 4, 'Inventario total de trabajo', 'C'],
+  [24, 2, 4, 'Clasificación EDAE', 'C+E'],
+  [25, 2, 4, 'Registro de roles actuales', 'C'],
+  [26, 2, 4, 'Detección de roles mal construidos', 'E'],
+  [27, 2, 4, 'Organigrama funcional', 'E'],
+  [28, 2, 4, 'Matriz RACI', 'C+E'],
+  [29, 2, 4, 'Sistema de trabajo', 'C+E'],
+  [30, 2, 4, 'Cadencia operativa', 'C+E'],
+  [31, 2, 5, 'Selección de procesos críticos', 'E'],
+  [32, 2, 5, 'Diseño de procesos TO-BE', 'C+E'],
+  [33, 2, 5, 'Diseño de flujos', 'C+E'],
+  [34, 2, 5, 'Asignación de process owner', 'E'],
+  [35, 2, 5, 'Definición de SLA', 'C+E'],
+  [36, 2, 5, 'Definición de KPI por proceso', 'A'],
+  [37, 2, 5, 'Creación de SOP', 'C+E'],
+  [38, 2, 5, 'Backlog de automatizaciones', 'E'],
+  [39, 2, 6, 'Estructura de categorías financieras', 'E'],
+  [40, 2, 6, 'Tablero financiero mensual', 'C'],
+  [41, 2, 6, 'Rentabilidad continua', 'A'],
+  [42, 2, 6, 'Presupuesto mensual', 'C+E'],
+  [43, 2, 6, 'Umbrales por empresa', 'E'],
+  [44, 2, 6, 'CONTROL Board', 'A'],
+  [45, 2, 6, 'Reunión de control', 'C+E'],
+  [46, 2, 6, 'Bitácora de mejoras', 'C+E'],
+].map(([code, phase, week, title, owner]) => ({
+  code: Number(code),
+  phase: Number(phase) as 1 | 2,
+  week: Number(week),
+  title: String(title),
+  owner: owner as MethodStep['owner'],
+}));
 export const dimensions = [
   'Finanzas',
   'Operación',
@@ -497,6 +567,7 @@ export function seed(): State {
       team: 1,
       sessions: 1,
       advanced: false,
+      accessLevel: 'LOW',
     },
     {
       id: 'implementacion-v1',
@@ -506,6 +577,7 @@ export function seed(): State {
       team: 5,
       sessions: 4,
       advanced: true,
+      accessLevel: 'MEDIUM',
     },
     {
       id: 'partnership-v1',
@@ -515,6 +587,7 @@ export function seed(): State {
       team: 10,
       sessions: 8,
       advanced: true,
+      accessLevel: 'HIGH',
     },
   ];
   const onboardingLessons: Lesson[] = [
@@ -618,8 +691,75 @@ export function seed(): State {
       points: 10,
       requiresReview: index >= 4,
       requiredForUnlock: true,
+      owner: index === 5 ? 'A' : index >= 4 ? 'C+E' : 'C',
+      minAccess: 'LOW',
     }),
   );
+  const methodologyLessons: Lesson[] = [
+    [1, 'Rastrea el tiempo del fundador', 'Mide durante 5 a 7 días dónde se concentra el tiempo del fundador.', 'Registrar actividades, duración, área y posibilidad de delegación.', 'FORMULARIO', 'Rastreador de Tiempo del Fundador', 'C'],
+    [1, 'Construye el mapa de dependencia', 'Identifica decisiones, interrupciones y trabajo que todavía depende del fundador.', 'Clasificar actividades por frecuencia, desgaste, riesgo y delegabilidad.', 'PLANTILLA', 'Mapa de Dependencia del Fundador', 'C+E'],
+    [1, 'Prepara la foto financiera', 'Ordena ingresos, costos variables y costos fijos de los últimos meses.', 'Cargar información financiera de los últimos 3 a 6 meses.', 'EXCEL', 'Foto Financiera CONTROL y P&L simplificado', 'C+E'],
+    [1, 'Mide la rentabilidad por servicio', 'Distingue los servicios que generan margen de los que consumen capacidad.', 'Registrar venta, costo, utilidad y margen de cada servicio.', 'CALCULADORA', 'Matriz de Rentabilidad por Servicio', 'C+E'],
+    [1, 'Mide la rentabilidad por cliente', 'Calcula la contribución de cada cliente incluyendo horas y herramientas atribuibles.', 'Completar ingresos y costos directos por cliente.', 'EXCEL', 'Matriz Cliente–Rentabilidad', 'C+E'],
+    [1, 'Mapea fugas y operación actual', 'Convierte los datos en hallazgos y visualiza cómo entra y sale el trabajo.', 'Documentar fugas y el flujo AS-IS del negocio.', 'CANVAS', 'Mapa de Fugas + Mapa Operativo AS-IS', 'E'],
+    [2, 'Define la foto estratégica actual', 'Aclara qué vende la empresa, a quién y dónde genera dinero.', 'Responder el diagnóstico de situación actual.', 'FORMULARIO', 'Foto Estratégica Actual', 'C'],
+    [2, 'Diseña la visión operativa a 12 meses', 'Traduce la visión en facturación, margen, horas, equipo y clientes.', 'Definir cinco metas operativas verificables.', 'PLANTILLA', 'Visión Operativa 12M', 'C'],
+    [2, 'Identifica las restricciones', 'Detecta los límites reales de dinero, equipo, capacidad, procesos y oferta.', 'Priorizar las restricciones que impiden avanzar.', 'CANVAS', 'Mapa de Restricciones', 'C+E'],
+    [2, 'Ordena el portafolio con la Matriz Foco', 'Clasifica servicios para escalar, mantener, rediseñar o eliminar.', 'Valorar margen, demanda, complejidad, capacidad y recurrencia.', 'EXCEL', 'Matriz Foco CONTROL', 'C+E'],
+    [2, 'Define el cliente y la propuesta prioritaria', 'Une el ICP operativo con un problema, resultado y mecanismo concretos.', 'Describir el cliente prioritario y la propuesta de valor.', 'PLANTILLA', 'ICP Operativo + Propuesta Prioritaria', 'C+E'],
+    [3, 'Audita la oferta actual', 'Contrasta precio, alcance, costos, tiempo, margen y capacidad.', 'Completar la auditoría económica y operativa de la oferta.', 'CHECKLIST', 'Auditoría de Oferta', 'C+E'],
+    [3, 'Construye la Oferta Mínima Rentable', 'Diseña una oferta viable que proteja el margen y la entrega.', 'Definir problema, resultado, alcance, precio, costo y capacidad.', 'PLANTILLA', 'Ficha OMR CONTROL', 'C+E'],
+    [3, 'Prioriza los problemas', 'Pondera cada hallazgo por impacto, urgencia, esfuerzo y dependencia.', 'Seleccionar los tres problemas que deben resolverse primero.', 'MATRIZ', 'Matriz de Priorización', 'E'],
+    [3, 'Convierte hallazgos en backlog', 'Transforma prioridades en mejoras accionables y ordenadas.', 'Asignar prioridad, responsable y resultado esperado.', 'EXCEL', 'Backlog de Mejoras', 'C+E'],
+    [3, 'Aprueba el roadmap de 90 días', 'Organiza acciones para detener pérdidas, construir sistema y optimizar.', 'Revisar el dossier y aprobar el roadmap de 0–30, 31–60 y 61–90 días.', 'DOCUMENTO', 'Dossier CONTROL + Roadmap 90 días', 'C+E'],
+    [4, 'Ordena el trabajo con EDAE', 'Inventaría las actividades y decide qué eliminar, delegar, automatizar o ejecutar.', 'Clasificar el trabajo recurrente de la empresa.', 'EXCEL', 'Matriz EDAE', 'C+E'],
+    [4, 'Diseña roles y organigrama funcional', 'Separa personas de funciones y detecta roles contaminados.', 'Registrar responsabilidades, horas y decisiones de cada rol.', 'CANVAS', 'Organigrama CONTROL v1', 'E'],
+    [4, 'Aclara responsabilidades con RACI', 'Define quién ejecuta, aprueba, consulta y debe ser informado.', 'Completar la matriz para las actividades críticas.', 'EXCEL', 'Matriz RACI', 'C+E'],
+    [4, 'Instala el sistema de trabajo', 'Normaliza tareas, responsables, prioridad, fecha, evidencia y estado.', 'Configurar el flujo operativo estándar.', 'CHECKLIST', 'Sistema de Trabajo Activo', 'C+E'],
+    [4, 'Define la cadencia de gestión', 'Crea reuniones diarias, semanales y mensuales con propósito claro.', 'Agendar la cadencia y documentar sus reglas.', 'CALENDARIO', 'Calendario de Gestión', 'C+E'],
+    [5, 'Selecciona los procesos críticos', 'Prioriza de cinco a siete procesos que sostienen captación, venta y entrega.', 'Aprobar el inventario inicial de procesos P1.', 'CHECKLIST', 'Inventario Priorizado de Procesos', 'E'],
+    [5, 'Diseña el proceso futuro TO-BE', 'Rediseña cómo debería funcionar cada proceso crítico.', 'Comparar AS-IS y TO-BE para eliminar fricción.', 'CANVAS', 'Mapas de Procesos TO-BE', 'C+E'],
+    [5, 'Construye flujos verificables', 'Define entrada, actividad, decisión, responsable y salida.', 'Diagramar el flujo de los procesos P1.', 'CANVAS', 'Flujos de Procesos P1', 'C+E'],
+    [5, 'Asigna owners y SLA', 'Entrega una responsabilidad nominal y un tiempo de respuesta a cada proceso.', 'Registrar owner y SLA de los procesos críticos.', 'PLANTILLA', 'Matriz de Owners y SLA', 'E'],
+    [5, 'Define KPI por proceso', 'Convierte velocidad, conversión, retrabajo y cumplimiento en señales.', 'Elegir un KPI útil para cada proceso P1.', 'FORMULARIO', 'Matriz de KPI Operativos', 'C+E'],
+    [5, 'Documenta SOP y automatizaciones', 'Estandariza primero y automatiza después.', 'Completar SOP v1 y clasificar automatizaciones por complejidad.', 'SOP', 'SOP Pack v1 + Backlog de Automatizaciones', 'C+E'],
+    [6, 'Crea el catálogo financiero', 'Estandariza ingresos, costos variables, costos fijos y extraordinarios.', 'Validar las categorías financieras de la empresa.', 'EXCEL', 'Catálogo Financiero', 'E'],
+    [6, 'Activa el tablero financiero mensual', 'Controla ventas, cobranzas, gastos, margen, utilidad y caja.', 'Cargar el primer período completo y revisar rentabilidad.', 'CALCULADORA', 'Dashboard Financiero Actualizado', 'C+E'],
+    [6, 'Define presupuesto y umbrales', 'Establece máximos de gasto y semáforos propios para decidir a tiempo.', 'Registrar presupuesto, reserva y umbrales por empresa.', 'FORMULARIO', 'Presupuesto + Umbrales de Control', 'C+E'],
+    [6, 'Configura el CONTROL Board', 'Centraliza entre 10 y 12 indicadores financieros, operativos y comerciales.', 'Seleccionar KPIs, fuente, frecuencia y responsable.', 'TABLERO', 'CONTROL Board', 'A'],
+    [6, 'Instala la reunión y bitácora de control', 'Convierte cada desviación en causa, acción, responsable y fecha.', 'Ejecutar la primera reunión y registrar una mejora.', 'PLANTILLA', 'Reunión de Control + Bitácora de Mejoras', 'C+E'],
+  ].map(
+    ([week, title, description, action, resourceType, deliverable, owner], index) => {
+      const weekNumber = Number(week);
+      const phase = weekNumber <= 3 ? 1 : 2;
+      const position = index + 1;
+      return {
+        id: `lesson-${String(phase).padStart(2, '0')}-${weekNumber}-${position}`,
+        code: `${String(phase).padStart(2, '0')}.${weekNumber}.${position}`,
+        title: String(title),
+        stage: phase,
+        week: weekNumber,
+        planId: 'all',
+        publication: 'PUBLICADO',
+        description: String(description),
+        objective: String(description),
+        duration: 8 + (index % 5) * 2,
+        videoUrl: '',
+        thumbnailUrl: '',
+        learnings: [String(description), 'Conectar el entregable con una decisión del negocio.'],
+        action: String(action),
+        resourceType: String(resourceType),
+        deliverable: String(deliverable),
+        due: date(10 + index * 2),
+        points: 20,
+        requiresReview: owner !== 'A',
+        requiredForUnlock: true,
+        owner: owner as Lesson['owner'],
+        minAccess: phase === 1 ? 'LOW' : 'MEDIUM',
+      } as Lesson;
+    },
+  );
+  const allLessons = [...onboardingLessons, ...methodologyLessons];
   const orgs: Org[] = [
     {
       id: 'norte',
@@ -675,7 +815,7 @@ export function seed(): State {
                     text: 'Evidencia histórica validada por el equipo.',
                     at: date(-12),
                     status: 'ACCEPTED',
-                    feedback: 'Validación ilustrativa',
+                    feedback: 'Validación registrada por el equipo',
                     files: [],
                   },
                 ]
@@ -705,7 +845,7 @@ export function seed(): State {
           code: 'hours',
           value: 45 - index * 7,
           period: date(-30),
-          source: 'Registro ilustrativo',
+          source: 'Registro de línea base',
           at: date(-30),
           status: 'VALIDATED',
         },
@@ -794,7 +934,7 @@ export function seed(): State {
           status: 'ABIERTO',
         },
       ],
-      lessonRuns: onboardingLessons.map((lesson, lessonIndex) => {
+      lessonRuns: allLessons.map((lesson, lessonIndex) => {
         const advancedProgress = index === 2 && lessonIndex < 5;
         const secondClientProgress = index === 1 && lessonIndex === 0;
         return {
@@ -941,7 +1081,7 @@ export function seed(): State {
         lastAccess: date(-1),
       },
     ],
-    lessons: onboardingLessons,
+    lessons: allLessons,
   };
 }
 export function getOrg(s: State, orgId: string) {
@@ -958,10 +1098,50 @@ export function available(s: State, o: Org, week: number): string {
   if (!Number.isInteger(week) || week < 1 || week > 12)
     return 'Semana inexistente.';
   if (!getPlan(s, o).stages.includes(Math.ceil(week / 3)))
-    return 'Esta etapa no está incluida en el plan contratado.';
+    return 'Esta profundidad de acompañamiento no está incluida en el plan actual. Tu información y progreso se conservan para una futura ampliación.';
   if (week > 1 && o.weeks[week - 2].gate !== 'APPROVED')
     return 'Falta aprobar el cierre de la semana ' + (week - 1) + '.';
+  if (week > 3 && (week - 1) % 3 === 0 && o.current <= week) {
+    const previousPhase = Math.ceil(week / 3) - 1;
+    const gate = phaseGate(s, o, previousPhase);
+    if (!gate.ready)
+      return `Falta completar el Gate de Salida de la Fase ${previousPhase}.`;
+  }
   return '';
+}
+export function phaseGate(s: State, o: Org, phase: number) {
+  const approved = (week: number) => o.weeks[week - 1]?.gate === 'APPROVED';
+  const done = (week: number) =>
+    o.tasks.filter((task) => task.week === week && task.status === 'DONE').length;
+  const validated = (code: string) =>
+    o.kpis.some((kpi) => kpi.code === code && kpi.status === 'VALIDATED');
+  const onboarding = lessonMetrics(s, o, 0).validation;
+  const requirements =
+    phase === 1
+      ? [
+          { label: 'Expediente CONTROL con ≥90% de datos obligatorios', ok: onboarding >= 90 },
+          { label: 'Baseline financiero y dependencia del fundador', ok: o.finances.length > 0 && validated('margin') && validated('hours') },
+          { label: 'Mapa operativo y CONTROL Score Día 0', ok: done(1) >= 2 && o.control.reduce((sum, value) => sum + value, 0) > 0 },
+          { label: 'Tres problemas y oferta prioritaria definidos', ok: done(2) + done(3) >= 3 },
+          { label: 'Roadmap de 90 días aprobado', ok: approved(3) },
+        ]
+      : phase === 2
+        ? [
+            { label: 'Roles críticos y RACI activos', ok: done(4) >= 2 && approved(4) },
+            { label: 'Procesos P1 con owner, SOP y KPI', ok: done(5) >= 2 && approved(5) },
+            { label: 'Dashboard financiero y margen conocidos', ok: done(6) >= 2 && validated('margin') },
+            { label: 'Nueva medición de horas del fundador', ok: o.kpis.filter((kpi) => kpi.code === 'hours').length >= 2 },
+            { label: 'CONTROL Score #2 y bitácora actualizados', ok: approved(6) },
+          ]
+        : [
+            { label: 'Semanas de la fase aprobadas', ok: [phase * 3 - 2, phase * 3 - 1, phase * 3].every(approved) },
+          ];
+  const ready = requirements.every((item) => item.ok);
+  return {
+    requirements,
+    ready,
+    status: ready ? 'APPROVED' : 'OPEN',
+  } as const;
 }
 export function requirements(o: Org, w: number) {
   const r = o.weeks[w - 1];
@@ -999,18 +1179,23 @@ export function programProgress(s: State, o: Org) {
   );
 }
 export function lessonsFor(s: State, o: Org) {
+  const rank = { LOW: 1, MEDIUM: 2, HIGH: 3 } as const;
+  const plan = getPlan(s, o);
   return s.lessons
     .filter(
       (lesson) =>
         lesson.publication === 'PUBLICADO' &&
+        rank[lesson.minAccess || 'LOW'] <= rank[plan.accessLevel || 'LOW'] &&
         (lesson.planId === 'all' ||
           lesson.planId === o.planId ||
           lesson.planId === 'org:' + o.id),
     )
     .toSorted((a, b) => a.code.localeCompare(b.code));
 }
-export function lessonMetrics(s: State, o: Org) {
-  const lessons = lessonsFor(s, o);
+export function lessonMetrics(s: State, o: Org, stage?: number) {
+  const lessons = lessonsFor(s, o).filter(
+    (lesson) => stage === undefined || lesson.stage === stage,
+  );
   const runs = new Map(o.lessonRuns.map((run) => [run.lessonId, run]));
   const total = Math.max(1, lessons.length);
   const learning = Math.round(
@@ -1607,6 +1792,11 @@ export function execute(
       points,
       requiresReview: c.requiresReview !== 'no',
       requiredForUnlock: c.requiredForUnlock !== 'no',
+      owner: 'C+E',
+      minAccess:
+        planId === 'all' || planId.startsWith('org:')
+          ? 'LOW'
+          : next.plans.find((plan) => plan.id === planId)?.accessLevel || 'LOW',
     };
     next.lessons.push(lesson);
     next.orgs

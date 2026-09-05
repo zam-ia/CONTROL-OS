@@ -17,6 +17,9 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 
 - Portal cliente y Command Center responsive, con barra lateral contraíble y navegación adaptada a móvil.
 - Etapa 00 de onboarding con ocho clases, desbloqueo progresivo y regla **aprender → aplicar → entregar → recibir feedback → avanzar**.
+- Una metodología maestra para todos los planes: 46 controles internos en las fases 1 y 2, resumidos para el cliente en 32 clases distribuidas durante seis semanas.
+- Gates de salida basados en evidencia al finalizar Claridad y Diagnóstico y Sistema Operativo Interno.
+- Etiquetas de responsabilidad `[C]`, `[E]`, `[C+E]` y `[A]` para separar trabajo del cliente, equipo y sistema.
 - Clases reproducidas desde enlaces de YouTube, sin almacenar archivos de video en CONTROL OS.
 - Seguimiento separado de aprendizaje, ejecución y validación; alerta ante alto consumo y baja aplicación.
 - Constructor administrativo de clases con objetivo, aprendizajes, acción, recurso, actividad, entregable, puntuación, revisión y asignación por plan o cliente.
@@ -45,6 +48,7 @@ El esquema versionado está en `supabase/migrations`:
 3. Clases, enlaces de YouTube, avance, revisión y desbloqueos.
 4. Checkpoints binarios para clase vista y actividad completada.
 5. Usuarios únicos, creación de empresas y checkpoints de objetivos.
+6. Metodología maestra, profundidad de acceso por plan, expediente empresarial, entregables y gates de fase.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 

@@ -3,7 +3,7 @@ import './globals.css';
 
 const metadataOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : 'https://control-os-demo-040926.rebagliati-marketing.chatgpt.site';
+  : 'https://control-os-eosin.vercel.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(metadataOrigin),
