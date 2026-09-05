@@ -26,7 +26,7 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 - Registro y validación de KPIs, CONTROL Score, Execution Score y Health Score.
 - Cliente 360 con seguimiento operativo, intervenciones, sesiones, notas y soporte.
 - Gestión de usuarios con roles, creación, suspensión, reactivación y eliminación protegida del administrador principal.
-- Acceso mediante usuario único —DNI, RUC o alias— y creación de una empresa nueva dentro del alta del cliente.
+- Inicio de sesión mediante usuario único —DNI, RUC o alias—, sin autorregistro; las cuentas y empresas son creadas por administración.
 - Control financiero por cliente con ingresos, costos, cobros, contribución y resumen de cartera.
 - Versionado de planes, biblioteca de recursos y exportación administrativa en JSON.
 

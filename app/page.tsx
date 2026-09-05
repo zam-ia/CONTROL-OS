@@ -299,12 +299,7 @@ function FileChips({ files }: { files: Attachment[] }) {
     </div>
   );
 }
-function AuthScreen({
-  onEnter,
-}: {
-  onEnter: (username: string, action: 'login' | 'signup') => string;
-}) {
-  const [tab, setTab] = useState<'login' | 'signup'>('login');
+function AuthScreen({ onEnter }: { onEnter: (username: string) => string }) {
   const [error, setError] = useState('');
   return (
     <main className="auth-shell">
@@ -332,37 +327,11 @@ function AuthScreen({
         <small>Plataforma de implementación para clientes y equipo</small>
       </section>
       <section className="auth-card">
-        <div className="auth-tabs" role="tablist" aria-label="Tipo de acceso">
-          <button
-            role="tab"
-            aria-selected={tab === 'login'}
-            onClick={() => {
-              setTab('login');
-              setError('');
-            }}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'signup'}
-            onClick={() => {
-              setTab('signup');
-              setError('');
-            }}
-          >
-            Crear cuenta
-          </button>
-        </div>
         <div>
           <p className="eyebrow">CONTROL OS</p>
-          <h2>
-            {tab === 'login' ? 'Bienvenido de vuelta' : 'Comienza tu espacio'}
-          </h2>
+          <h2>Iniciar sesión</h2>
           <p className="muted">
-            {tab === 'login'
-              ? 'Ingresa con la cuenta asignada por tu administrador.'
-              : 'Registra tus datos para comenzar el proceso de acceso.'}
+            Ingresa con el usuario asignado por tu administrador.
           </p>
         </div>
         <form
@@ -383,7 +352,7 @@ function AuthScreen({
               );
               return;
             }
-            const accessError = onEnter(username.toLowerCase(), tab);
+            const accessError = onEnter(username.toLowerCase());
             if (accessError) {
               setError(accessError);
               return;
@@ -393,28 +362,6 @@ function AuthScreen({
             } catch {}
           }}
         >
-          {tab === 'signup' && (
-            <label className="field" htmlFor="auth-name">
-              <span>Nombre completo</span>
-              <Input
-                id="auth-name"
-                name="name"
-                required
-                placeholder="Tu nombre"
-              />
-            </label>
-          )}
-          {tab === 'signup' && (
-            <label className="field" htmlFor="auth-company">
-              <span>Empresa</span>
-              <Input
-                id="auth-company"
-                name="company"
-                required
-                placeholder="Nombre de la empresa"
-              />
-            </label>
-          )}
           <label className="field" htmlFor="auth-username">
             <span>Usuario</span>
             <Input
@@ -437,9 +384,7 @@ function AuthScreen({
               type="password"
               required
               minLength={8}
-              autoComplete={
-                tab === 'login' ? 'current-password' : 'new-password'
-              }
+              autoComplete="current-password"
               placeholder="8 caracteres o más"
             />
           </label>
@@ -449,7 +394,7 @@ function AuthScreen({
             </p>
           )}
           <Button className="full" type="submit">
-            {tab === 'login' ? 'Ingresar' : 'Crear cuenta'} <ArrowRight />
+            Ingresar <ArrowRight />
           </Button>
         </form>
         <p className="caption">
@@ -905,26 +850,19 @@ export default function Home() {
   if (!sessionActive)
     return (
       <AuthScreen
-        onEnter={(username, action) => {
-          if (action === 'login') {
-            const account = state.users.find(
-              (user) => user.username.toLowerCase() === username,
-            );
-            if (!account) return 'La cuenta no está registrada.';
-            if (account.status === 'SUSPENDIDO')
-              return 'Esta cuenta está suspendida. Contacta al administrador.';
-            const nextMode: Mode =
-              account.role === 'CLIENTE' ? 'client' : 'admin';
-            setMode(nextMode);
-            setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
-          } else {
-            setMode('client');
-            setPage('inicio');
-          }
-          setSessionActive(true);
-          setNotice(
-            action === 'login' ? 'Sesión iniciada.' : 'Cuenta registrada.',
+        onEnter={(username) => {
+          const account = state.users.find(
+            (user) => user.username.toLowerCase() === username,
           );
+          if (!account) return 'La cuenta no está registrada.';
+          if (account.status === 'SUSPENDIDO')
+            return 'Esta cuenta está suspendida. Contacta al administrador.';
+          const nextMode: Mode =
+            account.role === 'CLIENTE' ? 'client' : 'admin';
+          setMode(nextMode);
+          setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
+          setSessionActive(true);
+          setNotice('Sesión iniciada.');
           return '';
         }}
       />

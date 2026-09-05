@@ -681,28 +681,6 @@ footer {
 .auth-card h2 {
   margin-bottom: 8px;
 }
-.auth-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: #f4f1ea;
-  padding: 4px;
-  border-radius: 9px;
-  margin-bottom: 34px;
-}
-.auth-tabs button {
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  padding: 10px;
-  color: #766e60;
-  font-weight: 600;
-  font-size: 12px;
-}
-.auth-tabs button[aria-selected='true'] {
-  background: #fff;
-  color: #211a0d;
-  box-shadow: 0 2px 9px #241a0910;
-}
 .auth-card form {
   margin-top: 26px;
 }
