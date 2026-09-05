@@ -694,22 +694,22 @@ export default function Home() {
             ? candidate.modules
             : [];
           const savedModules = new Set<string>(
-            candidate.modules.map((module: State['modules'][number]) =>
-              String(module.code || module.id),
+            candidate.modules.map((resourceItem: State['modules'][number]) =>
+              String(resourceItem.code || resourceItem.id),
             ),
           );
-          s.modules.forEach((module) => {
-            if (!savedModules.has(String(module.code || module.id)))
-              candidate.modules.push(module);
+          s.modules.forEach((resourceItem) => {
+            if (!savedModules.has(String(resourceItem.code || resourceItem.id)))
+              candidate.modules.push(resourceItem);
           });
-          candidate.modules.forEach((module: State['modules'][number]) => {
-            module.category = module.category || 'General';
-            module.version = module.version || '1.0.0';
-            module.tier = module.tier || 'BASIC';
-            module.tags = Array.isArray(module.tags) ? module.tags : [];
-            module.editorialStatus =
-              module.editorialStatus ||
-              (module.files.length ? 'LISTO' : 'EN_PRODUCCION');
+          candidate.modules.forEach((resourceItem: State['modules'][number]) => {
+            resourceItem.category = resourceItem.category || 'General';
+            resourceItem.version = resourceItem.version || '1.0.0';
+            resourceItem.tier = resourceItem.tier || 'BASIC';
+            resourceItem.tags = Array.isArray(resourceItem.tags) ? resourceItem.tags : [];
+            resourceItem.editorialStatus =
+              resourceItem.editorialStatus ||
+              (resourceItem.files.length ? 'LISTO' : 'EN_PRODUCCION');
           });
           candidate.users = Array.isArray(candidate.users)
             ? candidate.users
@@ -994,17 +994,17 @@ export default function Home() {
   );
   const resourceTierRank = { BASIC: 1, COMPLETE: 2, ADVANCED: 3 } as const;
   const planResourceRank = resourceTierRank[plan.entitlements.resourceTier];
-  const libraryResources = state.modules.filter((module) => {
+  const libraryResources = state.modules.filter((resourceItem) => {
     const matchesSearch = [
-      module.title,
-      module.description,
-      module.category,
-      ...(module.tags || []),
+      resourceItem.title,
+      resourceItem.description,
+      resourceItem.category,
+      ...(resourceItem.tags || []),
     ]
       .join(' ')
       .toLowerCase()
       .includes(query.toLowerCase());
-    const matchesCategory = filter === 'all' || module.category === filter;
+    const matchesCategory = filter === 'all' || resourceItem.category === filter;
     return matchesSearch && matchesCategory;
   });
   const implementationGaps = state.orgs.filter((item) => {
@@ -2278,41 +2278,41 @@ export default function Home() {
             options={[
               { value: 'all', label: 'Todas las categorías' },
               ...Array.from(
-                new Set(state.modules.map((module) => module.category || 'General')),
+                new Set(state.modules.map((resourceItem) => resourceItem.category || 'General')),
               ).map((category) => ({ value: category, label: category })),
             ]}
           />
         </div>
         <div className="cards-grid spaced">
-          {libraryResources.map((module) => {
-            const tier = module.tier || 'BASIC';
+          {libraryResources.map((resourceItem) => {
+            const tier = resourceItem.tier || 'BASIC';
             const planAllows = resourceTierRank[tier] <= planResourceRank;
-            const routeAllows = module.week <= org.current;
-            const ready = module.editorialStatus !== 'EN_PRODUCCION';
+            const routeAllows = resourceItem.week <= org.current;
+            const ready = resourceItem.editorialStatus !== 'EN_PRODUCCION';
             const availableResource = planAllows && routeAllows && ready;
             return (
               <Section
-                title={module.title}
-                key={module.id}
-                action={<Badge value={module.code || `SEM ${module.week}`} color="gray" />}
+                title={resourceItem.title}
+                key={resourceItem.id}
+                action={<Badge value={resourceItem.code || `SEM ${resourceItem.week}`} color="gray" />}
               >
                 <div className="inline-actions">
-                  <Badge value={module.category || 'General'} color="blue" />
-                  <Badge value={`v${module.version || '1.0.0'}`} color="gray" />
+                  <Badge value={resourceItem.category || 'General'} color="blue" />
+                  <Badge value={`v${resourceItem.version || '1.0.0'}`} color="gray" />
                   <Badge value={tier} color="gray" />
                 </div>
-                <p className="resource-description">{module.description}</p>
+                <p className="resource-description">{resourceItem.description}</p>
                 <small className="muted">
-                  Semana {module.week}
-                  {module.relatedLesson ? ` · Clase ${module.relatedLesson}` : ''}
-                  {module.editable ? ' · Editable' : ''}
+                  Semana {resourceItem.week}
+                  {resourceItem.relatedLesson ? ` · Clase ${resourceItem.relatedLesson}` : ''}
+                  {resourceItem.editable ? ' · Editable' : ''}
                 </small>
-                {module.files.length > 0 && <FileChips files={module.files} />}
+                {resourceItem.files.length > 0 && <FileChips files={resourceItem.files} />}
                 <div className="inline-actions">
                   <Button
                     variant="outline"
                     disabled={!availableResource}
-                    onClick={() => setResource(module.id)}
+                    onClick={() => setResource(resourceItem.id)}
                   >
                     {!planAllows ? (
                       <><LockKeyhole /> Fuera de tu plan</>
@@ -2324,8 +2324,8 @@ export default function Home() {
                       <>Abrir recurso <ArrowUpRight /></>
                     )}
                   </Button>
-                  {module.relatedLesson && routeAllows && (
-                    <Button variant="ghost" onClick={() => openWeek(module.week)}>
+                  {resourceItem.relatedLesson && routeAllows && (
+                    <Button variant="ghost" onClick={() => openWeek(resourceItem.week)}>
                       Ver en mi ruta
                     </Button>
                   )}
@@ -3009,29 +3009,29 @@ export default function Home() {
           </Button>
         </div>
         <div className="cards-grid">
-          {state.modules.map((module) => (
+          {state.modules.map((resourceItem) => (
             <Section
-              key={module.id}
-              title={module.title}
-              action={<Badge value={'Semana ' + module.week} color="gray" />}
+              key={resourceItem.id}
+              title={resourceItem.title}
+              action={<Badge value={'Semana ' + resourceItem.week} color="gray" />}
             >
-              <p>{module.description}</p>
+              <p>{resourceItem.description}</p>
               <p className="muted text-small">
-                {module.planId === 'all'
+                {resourceItem.planId === 'all'
                   ? 'Todos los planes'
-                  : state.plans.find((item) => item.id === module.planId)?.name}
+                  : state.plans.find((item) => item.id === resourceItem.planId)?.name}
               </p>
-              <FileChips files={module.files} />
+              <FileChips files={resourceItem.files} />
               <div className="inline-actions spaced-small">
                 <small className="muted">
-                  Creado {displayDate(module.createdAt)}
+                  Creado {displayDate(resourceItem.createdAt)}
                 </small>
-                {module.id !== 'module-w1' && (
+                {resourceItem.id !== 'module-w1' && (
                   <Button
                     variant="ghost"
                     onClick={() => {
                       if (window.confirm('¿Eliminar este módulo?'))
-                        act({ type: 'deleteModule', targetId: module.id });
+                        act({ type: 'deleteModule', targetId: resourceItem.id });
                     }}
                   >
                     <Trash2 size={16} /> Eliminar
@@ -4613,7 +4613,7 @@ export default function Home() {
       >
         <DialogContent className="control-dialog">
           <DialogTitle>
-            {state.modules.find((module) => module.id === resource)?.title ||
+            {state.modules.find((resourceItem) => resourceItem.id === resource)?.title ||
               'Recurso CONTROL'}
           </DialogTitle>
           <DialogDescription>
@@ -4623,7 +4623,7 @@ export default function Home() {
             <>
               {(() => {
                 const selectedResource = state.modules.find(
-                  (module) => module.id === resource,
+                  (resourceItem) => resourceItem.id === resource,
                 );
                 if (!selectedResource) return null;
                 return (
