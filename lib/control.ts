@@ -501,7 +501,7 @@ export const statusLabels: Record<string, string> = {
 };
 export const now = () => new Date().toISOString();
 const id = () => globalThis.crypto.randomUUID();
-function createOrganizationWorkspace(
+export function createOrganizationWorkspace(
   organizationId: string,
   name: string,
   person: string,

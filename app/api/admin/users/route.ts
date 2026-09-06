@@ -33,6 +33,121 @@ function organizationSlug(name: string) {
   return `${base || 'empresa'}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+async function authorizedAdmin(request: Request) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !publishableKey || !secretKey) return null;
+  const authorization = request.headers.get('authorization') || '';
+  const bearerToken = authorization.startsWith('Bearer ')
+    ? authorization.slice(7).trim()
+    : '';
+  const cookieStore = await cookies();
+  const accessToken =
+    bearerToken || cookieStore.get('control-os-access-token')?.value || '';
+  if (!accessToken) return null;
+  const sessionClient = createClient(url, publishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const adminClient = createClient(url, secretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const {
+    data: { user: caller },
+  } = await sessionClient.auth.getUser(accessToken);
+  if (!caller) return null;
+  const { data: callerProfile } = await adminClient
+    .from('profiles')
+    .select('id, global_role, status')
+    .eq('id', caller.id)
+    .single();
+  if (
+    !callerProfile ||
+    !canManageClientCredentials({
+      email: caller.email,
+      globalRole: callerProfile.global_role,
+      status: callerProfile.status,
+    })
+  )
+    return null;
+  return { adminClient, caller };
+}
+
+export async function GET(request: Request) {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    !process.env.SUPABASE_SECRET_KEY
+  )
+    return failure(
+      'El directorio de usuarios todavía no está configurado en el servidor.',
+      503,
+    );
+  const authorization = await authorizedAdmin(request);
+  if (!authorization)
+    return failure('No tienes permiso para consultar usuarios.', 403);
+  const { adminClient } = authorization;
+  const { data: profiles, error: profilesError } = await adminClient
+    .from('profiles')
+    .select('id, display_name, username, global_role, status, updated_at')
+    .order('created_at', { ascending: true });
+  if (profilesError)
+    return failure('No se pudo cargar el directorio de usuarios.', 500);
+
+  const userIds = (profiles || []).map((profile) => profile.id);
+  const { data: memberships, error: membershipsError } = userIds.length
+    ? await adminClient
+        .from('memberships')
+        .select('user_id, organization_id')
+        .in('user_id', userIds)
+        .eq('status', 'ACTIVE')
+    : { data: [], error: null };
+  if (membershipsError)
+    return failure('No se pudieron cargar las empresas asignadas.', 500);
+
+  const organizationIds = [
+    ...new Set(
+      (memberships || []).map((membership) => membership.organization_id),
+    ),
+  ];
+  const { data: organizations, error: organizationsError } =
+    organizationIds.length
+      ? await adminClient
+          .from('organizations')
+          .select('id, name, status')
+          .in('id', organizationIds)
+      : { data: [], error: null };
+  if (organizationsError)
+    return failure('No se pudieron cargar las empresas.', 500);
+
+  const organizationById = new Map(
+    (organizations || []).map((organization) => [
+      organization.id,
+      organization,
+    ]),
+  );
+  const membershipByUser = new Map(
+    (memberships || []).map((membership) => [
+      membership.user_id,
+      organizationById.get(membership.organization_id) || null,
+    ]),
+  );
+  return Response.json(
+    {
+      users: (profiles || []).map((profile) => ({
+        id: profile.id,
+        name: profile.display_name || profile.username,
+        username: profile.username,
+        globalRole: profile.global_role,
+        status: profile.status,
+        updatedAt: profile.updated_at,
+        organization: membershipByUser.get(profile.id) || null,
+      })),
+    },
+    { headers: noStoreHeaders },
+  );
+}
+
 export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

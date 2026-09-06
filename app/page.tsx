@@ -68,6 +68,7 @@ import {
 } from '@/components/ui/table';
 import {
   available,
+  createOrganizationWorkspace,
   definitions,
   dimensions,
   execute,
@@ -129,7 +130,89 @@ type SessionUser = {
   mustChangePassword: boolean;
   organization: { id: string; name: string } | null;
 };
+type DirectoryUser = {
+  id: string;
+  name: string;
+  username: string;
+  globalRole: string;
+  status: string;
+  updatedAt: string;
+  organization: { id: string; name: string } | null;
+};
 const STORAGE = 'control-os-production-v1';
+
+async function synchronizeManagedDirectory(current: State) {
+  const response = await fetch('/api/admin/users', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  if (!response.ok) return current;
+  const payload = (await response.json()) as { users?: DirectoryUser[] };
+  const directoryUsers = Array.isArray(payload.users) ? payload.users : [];
+  const organizations = [...current.orgs];
+  const organizationMap = new Map<string, string>();
+  directoryUsers.forEach((directoryUser) => {
+    const remoteOrganization = directoryUser.organization;
+    if (!remoteOrganization) return;
+    let localOrganization = organizations.find(
+      (item) =>
+        item.name.trim().toLowerCase() ===
+        remoteOrganization.name.trim().toLowerCase(),
+    );
+    if (!localOrganization) {
+      const defaultPlan = current.plans[1] || current.plans[0];
+      localOrganization = createOrganizationWorkspace(
+        remoteOrganization.id,
+        remoteOrganization.name,
+        directoryUser.name,
+        defaultPlan.id,
+        current.lessons,
+      );
+      organizations.push(localOrganization);
+    }
+    organizationMap.set(remoteOrganization.id, localOrganization.id);
+  });
+  const roleMap: Record<string, ManagedUser['role']> = {
+    CLIENT: 'CLIENTE',
+    COACH: 'CONSULTOR',
+    OPERATOR: 'OPERADOR',
+    ADMIN: 'ADMIN',
+    SUPER_ADMIN: 'ADMIN',
+  };
+  const remoteUsernames = new Set(
+    directoryUsers.map((user) => user.username.toLowerCase()),
+  );
+  const users = current.users.filter(
+    (user) => !remoteUsernames.has(user.username.toLowerCase()),
+  );
+  directoryUsers.forEach((directoryUser) => {
+    const role = roleMap[directoryUser.globalRole] || 'CLIENTE';
+    const organizationId = directoryUser.organization
+      ? organizationMap.get(directoryUser.organization.id) || ''
+      : '';
+    users.push({
+      id: directoryUser.id,
+      name: directoryUser.name,
+      username: directoryUser.username,
+      role,
+      orgId: role === 'CLIENTE' ? organizationId : '',
+      status: directoryUser.status === 'ACTIVE' ? 'ACTIVO' : 'SUSPENDIDO',
+      lastAccess: directoryUser.updatedAt || '',
+    });
+    if (role === 'CLIENTE' && organizationId) {
+      const index = organizations.findIndex(
+        (item) => item.id === organizationId,
+      );
+      if (index >= 0)
+        organizations[index] = {
+          ...organizations[index],
+          person: directoryUser.name,
+        };
+    }
+  });
+  return { ...current, orgs: organizations, users };
+}
 function download(filename: string, text: string, type = 'text/plain') {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const anchor = document.createElement('a');
@@ -1250,6 +1333,8 @@ export default function Home() {
           setMode(
             authenticatedUser?.globalRole === 'CLIENT' ? 'client' : 'admin',
           );
+          if (authenticatedUser?.globalRole !== 'CLIENT')
+            s = await synchronizeManagedDirectory(s);
           setSessionActive(Boolean(authenticatedUser));
         } else if (active) {
           setSessionUser(null);
@@ -1415,6 +1500,10 @@ export default function Home() {
                 };
                 persist(nextState);
                 setWeek(assignedOrganization.current);
+              } else {
+                const synchronizedState =
+                  await synchronizeManagedDirectory(state);
+                persist(synchronizedState);
               }
               setSessionUser(authenticatedUser);
               setMode(nextMode);
@@ -3841,7 +3930,16 @@ export default function Home() {
   } else if (page === 'portafolio') {
     const clients = state.orgs.filter(
       (o) =>
-        o.name.toLowerCase().includes(query.toLowerCase()) &&
+        [
+          o.name,
+          o.person,
+          ...state.users
+            .filter((user) => user.role === 'CLIENTE' && user.orgId === o.id)
+            .flatMap((user) => [user.name, user.username]),
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(query.toLowerCase()) &&
         (filter === 'all' || health(state, o).label === filter),
     );
     body = (
@@ -3919,10 +4017,18 @@ export default function Home() {
             <TableBody>
               {clients.map((o) => {
                 const risk = health(state, o);
+                const clientUsers = state.users.filter(
+                  (user) => user.role === 'CLIENTE' && user.orgId === o.id,
+                );
                 return (
                   <TableRow key={o.id}>
                     <TableCell>
                       <strong>{o.name}</strong>
+                      {clientUsers.map((user) => (
+                        <small key={user.id}>
+                          {user.name} · @{user.username}
+                        </small>
+                      ))}
                       <small>{getPlan(state, o).name}</small>
                     </TableCell>
                     <TableCell>
