@@ -387,7 +387,7 @@ export function executeBusiness(
 ): BusinessState {
   const next = structuredClone(state);
   if (next.workspace.status !== 'ACTIVE')
-    throw Error('El workspace no está activo.');
+    throw Error('El espacio de trabajo no está activo.');
   if (
     next.workspace.periodStatus === 'LOCKED' &&
     ['addIncome', 'addExpense'].includes(command.type)
@@ -764,7 +764,7 @@ export function businessSeed(): BusinessState {
           },
           {
             id: 'founder-3',
-            title: 'Validar SLA durante dos semanas',
+            title: 'Validar el tiempo esperado durante dos semanas',
             completed: false,
           },
         ],
@@ -781,7 +781,7 @@ export function businessSeed(): BusinessState {
       },
       {
         id: 'task-2',
-        title: 'Definir owner del onboarding',
+        title: 'Definir responsable de la bienvenida',
         owner: 'Carlos R.',
         dueOn: '2026-09-09',
         status: 'BLOCKED',
@@ -797,7 +797,7 @@ export function businessSeed(): BusinessState {
       },
       {
         id: 'task-4',
-        title: 'Publicar SOP de entrega',
+        title: 'Publicar instrucciones de entrega',
         owner: 'Carlos R.',
         dueOn: '2026-09-12',
         status: 'REVIEW',
@@ -812,7 +812,7 @@ export function businessSeed(): BusinessState {
         trigger: 'Pago validado',
         output: 'Cliente activado',
         sla: '24 horas',
-        kpi: '% dentro de SLA',
+        kpi: '% dentro del tiempo esperado',
         status: 'ACTIVE',
         sopVersion: 3,
       },
@@ -843,7 +843,7 @@ export function businessSeed(): BusinessState {
       {
         id: 'event-seed-1',
         at: '2026-09-05T14:00:00.000Z',
-        text: 'Workspace empresarial sincronizado con CONTROL OS.',
+        text: 'Espacio empresarial sincronizado con CONTROL OS.',
       },
     ],
   };

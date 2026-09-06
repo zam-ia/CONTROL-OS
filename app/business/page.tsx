@@ -13,6 +13,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  CircleHelp,
   CircleDollarSign,
   ClipboardCheck,
   Download,
@@ -67,17 +68,20 @@ type View =
   | 'settings';
 type FormKind = 'income' | 'expense' | 'client' | 'service' | null;
 
-const navigation = [
+const primaryNavigation = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
   { id: 'finance', label: 'Finanzas', icon: WalletCards },
   { id: 'clients', label: 'Clientes', icon: Users },
   { id: 'services', label: 'Servicios', icon: BriefcaseBusiness },
   { id: 'work', label: 'Objetivos y tareas', icon: Target },
-  { id: 'processes', label: 'Procesos y SOP', icon: FolderCog },
+] as const;
+const advancedNavigation = [
+  { id: 'processes', label: 'Procesos e instrucciones', icon: FolderCog },
   { id: 'reports', label: 'Reportes', icon: FileText },
   { id: 'import', label: 'Importar', icon: Upload },
   { id: 'settings', label: 'Configuración', icon: Settings },
 ] as const;
+const navigation = [...primaryNavigation, ...advancedNavigation] as const;
 
 const organizationNames: Record<string, string> = {
   norte: 'Estudio Norte',
@@ -139,11 +143,13 @@ function MetricCard({
   label,
   value,
   detail,
+  explanation,
   tone = 'neutral',
 }: {
   label: string;
   value: string;
   detail: string;
+  explanation: string;
   tone?: 'positive' | 'warning' | 'neutral';
 }) {
   return (
@@ -151,6 +157,12 @@ function MetricCard({
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{detail}</small>
+      <details className="business-calculation-help">
+        <summary>
+          <CircleHelp /> ¿Cómo se calcula?
+        </summary>
+        <p>{explanation}</p>
+      </details>
     </article>
   );
 }
@@ -162,9 +174,18 @@ export default function BusinessPage() {
   const [view, setView] = useState<View>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [form, setForm] = useState<FormKind>(null);
   const [notice, setNotice] = useState('');
   const [importFile, setImportFile] = useState('');
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 820px)');
+    const update = () => setIsMobileViewport(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -324,23 +345,27 @@ export default function BusinessPage() {
             label="Facturación"
             value={money(metrics.revenue)}
             detail={`${money(metrics.collected)} cobrado`}
+            explanation="Suma todos los ingresos registrados durante el período."
             tone="positive"
           />
           <MetricCard
             label="Utilidad operativa"
             value={money(metrics.operatingProfit)}
             detail={`${metrics.operatingMargin}% de margen`}
+            explanation="Resta los gastos a los ingresos. El margen muestra qué porcentaje de los ingresos queda después de esos gastos."
             tone={metrics.operatingMargin >= 25 ? 'positive' : 'warning'}
           />
           <MetricCard
             label="Gastos"
             value={money(metrics.expenses)}
             detail={`${money(metrics.variableExpenses)} variables`}
+            explanation="Suma todos los gastos registrados durante el período."
           />
           <MetricCard
             label="Caja del período"
             value={money(metrics.cashMovement)}
             detail={`${metrics.activeClients} clientes activos`}
+            explanation="Resta las salidas de dinero a los cobros recibidos durante el período."
             tone={metrics.cashMovement >= 0 ? 'positive' : 'warning'}
           />
         </section>
@@ -391,7 +416,7 @@ export default function BusinessPage() {
           <section className="business-card">
             <div className="business-card-head">
               <div>
-                <p className="business-kicker">CONTROL BOARD</p>
+                <p className="business-kicker">ALERTAS</p>
                 <h3>Alertas explicables</h3>
               </div>
               <AlertTriangle />
@@ -426,7 +451,7 @@ export default function BusinessPage() {
             <div className="business-card-head">
               <div>
                 <p className="business-kicker">CLIENTES</p>
-                <h3>Contribución directa</h3>
+                <h3>Lo que deja cada cliente</h3>
               </div>
               <Button variant="ghost" size="sm" onClick={() => go('clients')}>
                 Ver todos
@@ -437,7 +462,7 @@ export default function BusinessPage() {
                 <div key={client.id}>
                   <span>
                     <strong>{client.name}</strong>
-                    <small>{money(client.contribution)} contribución</small>
+                    <small>{money(client.contribution)} para la empresa</small>
                   </span>
                   <b className={client.margin < 20 ? 'negative' : ''}>
                     {client.margin}%
@@ -491,23 +516,27 @@ export default function BusinessPage() {
             label="Ingresos"
             value={money(metrics.revenue)}
             detail={`${state.incomes.filter((item) => item.status === 'POSTED').length} movimientos`}
+            explanation="Suma los movimientos de ingreso confirmados en este período."
             tone="positive"
           />
           <MetricCard
             label="Gastos"
             value={money(metrics.expenses)}
             detail={`${state.expenses.filter((item) => item.status === 'POSTED').length} movimientos`}
+            explanation="Suma los movimientos de gasto confirmados en este período."
           />
           <MetricCard
             label="Pendiente de cobro"
             value={money(metrics.revenue - metrics.collected)}
             detail="Seguimiento requerido"
+            explanation="Resta lo ya cobrado del total facturado durante el período."
             tone="warning"
           />
           <MetricCard
             label="Margen operativo"
             value={`${metrics.operatingMargin}%`}
             detail={money(metrics.operatingProfit)}
+            explanation="Divide la utilidad operativa entre los ingresos y multiplica el resultado por 100."
             tone={metrics.operatingMargin >= 25 ? 'positive' : 'warning'}
           />
         </section>
@@ -620,7 +649,7 @@ export default function BusinessPage() {
       <section className="business-card">
         <div className="business-card-head">
           <div>
-            <p className="business-kicker">CLIENTE 360</p>
+            <p className="business-kicker">SEGUIMIENTO DE CLIENTES</p>
             <h3>Rentabilidad por cliente</h3>
           </div>
           <Button onClick={() => setForm('client')}>
@@ -635,7 +664,7 @@ export default function BusinessPage() {
                 <th>Estado</th>
                 <th className="numeric">Ingresos</th>
                 <th className="numeric">Costo directo</th>
-                <th className="numeric">Contribución</th>
+                <th className="numeric">Lo que deja</th>
                 <th className="numeric">Margen</th>
               </tr>
             </thead>
@@ -670,9 +699,8 @@ export default function BusinessPage() {
           </table>
         </div>
         <p className="business-note">
-          El margen mostrado es contribución directa: ingresos menos
-          imputaciones del cliente. Los gastos generales permanecen en el
-          P&amp;L.
+          “Lo que deja” son los ingresos del cliente menos sus costos directos.
+          Los gastos generales aparecen en el resumen de ingresos y gastos.
         </p>
       </section>
     );
@@ -709,7 +737,7 @@ export default function BusinessPage() {
                     <dd>{money(row.revenue)}</dd>
                   </div>
                   <div>
-                    <dt>Contribución</dt>
+                    <dt>Lo que deja</dt>
                     <dd>{money(row.contribution)}</dd>
                   </div>
                   <div>
@@ -732,7 +760,7 @@ export default function BusinessPage() {
           <div className="business-card-head">
             <div>
               <p className="business-kicker">RESULTADOS</p>
-              <h3>Objetivos por checkpoints</h3>
+              <h3>Metas por pasos completados</h3>
             </div>
             <Target />
           </div>
@@ -779,8 +807,8 @@ export default function BusinessPage() {
             })}
           </div>
           <p className="business-note">
-            El avance se calcula solo con checkpoints completados; no existe
-            edición manual de porcentajes.
+            El avance se calcula solo con pasos completados; nadie escribe el
+            porcentaje manualmente.
           </p>
         </section>
         <section className="business-card">
@@ -819,7 +847,7 @@ export default function BusinessPage() {
         <div className="business-card-head">
           <div>
             <p className="business-kicker">SISTEMA OPERATIVO</p>
-            <h3>Procesos, SOP y SLA</h3>
+            <h3>Procesos e instrucciones</h3>
           </div>
           <FolderCog />
         </div>
@@ -828,11 +856,11 @@ export default function BusinessPage() {
             <article key={process.id}>
               <div>
                 <Status value={process.status} />
-                <span>SOP v{process.sopVersion}</span>
+                <span>Instrucciones v{process.sopVersion}</span>
               </div>
               <h4>{process.name}</h4>
               <p>
-                <b>Owner</b>
+                <b>Responsable</b>
                 {process.owner}
               </p>
               <p>
@@ -845,11 +873,11 @@ export default function BusinessPage() {
               </p>
               <footer>
                 <span>
-                  <b>SLA</b>
+                  <b>Tiempo esperado</b>
                   {process.sla}
                 </span>
                 <span>
-                  <b>KPI</b>
+                  <b>Número importante</b>
                   {process.kpi}
                 </span>
               </footer>
@@ -858,7 +886,7 @@ export default function BusinessPage() {
         </div>
         <p className="business-note">
           Una versión publicada no se sobrescribe. Cada cambio genera una nueva
-          versión del SOP y conserva el histórico.
+          versión de las instrucciones y conserva el histórico.
         </p>
       </section>
     );
@@ -868,7 +896,7 @@ export default function BusinessPage() {
         <section className="business-card">
           <FileSpreadsheet />
           <h3>Libro financiero</h3>
-          <p>Ingresos, gastos y P&amp;L del workspace actual.</p>
+          <p>Resumen de ingresos y gastos del espacio actual.</p>
           <Button
             variant="outline"
             onClick={() =>
@@ -894,7 +922,7 @@ export default function BusinessPage() {
         </section>
         <section className="business-card">
           <FileText />
-          <h3>Respaldo del workspace</h3>
+          <h3>Respaldo del espacio</h3>
           <p>Datos estructurados para continuidad y migración.</p>
           <Button
             variant="outline"
@@ -912,7 +940,7 @@ export default function BusinessPage() {
         <section className="business-card">
           <BarChart3 />
           <h3>Reporte ejecutivo</h3>
-          <p>Resumen mensual con KPIs, alertas y acciones prioritarias.</p>
+          <p>Resumen mensual con números importantes, alertas y prioridades.</p>
           <Button variant="outline" onClick={() => window.print()}>
             <Download /> Preparar PDF
           </Button>
@@ -1066,7 +1094,13 @@ export default function BusinessPage() {
     <div
       className={`business-shell${collapsed ? ' is-collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}
     >
-      <aside className="business-sidebar" id="business-navigation">
+      <aside
+        className="business-sidebar"
+        id="business-navigation"
+        aria-label="Navegación de Mi Empresa"
+        aria-hidden={isMobileViewport && !mobileOpen ? true : undefined}
+        inert={isMobileViewport && !mobileOpen ? true : undefined}
+      >
         <div className="business-brand">
           <Link href="/" aria-label="Volver a CONTROL OS">
             <Image src="/crisdal-agency.png" alt="" width={76} height={76} />
@@ -1108,7 +1142,7 @@ export default function BusinessPage() {
         </div>
         <p className="business-nav-label">GESTIONAR</p>
         <nav>
-          {navigation.map(({ id, label, icon: Icon }) => (
+          {primaryNavigation.map(({ id, label, icon: Icon }) => (
             <button
               type="button"
               key={id}
@@ -1124,6 +1158,30 @@ export default function BusinessPage() {
             </button>
           ))}
         </nav>
+        <details
+          className="business-more-navigation"
+          open={advancedNavigation.some((item) => item.id === view)}
+        >
+          <summary>
+            <ChevronRight />
+            <span>Más opciones</span>
+          </summary>
+          <nav aria-label="Más opciones de Mi Empresa">
+            {advancedNavigation.map(({ id, label, icon: Icon }) => (
+              <button
+                type="button"
+                key={id}
+                className={view === id ? 'active' : ''}
+                aria-current={view === id ? 'page' : undefined}
+                title={collapsed ? label : undefined}
+                onClick={() => go(id)}
+              >
+                <Icon />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+        </details>
         <Link
           className="back-to-control"
           href={`/?return_from=business&org=${encodeURIComponent(state.workspace.organizationId)}`}
@@ -1143,6 +1201,8 @@ export default function BusinessPage() {
         className="business-backdrop"
         type="button"
         aria-label="Cerrar navegación"
+        aria-hidden={!mobileOpen}
+        tabIndex={mobileOpen ? 0 : -1}
         onClick={() => setMobileOpen(false)}
       />
       <main className="business-main">
@@ -1154,6 +1214,7 @@ export default function BusinessPage() {
               onClick={() => setMobileOpen(true)}
               aria-controls="business-navigation"
               aria-expanded={mobileOpen}
+              aria-label="Abrir navegación"
             >
               <Menu />
             </button>
@@ -1210,7 +1271,7 @@ export default function BusinessPage() {
                   : 'Crear servicio'}
           </DialogTitle>
           <DialogDescription>
-            La información quedará vinculada al workspace y a su organización.
+            La información quedará vinculada a este espacio y a su organización.
           </DialogDescription>
           <form
             onSubmit={(event) => {
@@ -1345,7 +1406,7 @@ export default function BusinessPage() {
                   />
                 </label>
                 <label htmlFor="business-amount">
-                  <span>Monto neto</span>
+                  <span>Monto sin impuestos</span>
                   <Input
                     id="business-amount"
                     type="number"

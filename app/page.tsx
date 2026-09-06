@@ -14,6 +14,7 @@ import {
   Check,
   CheckSquare,
   ChevronRight,
+  CircleHelp,
   ClipboardCheck,
   Clock3,
   Download,
@@ -131,15 +132,18 @@ function download(filename: string, text: string, type = 'text/plain') {
 }
 const navClient = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
-  { id: 'onboarding', label: 'Etapa 00', icon: BookOpen },
-  { id: 'ruta', label: 'Mi Ruta', icon: Route },
-  { id: 'tareas', label: 'Tareas', icon: CheckSquare },
-  { id: 'objetivos', label: 'Objetivos', icon: Target },
-  { id: 'indicadores', label: 'Indicadores', icon: BarChart3 },
+  { id: 'semana', label: 'Mi semana', icon: CalendarDays },
+  { id: 'tareas', label: 'Pendientes', icon: CheckSquare },
+  { id: 'soporte', label: 'Ayuda', icon: MessageSquare },
+];
+const navClientMore = [
+  { id: 'onboarding', label: 'Bienvenida', icon: BookOpen },
+  { id: 'ruta', label: 'Ruta completa', icon: Route },
+  { id: 'objetivos', label: 'Metas', icon: Target },
+  { id: 'indicadores', label: 'Números importantes', icon: BarChart3 },
   { id: 'logros', label: 'Logros', icon: Flag },
-  { id: 'biblioteca', label: 'Biblioteca', icon: BookOpen },
+  { id: 'biblioteca', label: 'Materiales', icon: BookOpen },
   { id: 'sesiones', label: 'Sesiones', icon: CalendarDays },
-  { id: 'soporte', label: 'Soporte', icon: MessageSquare },
 ];
 const navAdmin = [
   { id: 'portafolio', label: 'Clientes', icon: Users },
@@ -161,7 +165,7 @@ const controlFlow = [
   'Evidencia',
   'Validación',
   'Estandarización',
-  'KPI',
+  'Número importante',
 ];
 const fileKind = (name: string): Attachment['type'] => {
   const extension = name.split('.').pop()?.toLowerCase();
@@ -282,19 +286,97 @@ function Meter({
   label,
   value,
   right,
+  explanation,
 }: {
   label: string;
   value: number;
   right?: string;
+  explanation?: string;
 }) {
   return (
     <div className="meter">
       <div>
-        <span>{label}</span>
+        <span className="meter-label">
+          {label}
+          <CalculationHelp>
+            {explanation ||
+              'Se divide lo completado entre el total disponible y se convierte a porcentaje.'}
+          </CalculationHelp>
+        </span>
         <strong>{right || value + '%'}</strong>
       </div>
       <Progress aria-label={label} value={value} />
     </div>
+  );
+}
+function CalculationHelp({ children }: { children: ReactNode }) {
+  return (
+    <details className="calculation-help">
+      <summary>
+        <CircleHelp size={13} />
+        ¿Cómo se calcula?
+      </summary>
+      <p>{children}</p>
+    </details>
+  );
+}
+function TrackingMetric({
+  label,
+  value,
+  detail,
+  explanation,
+}: {
+  label: string;
+  value: ReactNode;
+  detail: ReactNode;
+  explanation: string;
+}) {
+  return (
+    <div>
+      <div className="tracking-label">
+        <small>{label}</small>
+        <CalculationHelp>{explanation}</CalculationHelp>
+      </div>
+      <strong>{value}</strong>
+      <span>{detail}</span>
+    </div>
+  );
+}
+function LessonDisclosure({
+  code,
+  title,
+  state,
+  isNext,
+  children,
+}: {
+  code: string;
+  title: string;
+  state: 'next' | 'complete' | 'available' | 'locked';
+  isNext: boolean;
+  children: ReactNode;
+}) {
+  const stateLabel = {
+    next: 'SIGUIENTE CLASE',
+    complete: 'COMPLETADA',
+    available: 'VER DESPUÉS',
+    locked: 'BLOQUEADA',
+  }[state];
+  return (
+    <details
+      className={`lesson-disclosure ${isNext ? 'is-next' : ''}`}
+      open={isNext || undefined}
+    >
+      <summary>
+        <span>
+          <small>{stateLabel}</small>
+          <strong>
+            {code} · {title}
+          </strong>
+        </span>
+        <ChevronRight size={19} />
+      </summary>
+      <div className="lesson-disclosure-content">{children}</div>
+    </details>
   );
 }
 function FileChips({ files }: { files: Attachment[] }) {
@@ -860,6 +942,7 @@ export default function Home() {
   const [sessionActive, setSessionActive] = useState<boolean | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [mode, setMode] = useState<Mode>('client');
   const [page, setPage] = useState('inicio');
   const [week, setWeek] = useState(1);
@@ -873,6 +956,13 @@ export default function Home() {
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const stateRef = useRef<State | null>(null);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 720px)');
+    const update = () => setIsMobileViewport(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   useEffect(() => {
     let active = true;
     queueMicrotask(() => {
@@ -1287,6 +1377,22 @@ export default function Home() {
   const lessonsThisWeek = implementationLessons.filter(
     (lesson) => lesson.week === week,
   );
+  const lessonIsComplete = (lesson: Lesson, run: LessonRun) =>
+    run.videoCompleted &&
+    (lesson.requiresReview
+      ? run.status === 'APROBADO'
+      : ['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(run.status));
+  const nextLessonId = (lessonList: Lesson[]) =>
+    lessonList.find((lesson) => {
+      const run = org.lessonRuns.find((item) => item.lessonId === lesson.id);
+      return (
+        run &&
+        lessonAvailable(state, org, lesson.id) &&
+        !lessonIsComplete(lesson, run)
+      );
+    })?.id;
+  const nextOnboardingLessonId = nextLessonId(onboardingLessons);
+  const nextWeekLessonId = nextLessonId(lessonsThisWeek);
   const lessonCountByWeek = new Map<number, number>();
   implementationLessons.forEach((lesson) =>
     lessonCountByWeek.set(
@@ -1315,6 +1421,8 @@ export default function Home() {
     return metrics.learning >= 50 && metrics.execution + 30 < metrics.learning;
   });
   const nav = mode === 'client' ? navClient : navAdmin;
+  const secondaryNav = mode === 'client' ? navClientMore : [];
+  const allNavigation = [...nav, ...secondaryNav];
   const switchOrg = (v: string) => {
     persist({ ...state, selected: v });
     setWeek(getOrg(state, v).current);
@@ -1432,7 +1540,15 @@ export default function Home() {
       <Empty>No hay tareas en esta vista.</Empty>
     );
   const scoreCard = (
-    <Section title="CONTROL Score" action={<BarChart3 size={18} />}>
+    <Section
+      title="CONTROL Score"
+      action={
+        <CalculationHelp>
+          Suma cuatro áreas del negocio. Cada una vale hasta 25 puntos, para un
+          total máximo de 100.
+        </CalculationHelp>
+      }
+    >
       <div className="score-heading">
         <div className="big-number">
           {org.control.reduce((a, b) => a + b, 0)}
@@ -1447,7 +1563,7 @@ export default function Home() {
               : '') +
             (org.control.reduce((a, b) => a + b, 0) -
               org.baseline.reduce((a, b) => a + b, 0)) +
-            ' vs. baseline'
+            ' frente al punto de partida'
           }
         />
       </div>
@@ -1479,7 +1595,7 @@ export default function Home() {
                     .length +
                   ' de ' +
                   g.checkpoints.length +
-                  ' checkpoints'
+                  ' pasos'
             }
             color={goalProgress(g) === 100 ? '' : 'blue'}
           />
@@ -1493,7 +1609,11 @@ export default function Home() {
               <small>Meta · {displayDate(g.due)}</small>
             </span>
           </div>
-          <Meter label="Checkpoints completados" value={goalProgress(g)} />
+          <Meter
+            label="Pasos completados"
+            value={goalProgress(g)}
+            explanation="Se divide la cantidad de pasos marcados entre el total de pasos de esta meta."
+          />
           <div className="goal-checkpoints">
             {g.checkpoints.map((checkpoint) => (
               <div className="goal-checkpoint" key={checkpoint.id}>
@@ -1680,8 +1800,8 @@ export default function Home() {
           </small>
         )}
         <p className="caption">
-          Gate híbrido: validación de mínimos + revisión humana. No evalúa
-          automáticamente la calidad de los datos.
+          Revisión final: el sistema comprueba los requisitos mínimos y una
+          persona valida la calidad de los datos.
         </p>
       </Section>
     );
@@ -1785,7 +1905,7 @@ export default function Home() {
               <div>
                 <strong>
                   {currentRun.kpi
-                    ? 'Tu KPI ya está reportado'
+                    ? 'Tu número importante ya está reportado'
                     : 'Falta tu check-in de esta semana'}
                 </strong>
                 <p>
@@ -1840,7 +1960,7 @@ export default function Home() {
         <div className="method-rule">
           <ShieldCheck size={22} />
           <div>
-            <strong>Dos checkpoints para completar cada clase.</strong>
+            <strong>Dos pasos para completar cada clase.</strong>
             <span>
               Clase vista + actividad completada + validación cuando
               corresponda.
@@ -1853,7 +1973,7 @@ export default function Home() {
               (item) => item.lessonId === lesson.id,
             )!;
             const unlocked = lessonAvailable(state, org, lesson.id);
-            const complete = run?.videoCompleted && run.status === 'APROBADO';
+            const complete = lessonIsComplete(lesson, run);
             const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
             const activityCompleted = [
               'ENVIADO',
@@ -1861,135 +1981,150 @@ export default function Home() {
               'APROBADO',
             ].includes(run.status);
             return (
-              <Section
-                key={lesson.id}
-                title={lesson.code + ' · ' + lesson.title}
-                action={
-                  <div className="inline-actions">
-                    <span
-                      className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
-                      title={methodOwnerLabels[lesson.owner]}
-                    >
-                      [{lesson.owner}]
-                    </span>
-                    <Badge
-                      value={
-                        complete ? 'APROBADO' : run?.status || 'NO_INICIADO'
-                      }
-                      color={!unlocked ? 'gray' : undefined}
-                    />
-                  </div>
+              <LessonDisclosure
+                key={`${lesson.id}-${lesson.id === nextOnboardingLessonId}`}
+                code={lesson.code}
+                title={lesson.title}
+                isNext={lesson.id === nextOnboardingLessonId}
+                state={
+                  lesson.id === nextOnboardingLessonId
+                    ? 'next'
+                    : complete
+                      ? 'complete'
+                      : unlocked
+                        ? 'available'
+                        : 'locked'
                 }
               >
-                {!unlocked ? (
-                  <div className="video-placeholder locked">
-                    <LockKeyhole size={30} />
-                    <span>Completa la clase anterior para desbloquear</span>
+                <Section
+                  title="Contenido y actividad"
+                  action={
+                    <div className="inline-actions">
+                      <span
+                        className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
+                        title={methodOwnerLabels[lesson.owner]}
+                      >
+                        [{lesson.owner}]
+                      </span>
+                      <Badge
+                        value={
+                          complete ? 'APROBADO' : run?.status || 'NO_INICIADO'
+                        }
+                        color={!unlocked ? 'gray' : undefined}
+                      />
+                    </div>
+                  }
+                >
+                  {!unlocked ? (
+                    <div className="video-placeholder locked">
+                      <LockKeyhole size={30} />
+                      <span>Completa la clase anterior para desbloquear</span>
+                    </div>
+                  ) : youtubeUrl ? (
+                    <div className="video-player">
+                      <iframe
+                        src={youtubeUrl}
+                        title={lesson.title}
+                        loading="lazy"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : lesson.videoUrl ? (
+                    <div className="video-placeholder pending">
+                      <BookOpen size={30} />
+                      <span>El enlace debe ser un video válido de YouTube</span>
+                    </div>
+                  ) : (
+                    <div className="video-placeholder pending">
+                      <BookOpen size={30} />
+                      <span>Video pendiente de publicación</span>
+                    </div>
+                  )}
+                  <p>{lesson.description}</p>
+                  <div className="lesson-structure">
+                    <div>
+                      <small>QUÉ APRENDERÁS</small>
+                      <p>{lesson.learnings.join(' · ')}</p>
+                    </div>
+                    <div>
+                      <small>QUÉ DEBES HACER</small>
+                      <p>{lesson.action}</p>
+                    </div>
+                    <div>
+                      <small>ENTREGABLE</small>
+                      <p>{lesson.deliverable}</p>
+                    </div>
                   </div>
-                ) : youtubeUrl ? (
-                  <div className="video-player">
-                    <iframe
-                      src={youtubeUrl}
-                      title={lesson.title}
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                ) : lesson.videoUrl ? (
-                  <div className="video-placeholder pending">
-                    <BookOpen size={30} />
-                    <span>El enlace debe ser un video válido de YouTube</span>
-                  </div>
-                ) : (
-                  <div className="video-placeholder pending">
-                    <BookOpen size={30} />
-                    <span>Video pendiente de publicación</span>
-                  </div>
-                )}
-                <p>{lesson.description}</p>
-                <div className="lesson-structure">
-                  <div>
-                    <small>QUÉ APRENDERÁS</small>
-                    <p>{lesson.learnings.join(' · ')}</p>
-                  </div>
-                  <div>
-                    <small>QUÉ DEBES HACER</small>
-                    <p>{lesson.action}</p>
-                  </div>
-                  <div>
-                    <small>ENTREGABLE</small>
-                    <p>{lesson.deliverable}</p>
-                  </div>
-                </div>
-                {run?.feedback && (
-                  <p className="feedback">Feedback: {run.feedback}</p>
-                )}
-                <div className="lesson-checkpoints">
-                  <div className="checkpoint-row">
-                    <Checkbox
-                      aria-label="Marcar clase como vista"
-                      checked={run.videoCompleted}
-                      disabled={!unlocked || !youtubeUrl || activityCompleted}
-                      onCheckedChange={(checked) =>
-                        act({
-                          type: 'watchLesson',
-                          targetId: lesson.id,
-                          checked: checked === true,
-                        })
-                      }
-                    />
-                    <span>
-                      <strong>Clase vista</strong>
-                      <small>Marca este checkpoint al terminar el video.</small>
-                    </span>
-                  </div>
-                  <div className="checkpoint-row">
-                    <Checkbox
-                      aria-label="Marcar actividad como completada"
-                      checked={activityCompleted}
-                      disabled={
-                        !unlocked || !run.videoCompleted || activityCompleted
-                      }
-                      onCheckedChange={(checked) => {
-                        if (checked !== true) return;
-                        setForm({
-                          title: 'Entregar actividad',
-                          description:
-                            lesson.deliverable +
-                            ' · La evidencia queda vinculada a esta clase.',
-                          command: {
-                            type: 'submitLesson',
+                  {run?.feedback && (
+                    <p className="feedback">Feedback: {run.feedback}</p>
+                  )}
+                  <div className="lesson-checkpoints">
+                    <div className="checkpoint-row">
+                      <Checkbox
+                        aria-label="Marcar clase como vista"
+                        checked={run.videoCompleted}
+                        disabled={!unlocked || !youtubeUrl || activityCompleted}
+                        onCheckedChange={(checked) =>
+                          act({
+                            type: 'watchLesson',
                             targetId: lesson.id,
-                          },
-                          fields: [
-                            {
-                              key: 'text',
-                              label: 'Respuesta, evidencia o URL',
-                              type: 'textarea',
-                              value: run.response,
+                            checked: checked === true,
+                          })
+                        }
+                      />
+                      <span>
+                        <strong>Clase vista</strong>
+                        <small>Márcalo cuando termines el video.</small>
+                      </span>
+                    </div>
+                    <div className="checkpoint-row">
+                      <Checkbox
+                        aria-label="Marcar actividad como completada"
+                        checked={activityCompleted}
+                        disabled={
+                          !unlocked || !run.videoCompleted || activityCompleted
+                        }
+                        onCheckedChange={(checked) => {
+                          if (checked !== true) return;
+                          setForm({
+                            title: 'Entregar actividad',
+                            description:
+                              lesson.deliverable +
+                              ' · La evidencia queda vinculada a esta clase.',
+                            command: {
+                              type: 'submitLesson',
+                              targetId: lesson.id,
                             },
-                          ],
-                          button: lesson.requiresReview
-                            ? 'Enviar a revisión'
-                            : 'Completar actividad',
-                        });
-                      }}
-                    />
-                    <span>
-                      <strong>Actividad completada</strong>
-                      <small>
-                        Marca para registrar la respuesta o evidencia.
-                      </small>
-                    </span>
+                            fields: [
+                              {
+                                key: 'text',
+                                label: 'Respuesta, evidencia o URL',
+                                type: 'textarea',
+                                value: run.response,
+                              },
+                            ],
+                            button: lesson.requiresReview
+                              ? 'Enviar a revisión'
+                              : 'Completar actividad',
+                          });
+                        }}
+                      />
+                      <span>
+                        <strong>Actividad completada</strong>
+                        <small>
+                          Marca para registrar la respuesta o evidencia.
+                        </small>
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <p className="caption">
-                  Cierre: clase vista + actividad completada
-                  {lesson.requiresReview ? ' + aprobación del equipo' : ''}.
-                  Vence {displayDate(run?.due || lesson.due)}.
-                </p>
-              </Section>
+                  <p className="caption">
+                    Cierre: clase vista + actividad completada
+                    {lesson.requiresReview ? ' + aprobación del equipo' : ''}.
+                    Vence {displayDate(run?.due || lesson.due)}.
+                  </p>
+                </Section>
+              </LessonDisclosure>
             );
           })}
         </div>
@@ -2041,7 +2176,7 @@ export default function Home() {
               <div className="phase-gate">
                 <div className="section-top">
                   <div>
-                    <small>GATE DE SALIDA · FASE {i + 1}</small>
+                    <small>REVISIÓN FINAL · FASE {i + 1}</small>
                     <strong>
                       {gateFor(i + 1).ready
                         ? 'Criterios cumplidos'
@@ -2117,110 +2252,122 @@ export default function Home() {
                     'EN_REVISION',
                     'APROBADO',
                   ].includes(run.status);
+                  const complete = lessonIsComplete(lesson, run);
                   return (
-                    <article
-                      className={`week-class ${unlocked ? '' : 'is-locked'}`}
-                      key={lesson.id}
+                    <LessonDisclosure
+                      key={`${lesson.id}-${lesson.id === nextWeekLessonId}`}
+                      code={lesson.code}
+                      title={lesson.title}
+                      isNext={lesson.id === nextWeekLessonId}
+                      state={
+                        lesson.id === nextWeekLessonId
+                          ? 'next'
+                          : complete
+                            ? 'complete'
+                            : unlocked
+                              ? 'available'
+                              : 'locked'
+                      }
                     >
-                      <div className="section-top">
-                        <div>
-                          <small>{lesson.code}</small>
-                          <strong>{lesson.title}</strong>
+                      <article
+                        className={`week-class ${unlocked ? '' : 'is-locked'}`}
+                      >
+                        <div className="section-top lesson-card-status">
+                          <div className="inline-actions">
+                            <span
+                              className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
+                              title={methodOwnerLabels[lesson.owner]}
+                            >
+                              [{lesson.owner}]
+                            </span>
+                            <Badge
+                              value={unlocked ? run.status : 'Bloqueada'}
+                              color={unlocked ? undefined : 'gray'}
+                            />
+                          </div>
                         </div>
-                        <div className="inline-actions">
-                          <span
-                            className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
-                            title={methodOwnerLabels[lesson.owner]}
-                          >
-                            [{lesson.owner}]
+                        <p>{lesson.description}</p>
+                        <div className="week-class-detail">
+                          <span>
+                            <small>ACCIÓN</small>
+                            {lesson.action}
                           </span>
-                          <Badge
-                            value={unlocked ? run.status : 'Bloqueada'}
-                            color={unlocked ? undefined : 'gray'}
-                          />
+                          <span>
+                            <small>ENTREGABLE</small>
+                            {lesson.deliverable}
+                          </span>
                         </div>
-                      </div>
-                      <p>{lesson.description}</p>
-                      <div className="week-class-detail">
-                        <span>
-                          <small>ACCIÓN</small>
-                          {lesson.action}
-                        </span>
-                        <span>
-                          <small>ENTREGABLE</small>
-                          {lesson.deliverable}
-                        </span>
-                      </div>
-                      {youtubeUrl && unlocked && (
-                        <div className="video-player compact-video">
-                          <iframe
-                            src={youtubeUrl}
-                            title={lesson.title}
-                            loading="lazy"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      )}
-                      <div className="compact-checkpoints">
-                        <div>
-                          <Checkbox
-                            aria-label={`Marcar como vista: ${lesson.title}`}
-                            checked={run.videoCompleted}
-                            disabled={
-                              !unlocked || !youtubeUrl || activityCompleted
-                            }
-                            onCheckedChange={(checked) =>
-                              act({
-                                type: 'watchLesson',
-                                targetId: lesson.id,
-                                checked: checked === true,
-                              })
-                            }
-                          />
-                          Clase vista
-                        </div>
-                        <div>
-                          <Checkbox
-                            aria-label={`Completar actividad: ${lesson.title}`}
-                            checked={activityCompleted}
-                            disabled={
-                              !unlocked ||
-                              !run.videoCompleted ||
-                              activityCompleted
-                            }
-                            onCheckedChange={(checked) => {
-                              if (checked !== true) return;
-                              setForm({
-                                title: 'Entregar actividad',
-                                description: `${lesson.deliverable} · La evidencia queda vinculada a esta clase.`,
-                                command: {
-                                  type: 'submitLesson',
+                        {youtubeUrl && unlocked && (
+                          <div className="video-player compact-video">
+                            <iframe
+                              src={youtubeUrl}
+                              title={lesson.title}
+                              loading="lazy"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        )}
+                        <div className="compact-checkpoints">
+                          <div>
+                            <Checkbox
+                              aria-label={`Marcar como vista: ${lesson.title}`}
+                              checked={run.videoCompleted}
+                              disabled={
+                                !unlocked || !youtubeUrl || activityCompleted
+                              }
+                              onCheckedChange={(checked) =>
+                                act({
+                                  type: 'watchLesson',
                                   targetId: lesson.id,
-                                },
-                                fields: [
-                                  {
-                                    key: 'text',
-                                    label: 'Respuesta, evidencia o URL',
-                                    type: 'textarea',
-                                    value: run.response,
+                                  checked: checked === true,
+                                })
+                              }
+                            />
+                            Clase vista
+                          </div>
+                          <div>
+                            <Checkbox
+                              aria-label={`Completar actividad: ${lesson.title}`}
+                              checked={activityCompleted}
+                              disabled={
+                                !unlocked ||
+                                !run.videoCompleted ||
+                                activityCompleted
+                              }
+                              onCheckedChange={(checked) => {
+                                if (checked !== true) return;
+                                setForm({
+                                  title: 'Entregar actividad',
+                                  description: `${lesson.deliverable} · La evidencia queda vinculada a esta clase.`,
+                                  command: {
+                                    type: 'submitLesson',
+                                    targetId: lesson.id,
                                   },
-                                ],
-                                button: lesson.requiresReview
-                                  ? 'Enviar a revisión'
-                                  : 'Completar actividad',
-                              });
-                            }}
-                          />
-                          Actividad completada
+                                  fields: [
+                                    {
+                                      key: 'text',
+                                      label: 'Respuesta, evidencia o URL',
+                                      type: 'textarea',
+                                      value: run.response,
+                                    },
+                                  ],
+                                  button: lesson.requiresReview
+                                    ? 'Enviar a revisión'
+                                    : 'Completar actividad',
+                                });
+                              }}
+                            />
+                            Actividad completada
+                          </div>
                         </div>
-                      </div>
-                      {!unlocked && (
-                        <small className="muted">
-                          Completa y valida la clase anterior para continuar.
-                        </small>
-                      )}
-                    </article>
+                        {!unlocked && (
+                          <small className="muted">
+                            Completa y valida la clase anterior para continuar.
+                          </small>
+                        )}
+                      </article>
+                    </LessonDisclosure>
                   );
                 })}
               </div>
@@ -2339,7 +2486,7 @@ export default function Home() {
                   disabled={r.gate === 'APPROVED'}
                   onClick={() => kpiForm(week)}
                 >
-                  Registrar KPI
+                  Registrar número importante
                 </Button>
               </Section>
             </div>
@@ -2383,7 +2530,7 @@ export default function Home() {
       <>
         <div className="toolbar">
           <span className="muted">
-            Horizonte mensual y 90 días · avance por checkpoints
+            Horizonte mensual y 90 días · avance por pasos completados
           </span>
           <Button
             onClick={() =>
@@ -2396,7 +2543,7 @@ export default function Home() {
                   { key: 'title', label: 'Resultado esperado' },
                   {
                     key: 'baseline',
-                    label: 'Línea base',
+                    label: 'Punto de partida',
                     type: 'number',
                     value: 0,
                   },
@@ -2404,17 +2551,17 @@ export default function Home() {
                   { key: 'unit', label: 'Unidad', value: '%' },
                   {
                     key: 'checkpoint1',
-                    label: 'Checkpoint 1',
-                    value: 'Validar la línea base',
+                    label: 'Paso 1',
+                    value: 'Validar el punto de partida',
                   },
                   {
                     key: 'checkpoint2',
-                    label: 'Checkpoint 2',
+                    label: 'Paso 2',
                     value: 'Completar la acción prioritaria',
                   },
                   {
                     key: 'checkpoint3',
-                    label: 'Checkpoint 3',
+                    label: 'Paso 3',
                     value: 'Validar el resultado con evidencia',
                   },
                   {
@@ -2444,7 +2591,15 @@ export default function Home() {
         </div>
         <div className="dashboard-grid">
           {scoreCard}
-          <Section title="Execution Score">
+          <Section
+            title="Avance de ejecución"
+            action={
+              <CalculationHelp>
+                Combina tareas a tiempo, números reportados, revisiones finales,
+                asistencia y actividad reciente.
+              </CalculationHelp>
+            }
+          >
             <div className="big-number">
               {execution(org)}
               <span>/100</span>
@@ -2452,27 +2607,30 @@ export default function Home() {
             <p className="muted">
               Cumplimiento de la ruta, no madurez de negocio.
             </p>
-            <ul className="formula">
-              <li>
-                Tareas a tiempo <b>35%</b>
-              </li>
-              <li>
-                Check-ins reportados <b>20%</b>
-              </li>
-              <li>
-                Cierres aprobados <b>20%</b>
-              </li>
-              <li>
-                Asistencia <b>15%</b>
-              </li>
-              <li>
-                Actividad significativa <b>10%</b>
-              </li>
-            </ul>
-            <small className="muted">
-              Cálculo acumulado hasta la semana actual. Las ventanas semanales y
-              SLA se configuran según la operación de cada empresa.
-            </small>
+            <details className="technical-details">
+              <summary>Ver detalle del cálculo</summary>
+              <ul className="formula">
+                <li>
+                  Tareas a tiempo <b>35%</b>
+                </li>
+                <li>
+                  Números reportados <b>20%</b>
+                </li>
+                <li>
+                  Revisiones finales aprobadas <b>20%</b>
+                </li>
+                <li>
+                  Asistencia <b>15%</b>
+                </li>
+                <li>
+                  Actividad significativa <b>10%</b>
+                </li>
+              </ul>
+              <small className="muted">
+                Cálculo acumulado hasta la semana actual. Los tiempos esperados
+                se configuran según la operación de cada empresa.
+              </small>
+            </details>
           </Section>
         </div>
         <Section title="Histórico de indicadores" className="spaced">
@@ -2522,7 +2680,7 @@ export default function Home() {
                 key={w.number}
                 title={
                   w.number === 1
-                    ? 'Línea base activada'
+                    ? 'Punto de partida activado'
                     : 'Semana ' + w.number + ' validada'
                 }
                 action={<ShieldCheck className="green" />}
@@ -2694,7 +2852,7 @@ export default function Home() {
       <>
         <div className="toolbar">
           <p className="muted">
-            Soporte vinculado a tu ruta · SLA de respuesta: hasta{' '}
+            Ayuda vinculada a tu ruta · tiempo máximo de respuesta: hasta{' '}
             {plan.entitlements.supportSlaHours} horas.
           </p>
           <Button
@@ -2915,7 +3073,7 @@ export default function Home() {
                       'ENLACE',
                       'FORMULARIO',
                       'CALCULADORA',
-                      'SOP',
+                      'Instrucciones del proceso',
                       'CANVAS',
                       'EJEMPLO',
                     ].map((value) => ({ value, label: value })),
@@ -3909,64 +4067,58 @@ export default function Home() {
           </div>
         </div>
         <div className="tracking-strip" aria-label="Resumen de seguimiento">
-          <div>
-            <small>Ruta</small>
-            <strong>
-              Semana {org.current} de {plan.stages.length * 3}
-            </strong>
-            <span>{programProgress(state, org)}% aprobado</span>
-          </div>
-          <div>
-            <small>Aprendizaje</small>
-            <strong>{implementationMetrics.learning}%</strong>
-            <span>contenido consumido</span>
-          </div>
-          <div>
-            <small>Implementación</small>
-            <strong>{implementationMetrics.execution}%</strong>
-            <span>actividades entregadas</span>
-          </div>
-          <div>
-            <small>Validación</small>
-            <strong>{implementationMetrics.validation}%</strong>
-            <span>entregables aprobados</span>
-          </div>
-          <div>
-            <small>Ejecución semanal</small>
-            <strong>{execution(org)}%</strong>
-            <span>
-              {
-                org.tasks.filter(
-                  (task) => task.week <= org.current && task.status !== 'DONE',
-                ).length
-              }{' '}
-              acciones abiertas
-            </span>
-          </div>
-          <div>
-            <small>Sustentos</small>
-            <strong>
-              {org.tasks.filter((task) => task.status === 'REVIEW').length}
-            </strong>
-            <span>pendientes de validar</span>
-          </div>
-          <div>
-            <small>Próxima sesión</small>
-            <strong>{displayDate(org.session.date)}</strong>
-            <span>
-              {org.session.attended ? 'Asistencia confirmada' : 'Por confirmar'}
-            </span>
-          </div>
-          <div>
-            <small>Intervenciones</small>
-            <strong>
-              {
-                org.interventions.filter((item) => item.status === 'OPEN')
-                  .length
-              }
-            </strong>
-            <span>acciones internas abiertas</span>
-          </div>
+          <TrackingMetric
+            label="Ruta"
+            value={`Semana ${org.current} de ${plan.stages.length * 3}`}
+            detail={`${programProgress(state, org)}% aprobado`}
+            explanation="Cuenta las semanas con revisión final aprobada y las divide entre el total del plan."
+          />
+          <TrackingMetric
+            label="Aprendizaje"
+            value={`${implementationMetrics.learning}%`}
+            detail="contenido consumido"
+            explanation="Divide las clases marcadas como vistas entre todas las clases disponibles."
+          />
+          <TrackingMetric
+            label="Implementación"
+            value={`${implementationMetrics.execution}%`}
+            detail="actividades entregadas"
+            explanation="Divide las actividades entregadas entre todas las actividades asignadas."
+          />
+          <TrackingMetric
+            label="Validación"
+            value={`${implementationMetrics.validation}%`}
+            detail="entregables aprobados"
+            explanation="Divide los entregables aprobados entre los entregables que requieren revisión."
+          />
+          <TrackingMetric
+            label="Ejecución semanal"
+            value={`${execution(org)}%`}
+            detail={`${org.tasks.filter((task) => task.week <= org.current && task.status !== 'DONE').length} acciones abiertas`}
+            explanation="Combina tareas a tiempo, números reportados, cierres aprobados, asistencia y actividad."
+          />
+          <TrackingMetric
+            label="Sustentos"
+            value={org.tasks.filter((task) => task.status === 'REVIEW').length}
+            detail="pendientes de validar"
+            explanation="Cuenta las tareas enviadas que todavía esperan la revisión del equipo."
+          />
+          <TrackingMetric
+            label="Próxima sesión"
+            value={displayDate(org.session.date)}
+            detail={
+              org.session.attended ? 'Asistencia confirmada' : 'Por confirmar'
+            }
+            explanation="Muestra la fecha de la siguiente sesión registrada para este cliente."
+          />
+          <TrackingMetric
+            label="Intervenciones"
+            value={
+              org.interventions.filter((item) => item.status === 'OPEN').length
+            }
+            detail="acciones internas abiertas"
+            explanation="Cuenta las acciones de acompañamiento que aún no han sido cerradas."
+          />
         </div>
         <div className="dashboard-grid">
           {scoreCard}
@@ -3980,9 +4132,9 @@ export default function Home() {
               </p>
             ))}
             <p className="caption">
-              Health: ejecución 25%, actividad 15%, vencidas 15%, KPI 15%,
-              asistencia 10%, bloqueos 10%, evaluación manual neutral 5/10.
-              Modelo configurable.
+              Salud del avance: ejecución 25%, actividad 15%, tareas vencidas
+              15%, número importante 15%, asistencia 10%, bloqueos 10% y
+              revisión del equipo 10%.
             </p>
             <Button
               variant="outline"
@@ -4026,7 +4178,7 @@ export default function Home() {
             </Button>
           </Section>
         </div>
-        <Section title="KPIs reportados" className="spaced">
+        <Section title="Números importantes reportados" className="spaced">
           {org.kpis.map((k) => (
             <div className="task-row" key={k.id}>
               <div className="task-title">
@@ -4323,7 +4475,10 @@ export default function Home() {
                   ['Biblioteca', p.entitlements.resourceTier],
                   ['Revisiones humanas', p.entitlements.reviewLimit],
                   ['Comunidad', p.entitlements.community],
-                  ['SLA de soporte', `${p.entitlements.supportSlaHours} h`],
+                  [
+                    'Tiempo máximo de respuesta',
+                    `${p.entitlements.supportSlaHours} h`,
+                  ],
                   [
                     'Auditoría',
                     p.entitlements.audit === 'FULL'
@@ -4612,6 +4767,8 @@ export default function Home() {
         className="sidebar"
         id="sidebar-navigation"
         aria-label="Navegación principal"
+        aria-hidden={isMobileViewport && !mobileNavOpen ? true : undefined}
+        inert={isMobileViewport && !mobileNavOpen ? true : undefined}
       >
         <div className="sidebar-head">
           <div className="brand" aria-label="CONTROL OS">
@@ -4692,7 +4849,9 @@ export default function Home() {
                 className={activePage ? 'active' : ''}
                 key={id}
                 title={sidebarCollapsed ? label : undefined}
-                onClick={() => navigate(id)}
+                onClick={() =>
+                  id === 'semana' ? openWeek(org.current) : navigate(id)
+                }
               >
                 <Icon size={18} />
                 <span className="nav-label">{label}</span>
@@ -4705,6 +4864,32 @@ export default function Home() {
             );
           })}
         </nav>
+        {mode === 'client' && (
+          <details
+            className="more-navigation"
+            open={secondaryNav.some((item) => item.id === page)}
+          >
+            <summary>
+              <ChevronRight size={17} />
+              <span>Más opciones</span>
+            </summary>
+            <nav aria-label="Más opciones del cliente">
+              {secondaryNav.map(({ id, label, icon: Icon }) => (
+                <button
+                  aria-current={page === id ? 'page' : undefined}
+                  aria-label={sidebarCollapsed ? label : undefined}
+                  className={page === id ? 'active' : ''}
+                  key={id}
+                  title={sidebarCollapsed ? label : undefined}
+                  onClick={() => navigate(id)}
+                >
+                  <Icon size={18} />
+                  <span className="nav-label">{label}</span>
+                </button>
+              ))}
+            </nav>
+          </details>
+        )}
         <Link
           className="business-launcher-sidebar"
           href={`/business?org=${encodeURIComponent(org.id)}`}
@@ -4746,12 +4931,13 @@ export default function Home() {
               <Menu size={21} />
             </button>
             <div className="breadcrumb">
-              {mode === 'client' ? 'Mi workspace' : 'Administración'}{' '}
+              {mode === 'client' ? 'Mi espacio' : 'Administración'}{' '}
               <ChevronRight size={13} />
               <span>
                 {page === 'semana'
                   ? 'Semana ' + week
-                  : nav.find((n) => n.id === page)?.label || 'Actividad'}
+                  : allNavigation.find((n) => n.id === page)?.label ||
+                    'Actividad'}
               </span>
             </div>
           </div>

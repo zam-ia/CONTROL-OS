@@ -242,14 +242,14 @@ export const weeks = [
       'Mapear la carga operativa',
       'Documentar los números base',
     ],
-    gate: 'Línea base verificable y datos críticos completos.',
+    gate: 'Punto de partida verificable y datos críticos completos.',
   },
   {
     title: 'Dinero, fugas y rentabilidad',
     objective:
       'Comprende el margen, los costos y las fugas que afectan a tu negocio.',
     tasks: [
-      'Preparar un P&L simplificado',
+      'Preparar un resumen de ingresos y gastos',
       'Priorizar las fugas presupuestarias',
       'Calcular el margen por servicio',
     ],
@@ -273,18 +273,18 @@ export const weeks = [
       'Construir una matriz RACI ligera',
       'Inventariar las reuniones y decisiones',
     ],
-    gate: 'Roles críticos con owner y decisiones sin dueño identificadas.',
+    gate: 'Roles críticos con responsable y decisiones sin dueño identificadas.',
   },
   {
     title: 'Procesos críticos',
     objective:
       'Documenta los procesos que sostienen la entrega, venta y operación.',
     tasks: [
-      'Documentar el SOP de entrega',
-      'Documentar el SOP comercial',
-      'Asignar owner y KPI a tres procesos',
+      'Documentar las instrucciones de entrega',
+      'Documentar las instrucciones comerciales',
+      'Asignar responsable y número importante a tres procesos',
     ],
-    gate: 'Tres procesos críticos con owner, SOP mínimo y KPI.',
+    gate: 'Tres procesos críticos con responsable, instrucciones mínimas y número importante.',
   },
   {
     title: 'Control financiero operativo',
@@ -294,7 +294,7 @@ export const weeks = [
       'Definir presupuesto y punto de equilibrio',
       'Agendar la cadencia financiera',
     ],
-    gate: 'Cadencia financiera definida y KPIs base cargados.',
+    gate: 'Rutina financiera definida y números importantes registrados.',
   },
   {
     title: 'Delegación con responsabilidad',
@@ -370,7 +370,7 @@ export const methodSteps: MethodStep[] = [
   [1, 1, 1, 'Levantamiento del tiempo del fundador', 'C'],
   [2, 1, 1, 'Mapa de carga y dependencia del fundador', 'C+E'],
   [3, 1, 1, 'Diagnóstico financiero inicial', 'C'],
-  [4, 1, 1, 'P&L simplificado', 'A'],
+  [4, 1, 1, 'Resumen de ingresos y gastos', 'A'],
   [5, 1, 1, 'Rentabilidad por servicio', 'C+E'],
   [6, 1, 1, 'Rentabilidad por cliente', 'C+E'],
   [7, 1, 1, 'Mapa de fugas CONTROL', 'E'],
@@ -400,10 +400,10 @@ export const methodSteps: MethodStep[] = [
   [31, 2, 5, 'Selección de procesos críticos', 'E'],
   [32, 2, 5, 'Diseño de procesos TO-BE', 'C+E'],
   [33, 2, 5, 'Diseño de flujos', 'C+E'],
-  [34, 2, 5, 'Asignación de process owner', 'E'],
-  [35, 2, 5, 'Definición de SLA', 'C+E'],
-  [36, 2, 5, 'Definición de KPI por proceso', 'A'],
-  [37, 2, 5, 'Creación de SOP', 'C+E'],
+  [34, 2, 5, 'Asignación del responsable del proceso', 'E'],
+  [35, 2, 5, 'Definición del tiempo esperado', 'C+E'],
+  [36, 2, 5, 'Definición del número importante por proceso', 'A'],
+  [37, 2, 5, 'Creación de instrucciones del proceso', 'C+E'],
   [38, 2, 5, 'Backlog de automatizaciones', 'E'],
   [39, 2, 6, 'Estructura de categorías financieras', 'E'],
   [40, 2, 6, 'Tablero financiero mensual', 'C'],
@@ -603,7 +603,7 @@ export const advancedLessonBlueprints = [
     'Diseñar los asientos necesarios para operar el negocio a 12 meses.',
     'RES-002',
     'Organigrama funcional + ficha por asiento.',
-    'Cada función crítica tiene un asiento, sin duplicidad y con owner claro.',
+    'Cada función crítica tiene un asiento, sin duplicidad y con responsable claro.',
     'C',
   ],
   [
@@ -623,7 +623,7 @@ export const advancedLessonBlueprints = [
     'Completar tres fichas reales para tareas del Top 5.',
     'RES-004',
     'Tres fichas de delegación completas.',
-    'Cada ficha incluye resultado, estándar, recursos, fecha, KPI y revisión.',
+    'Cada ficha incluye resultado, estándar, recursos, fecha, número importante y revisión.',
     'C',
   ],
   [
@@ -649,11 +649,11 @@ export const advancedLessonBlueprints = [
   [
     '3.2.1',
     'Controla resultados, no movimientos',
-    'Diferenciar actividad de resultado y escoger KPIs útiles.',
-    'Definir de uno a tres KPIs por rol o proceso crítico.',
+    'Diferenciar actividad de resultado y escoger números importantes útiles.',
+    'Definir de uno a tres números importantes por rol o proceso crítico.',
     'RES-006',
-    'Set inicial de KPIs.',
-    'Cada KPI tiene fórmula, fuente, frecuencia, owner, meta y umbral.',
+    'Lista inicial de números importantes.',
+    'Cada número tiene fórmula, fuente, frecuencia, responsable, meta y umbral.',
     'C+E',
   ],
   [
@@ -670,10 +670,10 @@ export const advancedLessonBlueprints = [
     '3.2.3',
     'La reunión que evita 30 mensajes',
     'Diseñar una cadencia de reuniones y una agenda de control.',
-    'Configurar la reunión semanal con KPIs, bloqueos, decisiones y acciones.',
+    'Configurar la reunión semanal con números importantes, bloqueos, decisiones y acciones.',
     'RES-008',
     'Cadencia + próxima reunión agendada.',
-    'Agenda de hasta 60 minutos y acciones con owner y fecha.',
+    'Agenda de hasta 60 minutos y acciones con responsable y fecha.',
     'C+E',
   ],
   [
@@ -683,7 +683,7 @@ export const advancedLessonBlueprints = [
     'Definir de cinco a diez eventos que requieren escalamiento.',
     'RES-009',
     'Protocolo de excepciones.',
-    'Cada evento tiene umbral, canal, responsable, SLA y evidencia.',
+    'Cada evento tiene umbral, canal, responsable, tiempo esperado y evidencia.',
     'C+E',
   ],
   [
@@ -853,7 +853,7 @@ export const advancedLessonBlueprints = [
     'Diseñar un motor principal y uno secundario.',
     'RES-024',
     'Mapa de adquisición.',
-    'Cada canal tiene objetivo, KPI, cadencia, presupuesto y handoff.',
+    'Cada canal tiene objetivo, número importante, frecuencia, presupuesto y traspaso.',
     'C+E',
   ],
   [
@@ -893,7 +893,7 @@ export const advancedLessonBlueprints = [
     'Definir hasta tres objetivos y sus iniciativas.',
     'RES-028',
     'Roadmap 90D.',
-    'Owner, KPI, baseline, target, fechas y dependencias.',
+    'Responsable, número importante, punto de partida, meta, fechas y dependencias.',
     'C+E',
   ],
   [
@@ -923,7 +923,7 @@ export const advancedLessonBlueprints = [
     'Seleccionar entre diez y doce indicadores y sus fuentes.',
     'RES-031',
     'CONTROL Board final.',
-    'Cada indicador tiene owner, frecuencia y decisión asociada.',
+    'Cada indicador tiene responsable, frecuencia y decisión asociada.',
     'C+E',
   ],
   [
@@ -933,7 +933,7 @@ export const advancedLessonBlueprints = [
     'Verificar reportes, fórmula, periodo base y exclusiones.',
     'RES-032',
     'Informe de readiness.',
-    'No se aprueba sin baseline y fuentes verificables.',
+    'No se aprueba sin punto de partida y fuentes verificables.',
     'C+E',
   ],
   [
@@ -968,7 +968,7 @@ export const curriculumResources = [
   ['RES-003', 'Matriz de Autoridad y Decisiones', 7, 'Delegación', 'COMPLETE'],
   ['RES-004', 'Ficha de Delegación CONTROL', 7, 'Delegación', 'COMPLETE'],
   ['RES-005', 'Calculadora de Capacidad Semanal', 7, 'Delegación', 'COMPLETE'],
-  ['RES-006', 'Ficha KPI CONTROL', 8, 'Control', 'COMPLETE'],
+  ['RES-006', 'Ficha de número importante CONTROL', 8, 'Control', 'COMPLETE'],
   ['RES-007', 'Scorecard de Rol', 8, 'Control', 'COMPLETE'],
   ['RES-008', 'Agenda Weekly Control', 8, 'Control', 'COMPLETE'],
   ['RES-009', 'Matriz de Escalamiento', 8, 'Control', 'COMPLETE'],
@@ -1204,7 +1204,7 @@ export function seed(): State {
       'Ordena ingresos, costos variables y costos fijos de los últimos meses.',
       'Cargar información financiera de los últimos 3 a 6 meses.',
       'EXCEL',
-      'Foto Financiera CONTROL y P&L simplificado',
+      'Foto Financiera CONTROL y resumen de ingresos y gastos',
       'C+E',
     ],
     [
@@ -1398,29 +1398,29 @@ export function seed(): State {
     ],
     [
       5,
-      'Asigna owners y SLA',
+      'Asigna responsables y tiempos esperados',
       'Entrega una responsabilidad nominal y un tiempo de respuesta a cada proceso.',
-      'Registrar owner y SLA de los procesos críticos.',
+      'Registrar responsable y tiempo esperado de los procesos críticos.',
       'PLANTILLA',
-      'Matriz de Owners y SLA',
+      'Matriz de responsables y tiempos esperados',
       'E',
     ],
     [
       5,
-      'Define KPI por proceso',
+      'Define el número importante de cada proceso',
       'Convierte velocidad, conversión, retrabajo y cumplimiento en señales.',
-      'Elegir un KPI útil para cada proceso P1.',
+      'Elegir un número útil para cada proceso prioritario.',
       'FORMULARIO',
-      'Matriz de KPI Operativos',
+      'Matriz de números operativos',
       'C+E',
     ],
     [
       5,
-      'Documenta SOP y automatizaciones',
+      'Documenta instrucciones y automatizaciones',
       'Estandariza primero y automatiza después.',
-      'Completar SOP v1 y clasificar automatizaciones por complejidad.',
-      'SOP',
-      'SOP Pack v1 + Backlog de Automatizaciones',
+      'Completar las instrucciones v1 y ordenar las automatizaciones por complejidad.',
+      'Instrucciones del proceso',
+      'Instrucciones v1 + lista de automatizaciones',
       'C+E',
     ],
     [
@@ -1454,7 +1454,7 @@ export function seed(): State {
       6,
       'Configura el CONTROL Board',
       'Centraliza entre 10 y 12 indicadores financieros, operativos y comerciales.',
-      'Seleccionar KPIs, fuente, frecuencia y responsable.',
+      'Seleccionar números importantes, fuente, frecuencia y responsable.',
       'TABLERO',
       'CONTROL Board',
       'A',
@@ -1635,7 +1635,7 @@ export function seed(): State {
           code: 'margin',
           value: 12 + index * 3,
           period: date(-30),
-          source: 'Línea base registrada',
+          source: 'Punto de partida registrado',
           at: date(-30),
           status: 'VALIDATED',
         },
@@ -1699,7 +1699,7 @@ export function seed(): State {
       session: {
         title: 'Revisión de implementación',
         date: date(3) + 'T15:00:00Z',
-        agenda: 'Línea base, evidencia y próximos pasos.',
+        agenda: 'Punto de partida, evidencia y próximos pasos.',
         attended: false,
       },
       support: [],
@@ -1797,18 +1797,18 @@ export function seed(): State {
         ],
         [
           'module-w4',
-          'Agency KPI Board™',
+          'Panel de números importantes de agencia™',
           'Convierte ingresos, utilidad, margen, CAC, LTV y tiempo del fundador en señales de decisión.',
           4,
-          'Agency_KPI_Board.xlsx',
+          'Panel_Numeros_Importantes_Agency.xlsx',
           'EXCEL',
         ],
         [
           'module-w5',
-          'SOP Fast Track™',
-          'Documenta los procesos críticos con owner y criterio de salida.',
+          'Instrucciones de proceso Fast Track™',
+          'Documenta los procesos críticos con responsable y criterio de salida.',
           5,
-          'SOP_Fast_Track.docx',
+          'Instrucciones_Proceso_Fast_Track.docx',
           'WORD',
         ],
         [
@@ -1933,7 +1933,7 @@ export function available(s: State, o: Org, week: number): string {
     const previousPhase = Math.ceil(week / 3) - 1;
     const gate = phaseGate(s, o, previousPhase);
     if (!gate.ready)
-      return `Falta completar el Gate de Salida de la Fase ${previousPhase}.`;
+      return `Falta completar la revisión final de la Fase ${previousPhase}.`;
   }
   return '';
 }
@@ -1961,7 +1961,7 @@ export function phaseGate(s: State, o: Org, phase: number) {
             ok: onboarding >= 90,
           },
           {
-            label: 'Baseline financiero y dependencia del fundador',
+            label: 'Punto de partida financiero y dependencia del fundador',
             ok:
               o.finances.length > 0 &&
               validated('margin') &&
@@ -1986,7 +1986,8 @@ export function phaseGate(s: State, o: Org, phase: number) {
               ok: done(4) >= 2 && approved(4),
             },
             {
-              label: 'Procesos P1 con owner, SOP y KPI',
+              label:
+                'Procesos prioritarios con responsable, instrucciones y número importante',
               ok: done(5) >= 2 && approved(5),
             },
             {
@@ -2006,7 +2007,7 @@ export function phaseGate(s: State, o: Org, phase: number) {
           ? [
               {
                 label:
-                  'Responsabilidades críticas con owner y nivel de decisión',
+                  'Responsabilidades críticas con responsable y nivel de decisión',
                 ok: approvedLesson('3.1.3'),
               },
               {
@@ -2072,7 +2073,7 @@ export function requirements(o: Org, w: number) {
       ),
     },
     { label: 'Checklist de cierre confirmado', ok: r.checklist },
-    { label: 'Check-in KPI registrado para esta semana', ok: r.kpi },
+    { label: 'Número importante registrado para esta semana', ok: r.kpi },
   ];
 }
 export function progress(o: Org, w: number) {
@@ -2497,12 +2498,15 @@ export function execute(
       status: 'REPORTED',
     });
     w.kpi = true;
-    event = 'KPI registrado: ' + d.name + ' (dato reportado, no validado)';
+    event =
+      'Número importante registrado: ' +
+      d.name +
+      ' (dato reportado, no validado)';
   } else if (c.type === 'validateKpi') {
     const k = o.kpis.find((k) => k.id === c.targetId);
-    if (!k) throw Error('KPI no encontrado.');
+    if (!k) throw Error('Número importante no encontrado.');
     k.status = 'VALIDATED';
-    event = 'Dato KPI validado por consultor';
+    event = 'Número importante validado por el consultor';
   } else if (c.type === 'goalCheckpoint') {
     const g = o.goals.find((g) => g.id === c.targetId);
     const checkpoint = g?.checkpoints.find((item) => item.id === c.code);
@@ -2519,7 +2523,7 @@ export function execute(
         (x) => typeof x === 'number' && Number.isFinite(x),
       )
     )
-      throw Error('Introduce baseline y meta válidos.');
+      throw Error('Introduce un punto de partida y una meta válidos.');
     o.goals.push({
       id: id(),
       title: needText(c.title),

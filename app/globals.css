@@ -115,6 +115,51 @@
   margin-bottom: 7px;
   font-size: 11px;
 }
+.meter-label {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.calculation-help {
+  position: relative;
+  display: inline-block;
+}
+.calculation-help summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid #d9cfba;
+  border-radius: 999px;
+  background: #fffaf0;
+  color: #6a541f;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.calculation-help summary::-webkit-details-marker {
+  display: none;
+}
+.calculation-help p {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  top: calc(100% + 6px);
+  width: min(260px, 72vw);
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px #211a0d1f;
+  color: #40585d;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.45;
+}
 .meter strong {
   font-weight: 500;
 }
@@ -396,6 +441,22 @@
 }
 .formula b {
   font-weight: 500;
+}
+.technical-details {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #faf9f6;
+}
+.technical-details > summary {
+  color: #40585d;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.technical-details .formula {
+  margin: 14px 0;
 }
 .resource-description {
   margin: 20px 0;
@@ -740,6 +801,17 @@ footer {
   text-transform: uppercase;
   letter-spacing: 0.7px;
 }
+.tracking-strip .tracking-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.tracking-strip .calculation-help p {
+  position: static;
+  width: auto;
+  margin-top: 6px;
+}
 .tracking-strip strong {
   display: block;
   font-size: 17px;
@@ -800,6 +872,72 @@ footer {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
+}
+.lesson-disclosure {
+  min-width: 0;
+  align-self: start;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #fff;
+  overflow: clip;
+}
+.lesson-disclosure.is-next {
+  grid-column: 1 / -1;
+  border-color: #d5a326;
+  box-shadow: 0 8px 24px #c6921614;
+}
+.lesson-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 14px 18px;
+  background: #fbfaf7;
+  cursor: pointer;
+  list-style: none;
+}
+.lesson-disclosure.is-next > summary {
+  background: #fff8e7;
+}
+.lesson-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.lesson-disclosure > summary span,
+.lesson-disclosure > summary small,
+.lesson-disclosure > summary strong {
+  display: block;
+}
+.lesson-disclosure > summary small {
+  margin-bottom: 4px;
+  color: #9a6c00;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.lesson-disclosure > summary strong {
+  color: #211a0d;
+  font-size: 13px;
+}
+.lesson-disclosure > summary > svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+.lesson-disclosure[open] > summary > svg {
+  transform: rotate(90deg);
+}
+.lesson-disclosure-content {
+  padding: 0;
+}
+.lesson-disclosure-content > .card,
+.lesson-disclosure-content > .week-class {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+}
+.lesson-card-status {
+  justify-content: flex-end;
 }
 .lesson-grid .card {
   align-self: start;
@@ -1261,6 +1399,39 @@ small {
   background: #fab713;
   color: #211a0d;
 }
+.more-navigation {
+  margin-top: 7px;
+}
+.more-navigation > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 7px;
+  color: #afa58f;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.more-navigation > summary::-webkit-details-marker {
+  display: none;
+}
+.more-navigation > summary:hover {
+  background: #231f17;
+  color: #fff;
+}
+.more-navigation > summary svg {
+  transition: transform 160ms ease;
+}
+.more-navigation[open] > summary svg {
+  transform: rotate(90deg);
+}
+.more-navigation nav {
+  margin-top: 5px;
+  padding-left: 10px;
+}
 .business-launcher-sidebar {
   min-height: 46px;
   display: flex;
@@ -1347,8 +1518,16 @@ main {
 .sidebar-collapsed .brand-label,
 .sidebar-collapsed .workspace,
 .sidebar-collapsed .sidebar > .eyebrow,
-.sidebar-collapsed .sidebar-bottom {
+.sidebar-collapsed .sidebar-bottom,
+.sidebar-collapsed .more-navigation > summary span {
   display: none;
+}
+.sidebar-collapsed .more-navigation > summary {
+  justify-content: center;
+  padding: 9px;
+}
+.sidebar-collapsed .more-navigation nav {
+  padding-left: 0;
 }
 .sidebar-collapsed .sidebar nav {
   gap: 7px;
@@ -1696,6 +1875,16 @@ a {
   .sidebar-collapsed .business-launcher-sidebar svg:last-child {
     display: block;
   }
+  .sidebar-collapsed .more-navigation > summary span {
+    display: inline;
+  }
+  .sidebar-collapsed .more-navigation > summary {
+    justify-content: flex-start;
+    padding: 9px 13px;
+  }
+  .sidebar-collapsed .more-navigation nav {
+    padding-left: 10px;
+  }
   .business-launcher-sidebar svg:last-child {
     margin-left: auto;
   }
@@ -1931,6 +2120,9 @@ a {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+.week-class-list > .lesson-disclosure.is-next {
+  grid-column: 1 / -1;
 }
 .week-class {
   padding: 16px;
