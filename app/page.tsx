@@ -142,9 +142,8 @@ const navClient = [
   { id: 'soporte', label: 'Soporte', icon: MessageSquare },
 ];
 const navAdmin = [
-  { id: 'portafolio', label: 'Portafolio', icon: LayoutDashboard },
+  { id: 'portafolio', label: 'Clientes', icon: Users },
   { id: 'metodologia', label: 'Metodología', icon: Route },
-  { id: 'cliente', label: 'Cliente 360', icon: Users },
   { id: 'revisiones', label: 'Revisiones', icon: ClipboardCheck },
   { id: 'intervenciones', label: 'Intervenciones', icon: Flag },
   { id: 'clases', label: 'Clases', icon: BookOpen },
@@ -1698,9 +1697,9 @@ export default function Home() {
     biblioteca: 'Herramientas para ejecutar',
     sesiones: 'Acompañamiento con propósito',
     soporte: 'Desbloquea tu siguiente paso',
-    portafolio: 'Cada cliente, en perspectiva.',
+    portafolio: 'Clientes y seguimiento',
     metodologia: 'Un proceso maestro. Distintos niveles de acompañamiento.',
-    cliente: org.name + ' · Cliente 360',
+    cliente: org.name + ' · Seguimiento',
     revisiones: 'El avance merece validación',
     intervenciones: 'Actúa antes del estancamiento',
     clases: 'Aprender, aplicar, entregar y avanzar',
@@ -2300,7 +2299,7 @@ export default function Home() {
                       setForm({
                         title: 'Nota compartida',
                         description:
-                          'Visible en Cliente 360 para el equipo asignado.',
+                          'Visible en el seguimiento para el equipo asignado.',
                         command: { type: 'note', shared: true },
                         fields: [
                           {
@@ -2703,7 +2702,7 @@ export default function Home() {
               setForm({
                 title: 'Abrir consulta',
                 description:
-                  'Tu consulta aparecerá en Cliente 360 para el equipo asignado.',
+                  'Tu consulta aparecerá en el seguimiento para el equipo asignado.',
                 command: { type: 'support' },
                 fields: [
                   {
@@ -3635,7 +3634,11 @@ export default function Home() {
             <small className="muted">Hasta semana actual</small>
           </Section>
         </div>
-        <Section title="Portafolio de clientes" className="spaced">
+        <Section title="Elige un cliente" className="spaced">
+          <p className="muted">
+            Busca la empresa o persona que quieres revisar y abre su seguimiento
+            completo.
+          </p>
           <div className="filters">
             <div className="search-field">
               <Search size={17} />
@@ -3703,7 +3706,7 @@ export default function Home() {
                           navigate('cliente');
                         }}
                       >
-                        Cliente 360 <ArrowRight />
+                        Ver seguimiento <ArrowRight />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -3898,7 +3901,12 @@ export default function Home() {
             <Badge value={plan.name} color="gray" />{' '}
             <Badge value={h.label + ' · ' + h.score} color={h.color} />
           </div>
-          <Button onClick={() => intervene()}>Crear intervención</Button>
+          <div className="inline-actions">
+            <Button variant="outline" onClick={() => navigate('portafolio')}>
+              <Users size={17} /> Todos los clientes
+            </Button>
+            <Button onClick={() => intervene()}>Crear intervención</Button>
+          </div>
         </div>
         <div className="tracking-strip" aria-label="Resumen de seguimiento">
           <div>
@@ -4653,9 +4661,13 @@ export default function Home() {
           </button>
         </div>
         <div className="workspace">
-          <small>ORGANIZACIÓN</small>
+          <small>
+            {mode === 'client' ? 'ORGANIZACIÓN' : 'CLIENTE SELECCIONADO'}
+          </small>
           <Pick
-            label="Organización activa"
+            label={
+              mode === 'client' ? 'Organización activa' : 'Cliente seleccionado'
+            }
             value={state.selected}
             options={state.orgs.map((o) => ({ value: o.id, label: o.name }))}
             onChange={switchOrg}
@@ -4670,24 +4682,28 @@ export default function Home() {
         <nav
           aria-label={mode === 'client' ? 'Portal cliente' : 'Administración'}
         >
-          {nav.map(({ id, label, icon: Icon }) => (
-            <button
-              aria-current={page === id ? 'page' : undefined}
-              aria-label={sidebarCollapsed ? label : undefined}
-              className={page === id ? 'active' : ''}
-              key={id}
-              title={sidebarCollapsed ? label : undefined}
-              onClick={() => navigate(id)}
-            >
-              <Icon size={18} />
-              <span className="nav-label">{label}</span>
-              {id === 'tareas' && (
-                <span className="nav-count">
-                  {tasksFor().filter((t) => t.status !== 'DONE').length}
-                </span>
-              )}
-            </button>
-          ))}
+          {nav.map(({ id, label, icon: Icon }) => {
+            const activePage =
+              page === id || (id === 'portafolio' && page === 'cliente');
+            return (
+              <button
+                aria-current={activePage ? 'page' : undefined}
+                aria-label={sidebarCollapsed ? label : undefined}
+                className={activePage ? 'active' : ''}
+                key={id}
+                title={sidebarCollapsed ? label : undefined}
+                onClick={() => navigate(id)}
+              >
+                <Icon size={18} />
+                <span className="nav-label">{label}</span>
+                {id === 'tareas' && (
+                  <span className="nav-count">
+                    {tasksFor().filter((t) => t.status !== 'DONE').length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
         <Link
           className="business-launcher-sidebar"

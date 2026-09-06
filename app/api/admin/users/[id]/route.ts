@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { canManageClientCredentials } from '@/lib/access';
 
 type UpdateManagedUserBody = {
   name?: unknown;
@@ -81,13 +82,22 @@ export async function PATCH(
     .select('id, global_role, status')
     .eq('id', caller.id)
     .single();
-  if (
-    callerProfileError ||
-    !callerProfile ||
-    !['ADMIN', 'SUPER_ADMIN'].includes(callerProfile.global_role) ||
-    callerProfile.status !== 'ACTIVE'
-  )
+  const canManageClients =
+    !callerProfileError &&
+    callerProfile &&
+    canManageClientCredentials({
+      email: caller.email,
+      globalRole: callerProfile.global_role,
+      status: callerProfile.status,
+    });
+  if (!canManageClients) {
+    console.warn('[admin/users] client edit denied', {
+      callerId: caller.id,
+      globalRole: callerProfile?.global_role,
+      status: callerProfile?.status,
+    });
     return failure('No tienes permiso para editar clientes.', 403);
+  }
 
   let targetQuery = adminClient
     .from('profiles')
@@ -164,6 +174,12 @@ export async function PATCH(
         ? ['name', 'username', 'password']
         : ['name', 'username'],
     },
+  });
+
+  console.info('[admin/users] client updated', {
+    callerId: caller.id,
+    targetId,
+    temporaryPasswordAssigned: Boolean(password),
   });
 
   return Response.json(

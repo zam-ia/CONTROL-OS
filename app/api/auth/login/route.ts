@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { isPrimaryAdministrator } from '@/lib/access';
 
 const noStoreHeaders = { 'Cache-Control': 'no-store' };
 
@@ -65,13 +66,17 @@ export async function POST(request: Request) {
   if (signInError || !data.session)
     return failure('Usuario o contraseña incorrectos.', 401);
 
+  const globalRole = isPrimaryAdministrator(user.email)
+    ? 'SUPER_ADMIN'
+    : profile.global_role;
+
   const response = NextResponse.json(
     {
       user: {
         id: profile.id,
         name: profile.display_name,
         username: profile.username,
-        globalRole: profile.global_role,
+        globalRole,
         mustChangePassword: profile.must_change_password,
       },
     },
