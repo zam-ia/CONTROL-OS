@@ -170,6 +170,19 @@ async function synchronizeManagedDirectory(current: State) {
         current.lessons,
       );
       organizations.push(localOrganization);
+    } else if (!localOrganization.goals.length) {
+      const restored = createOrganizationWorkspace(
+        localOrganization.id,
+        localOrganization.name,
+        directoryUser.name,
+        localOrganization.planId,
+        current.lessons,
+      );
+      const index = organizations.findIndex(
+        (item) => item.id === localOrganization?.id,
+      );
+      localOrganization = { ...localOrganization, goals: restored.goals };
+      organizations[index] = localOrganization;
     }
     organizationMap.set(remoteOrganization.id, localOrganization.id);
   });
@@ -1120,6 +1133,14 @@ export default function Home() {
             o.followUps = Array.isArray(o.followUps)
               ? o.followUps
               : freshOrg?.followUps || [];
+            if (!Array.isArray(o.goals) || !o.goals.length)
+              o.goals = createOrganizationWorkspace(
+                o.id,
+                o.name,
+                o.person,
+                o.planId,
+                s.lessons,
+              ).goals;
             o.lessonRuns = Array.isArray(o.lessonRuns)
               ? o.lessonRuns
               : freshOrg?.lessonRuns || [];
@@ -2082,19 +2103,27 @@ export default function Home() {
           </Section>
           {session}
           <Section title="Tu objetivo de enfoque" action={<Target size={19} />}>
-            <h2>{org.goals[0].title}</h2>
-            <p className="muted">
-              De {org.goals[0].baseline}
-              {org.goals[0].unit} a {org.goals[0].target}
-              {org.goals[0].unit}
-            </p>
-            <Meter
-              label="Avance del resultado"
-              value={goalProgress(org.goals[0])}
-            />
-            <Button variant="outline" onClick={() => navigate('objetivos')}>
-              Ver objetivos
-            </Button>
+            {org.goals[0] ? (
+              <>
+                <h2>{org.goals[0].title}</h2>
+                <p className="muted">
+                  De {org.goals[0].baseline}
+                  {org.goals[0].unit} a {org.goals[0].target}
+                  {org.goals[0].unit}
+                </p>
+                <Meter
+                  label="Avance del resultado"
+                  value={goalProgress(org.goals[0])}
+                />
+                <Button variant="outline" onClick={() => navigate('objetivos')}>
+                  Ver objetivos
+                </Button>
+              </>
+            ) : (
+              <p className="muted">
+                Tu equipo está preparando el primer objetivo de esta empresa.
+              </p>
+            )}
           </Section>
           <Section title="Siguiente punto de control">
             <div className="callout">

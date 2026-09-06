@@ -636,6 +636,8 @@ test('admin creates a new company while creating client access', () => {
   assert.equal(s.orgs.length, before.orgs.length + 1);
   assert.equal(company.planId, 'implementacion-v1');
   assert.equal(company.tasks.length, 36);
+  assert.equal(company.goals.length, 1);
+  assert.equal(company.goals[0].checkpoints.length, 3);
   assert.equal(s.users[0].orgId, company.id);
 });
 test('finance rejects non-positive amounts and records valid entries', () => {

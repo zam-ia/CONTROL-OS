@@ -543,7 +543,25 @@ export function createOrganizationWorkspace(
       feedback: '',
     })),
     kpis: [],
-    goals: [],
+    goals: [
+      {
+        id: `${organizationId}-goal-focus`,
+        title: 'Completar mi primera semana de CONTROL',
+        baseline: 0,
+        target: 3,
+        unit: 'pasos',
+        due: futureDate(30),
+        checkpoints: [
+          'Revisar la clase asignada',
+          'Completar la actividad principal',
+          'Enviar el sustento para revisión',
+        ].map((title, checkpointIndex) => ({
+          id: `${organizationId}-goal-focus-${checkpointIndex}`,
+          title,
+          completed: false,
+        })),
+      },
+    ],
     events: [
       {
         id: id(),
