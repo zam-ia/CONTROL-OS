@@ -22,10 +22,13 @@ Opción Dashboard: abre **SQL Editor** y ejecuta, en orden y una sola vez:
 6. `supabase/migrations/20260905020000_master_methodology_phase_gates.sql`
 7. `supabase/migrations/20260905030000_curriculum_modules_03_07.sql`
 8. `supabase/migrations/20260905040000_business_os_foundation.sql`
+9. `supabase/migrations/20260905050000_managed_credentials.sql`
 
 La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance. La sexta fija una sola metodología CONTROL, añade niveles de acceso sin pérdida de historial, los 46 controles internos, el expediente empresarial, entregables estructurados y gates de salida por fase. La séptima incorpora las 36 clases de las etapas 3 y 4, 34 recursos editoriales versionados, gates avanzados, tickets con SLA, sesiones y entitlements de los módulos 05–07. La octava crea la foundation multiempresa de CONTROL Business OS, con scopes financieros, clientes, servicios, ledger, imputaciones, períodos cerrables, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y almacenamiento privado.
 
-La clave publicable/anon permite usar Auth, REST y Storage bajo RLS, pero no ejecutar DDL. Para aplicar migraciones se necesita una sesión administrativa de Supabase o la contraseña de la base de datos. La clave `service_role` o secret jamás debe exponerse con prefijo `NEXT_PUBLIC_` ni versionarse.
+La novena migración añade la marca de contraseña temporal, la fecha del último cambio y el permiso controlado para editar perfiles. Las contraseñas nunca se guardan en Postgres: permanecen exclusivamente en Supabase Auth.
+
+La clave publicable/anon permite usar Auth, REST y Storage bajo RLS, pero no ejecutar DDL. Para aplicar migraciones se necesita una sesión administrativa de Supabase o la contraseña de la base de datos. La clave `service_role` o secret jamás debe exponerse con prefijo `NEXT_PUBLIC_` ni versionarse. Para activar los cambios de contraseña desde la aplicación, configura una clave secret nueva y rotada como `SUPABASE_SECRET_KEY` únicamente en el entorno del servidor de Vercel.
 
 ## Primer administrador
 

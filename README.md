@@ -30,7 +30,7 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 - Adjuntos PDF, Word y Excel como sustento de evidencias y como materiales de módulos.
 - Registro y validación de KPIs, CONTROL Score, Execution Score y Health Score.
 - Cliente 360 con seguimiento operativo, intervenciones, sesiones, notas y soporte.
-- Gestión de usuarios con roles, creación, suspensión, reactivación y eliminación protegida del administrador principal.
+- Gestión de usuarios con roles, creación, edición de nombre/usuario, contraseña temporal, cambio de contraseña del cliente, suspensión, reactivación y eliminación protegida del administrador principal.
 - Inicio de sesión mediante usuario único —DNI, RUC o alias—, sin autorregistro; las cuentas y empresas son creadas por administración.
 - Control financiero por cliente con ingresos, costos, cobros, contribución y resumen de cartera.
 - Versionado de planes, entitlements configurables y biblioteca con 34 recursos curriculares de las etapas 3 y 4.
@@ -54,12 +54,13 @@ El esquema versionado está en `supabase/migrations`:
 6. Metodología maestra, profundidad de acceso por plan, expediente empresarial, entregables y gates de fase.
 7. Currículo de módulos 03–07, recursos versionados, soporte con SLA, sesiones y entitlements.
 8. Foundation de CONTROL Business OS: workspace, permisos financieros por scope, clientes, servicios, ingresos, gastos e imputaciones, períodos, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y RLS multiempresa.
+9. Credenciales administradas: edición segura de clientes, contraseña temporal y obligación de reemplazarla después del acceso.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 
 ## Estado de integración
 
-Las interfaces de CONTROL OS y Business OS conservan su estado en `localStorage` para permitir validación funcional. Las variables públicas de Supabase están configuradas en Vercel, pero las pantallas todavía no escriben en Auth, REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración de servidor, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
+Las interfaces de CONTROL OS y Business OS conservan su estado en `localStorage` para permitir validación funcional. La edición de contraseña ya dispone de endpoints protegidos para Supabase Auth, pero requiere la sesión real y la variable privada `SUPABASE_SECRET_KEY`; el resto de pantallas todavía no escribe en REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración de servidor, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
 
 Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. El avance de clases y objetivos se mide por checkpoints completados, no mediante porcentajes ingresados por el usuario.
 

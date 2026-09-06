@@ -27,6 +27,7 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  Pencil,
   Plus,
   Route,
   Search,
@@ -118,6 +119,7 @@ type FormSpec = {
   fields: Field[];
   button?: string;
 };
+type ManagedUser = State['users'][number];
 const STORAGE = 'control-os-production-v1';
 function download(filename: string, text: string, type = 'text/plain') {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -316,8 +318,13 @@ function FileChips({ files }: { files: Attachment[] }) {
     </div>
   );
 }
-function AuthScreen({ onEnter }: { onEnter: (username: string) => string }) {
+function AuthScreen({
+  onEnter,
+}: {
+  onEnter: (username: string, password: string) => Promise<{ error: string }>;
+}) {
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   return (
     <main className="auth-shell">
       <section className="auth-brand-panel">
@@ -352,7 +359,7 @@ function AuthScreen({ onEnter }: { onEnter: (username: string) => string }) {
           </p>
         </div>
         <form
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
             const rawUsername = data.get('username');
@@ -369,9 +376,11 @@ function AuthScreen({ onEnter }: { onEnter: (username: string) => string }) {
               );
               return;
             }
-            const accessError = onEnter(username.toLowerCase());
-            if (accessError) {
-              setError(accessError);
+            setSubmitting(true);
+            const result = await onEnter(username.toLowerCase(), password);
+            setSubmitting(false);
+            if (result.error) {
+              setError(result.error);
               return;
             }
             try {
@@ -410,8 +419,8 @@ function AuthScreen({ onEnter }: { onEnter: (username: string) => string }) {
               {error}
             </p>
           )}
-          <Button className="full" type="submit">
-            Ingresar <ArrowRight />
+          <Button className="full" type="submit" disabled={submitting}>
+            {submitting ? 'Ingresando…' : 'Ingresar'} <ArrowRight />
           </Button>
         </form>
         <p className="caption">
@@ -586,6 +595,267 @@ function FormDialog({
     </Dialog>
   );
 }
+
+async function responseError(response: Response, fallback: string) {
+  try {
+    const payload = (await response.json()) as { error?: unknown };
+    return typeof payload.error === 'string' ? payload.error : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function EditUserDialog({
+  user,
+  onClose,
+  onSave,
+}: {
+  user: ManagedUser | null;
+  onClose: () => void;
+  onSave: (command: Command) => boolean;
+}) {
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  return (
+    <Dialog
+      open={!!user}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="control-dialog">
+        <DialogTitle>Editar cliente</DialogTitle>
+        <DialogDescription>
+          Cambia sus datos de acceso. La contraseña temporal se guarda
+          exclusivamente en Supabase Auth.
+        </DialogDescription>
+        {user && (
+          <form
+            key={user.id}
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setError('');
+              const data = new FormData(event.currentTarget);
+              const rawName = data.get('name');
+              const rawUsername = data.get('username');
+              const rawPassword = data.get('password');
+              const name = typeof rawName === 'string' ? rawName.trim() : '';
+              const username =
+                typeof rawUsername === 'string'
+                  ? rawUsername.trim().toLowerCase()
+                  : '';
+              const password =
+                typeof rawPassword === 'string' ? rawPassword : '';
+              setSaving(true);
+              try {
+                const response = await fetch(
+                  `/api/admin/users/${encodeURIComponent(user.username)}`,
+                  {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, username, password }),
+                  },
+                );
+                if (!response.ok) {
+                  const localOnly =
+                    !password &&
+                    (response.status === 401 || response.status === 503);
+                  if (!localOnly)
+                    throw Error(
+                      await responseError(
+                        response,
+                        'No se pudo actualizar el cliente.',
+                      ),
+                    );
+                }
+                if (
+                  onSave({
+                    type: 'updateUser',
+                    targetId: user.id,
+                    name,
+                    username,
+                  })
+                )
+                  onClose();
+              } catch (submitError) {
+                setError(
+                  submitError instanceof Error
+                    ? submitError.message
+                    : 'No se pudo actualizar el cliente.',
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            <label className="field" htmlFor="managed-client-name">
+              <span>Nombre completo</span>
+              <Input
+                id="managed-client-name"
+                name="name"
+                defaultValue={user.name}
+                required
+              />
+            </label>
+            <label className="field" htmlFor="managed-client-username">
+              <span>Usuario</span>
+              <Input
+                id="managed-client-username"
+                name="username"
+                defaultValue={user.username}
+                minLength={3}
+                maxLength={40}
+                pattern="[A-Za-z0-9._-]+"
+                required
+              />
+              <small>Puede ser DNI, RUC o un alias interno.</small>
+            </label>
+            <label className="field" htmlFor="managed-client-password">
+              <span>Contraseña temporal (opcional)</span>
+              <Input
+                id="managed-client-password"
+                name="password"
+                type="password"
+                minLength={8}
+                maxLength={128}
+                autoComplete="new-password"
+                placeholder="Déjala vacía para conservar la actual"
+              />
+              <small>
+                Si asignas una, el cliente deberá reemplazarla después de
+                ingresar.
+              </small>
+            </label>
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="form-footer">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PasswordDialog({
+  open,
+  onClose,
+  onChanged,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent className="control-dialog">
+        <DialogTitle>Cambiar mi contraseña</DialogTitle>
+        <DialogDescription>
+          Crea una contraseña personal después de ingresar con la clave temporal
+          asignada por administración.
+        </DialogDescription>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setError('');
+            const data = new FormData(event.currentTarget);
+            const rawPassword = data.get('password');
+            const rawConfirmation = data.get('confirmation');
+            const password = typeof rawPassword === 'string' ? rawPassword : '';
+            const confirmation =
+              typeof rawConfirmation === 'string' ? rawConfirmation : '';
+            if (password !== confirmation) {
+              setError('Las contraseñas no coinciden.');
+              return;
+            }
+            setSaving(true);
+            try {
+              const response = await fetch('/api/account/password', {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+              });
+              if (!response.ok)
+                throw Error(
+                  await responseError(
+                    response,
+                    'No se pudo cambiar la contraseña.',
+                  ),
+                );
+              onChanged();
+              onClose();
+            } catch (submitError) {
+              setError(
+                submitError instanceof Error
+                  ? submitError.message
+                  : 'No se pudo cambiar la contraseña.',
+              );
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          <label className="field" htmlFor="account-new-password">
+            <span>Nueva contraseña</span>
+            <Input
+              id="account-new-password"
+              name="password"
+              type="password"
+              minLength={8}
+              maxLength={128}
+              autoComplete="new-password"
+              required
+            />
+          </label>
+          <label className="field" htmlFor="account-confirm-password">
+            <span>Repite la contraseña</span>
+            <Input
+              id="account-confirm-password"
+              name="confirmation"
+              type="password"
+              minLength={8}
+              maxLength={128}
+              autoComplete="new-password"
+              required
+            />
+          </label>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="form-footer">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Guardando…' : 'Cambiar contraseña'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Home() {
   const [state, setState] = useState<State | null>(null);
   const [sessionActive, setSessionActive] = useState<boolean | null>(null);
@@ -601,6 +871,8 @@ export default function Home() {
   const [notice, setNotice] = useState('');
   const [storageError, setStorageError] = useState('');
   const [resource, setResource] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const stateRef = useRef<State | null>(null);
   useEffect(() => {
     let active = true;
@@ -942,20 +1214,59 @@ export default function Home() {
   if (!sessionActive)
     return (
       <AuthScreen
-        onEnter={(username) => {
+        onEnter={async (username, password) => {
+          try {
+            const response = await fetch('/api/auth/login', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password }),
+            });
+            if (response.ok) {
+              const payload = (await response.json()) as {
+                user?: {
+                  globalRole?: string;
+                  mustChangePassword?: boolean;
+                };
+              };
+              const nextMode: Mode =
+                payload.user?.globalRole === 'CLIENT' ? 'client' : 'admin';
+              setMode(nextMode);
+              setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
+              setSessionActive(true);
+              setPasswordDialogOpen(Boolean(payload.user?.mustChangePassword));
+              setNotice(
+                payload.user?.mustChangePassword
+                  ? 'Crea una contraseña personal para continuar.'
+                  : 'Sesión iniciada.',
+              );
+              return { error: '' };
+            }
+            if (response.status !== 503)
+              return {
+                error: await responseError(
+                  response,
+                  'No se pudo iniciar sesión.',
+                ),
+              };
+          } catch {
+            // Local validation remains available until server integration is enabled.
+          }
           const account = state.users.find(
             (user) => user.username.toLowerCase() === username,
           );
-          if (!account) return 'La cuenta no está registrada.';
+          if (!account) return { error: 'La cuenta no está registrada.' };
           if (account.status === 'SUSPENDIDO')
-            return 'Esta cuenta está suspendida. Contacta al administrador.';
+            return {
+              error: 'Esta cuenta está suspendida. Contacta al administrador.',
+            };
           const nextMode: Mode =
             account.role === 'CLIENTE' ? 'client' : 'admin';
           setMode(nextMode);
           setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
           setSessionActive(true);
           setNotice('Sesión iniciada.');
-          return '';
+          return { error: '' };
         }}
       />
     );
@@ -4152,6 +4463,14 @@ export default function Home() {
                   </TableCell>
                   <TableCell>
                     <div className="table-actions">
+                      {user.role === 'CLIENTE' && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditingUser(user)}
+                        >
+                          <Pencil size={15} /> Editar
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         disabled={user.id === 'user-admin'}
@@ -4442,6 +4761,17 @@ export default function Home() {
                 setForm(null);
               }}
             />
+            {mode === 'client' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Cambiar mi contraseña"
+                title="Cambiar mi contraseña"
+                onClick={() => setPasswordDialogOpen(true)}
+              >
+                <LockKeyhole size={18} />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -4456,6 +4786,10 @@ export default function Home() {
               aria-label="Cerrar sesión"
               title="Cerrar sesión"
               onClick={() => {
+                void fetch('/api/auth/logout', {
+                  method: 'POST',
+                  credentials: 'include',
+                });
                 try {
                   sessionStorage.removeItem('control-os-session');
                 } catch {}
@@ -4512,6 +4846,20 @@ export default function Home() {
           }
           return act(c);
         }}
+      />
+      <EditUserDialog
+        key={editingUser?.id || 'closed-user-editor'}
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSave={act}
+      />
+      <PasswordDialog
+        key={
+          passwordDialogOpen ? 'open-password-editor' : 'closed-password-editor'
+        }
+        open={passwordDialogOpen}
+        onClose={() => setPasswordDialogOpen(false)}
+        onChanged={() => setNotice('Contraseña actualizada correctamente.')}
       />
       <Dialog
         open={!!selectedTask}

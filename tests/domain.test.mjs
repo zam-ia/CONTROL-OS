@@ -535,6 +535,16 @@ test('client cannot manage modules or users', () => {
     () => run(seed(), { type: 'toggleUser', targetId: 'user-orbita' }),
     /administración/,
   );
+  assert.throws(
+    () =>
+      run(seed(), {
+        type: 'updateUser',
+        targetId: 'user-orbita',
+        name: 'Cliente actualizado',
+        username: 'cliente.actualizado',
+      }),
+    /administración/,
+  );
 });
 test('suspending a user preserves the record', () => {
   const s = run(
@@ -571,6 +581,36 @@ test('admin creates access with a unique username and no email', () => {
           username: '20123456789',
           role: 'CLIENTE',
           orgId: 'norte',
+        },
+        'admin',
+      ),
+    /ya está registrado/,
+  );
+});
+test('admin edits a client name and username without storing passwords', () => {
+  const s = run(
+    seed(),
+    {
+      type: 'updateUser',
+      targetId: 'user-orbita',
+      name: 'Cliente Órbita Actualizado',
+      username: '20601234567',
+    },
+    'admin',
+  );
+  const client = s.users.find((user) => user.id === 'user-orbita');
+  assert.equal(client.name, 'Cliente Órbita Actualizado');
+  assert.equal(client.username, '20601234567');
+  assert.equal('password' in client, false);
+  assert.throws(
+    () =>
+      run(
+        s,
+        {
+          type: 'updateUser',
+          targetId: 'user-norte',
+          name: 'Cliente repetido',
+          username: '20601234567',
         },
         'admin',
       ),
