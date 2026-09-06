@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Check,
   CheckSquare,
+  ChevronLeft,
   ChevronRight,
   CircleHelp,
   ClipboardCheck,
@@ -1096,6 +1097,7 @@ export default function Home() {
   const [resource, setResource] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [focusedLessonId, setFocusedLessonId] = useState<string | null>(null);
   const stateRef = useRef<State | null>(null);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 720px)');
@@ -1610,13 +1612,23 @@ export default function Home() {
     })?.id;
   const nextOnboardingLessonId = nextLessonId(onboardingLessons);
   const nextWeekLessonId = nextLessonId(lessonsThisWeek);
-  const lessonCountByWeek = new Map<number, number>();
-  implementationLessons.forEach((lesson) =>
-    lessonCountByWeek.set(
-      lesson.week,
-      (lessonCountByWeek.get(lesson.week) || 0) + 1,
-    ),
-  );
+  const focusedWeekLesson =
+    lessonsThisWeek.find((lesson) => lesson.id === focusedLessonId) ||
+    lessonsThisWeek.find((lesson) => lesson.id === nextWeekLessonId) ||
+    lessonsThisWeek[0];
+  const focusedWeekLessonIndex = focusedWeekLesson
+    ? lessonsThisWeek.findIndex((lesson) => lesson.id === focusedWeekLesson.id)
+    : -1;
+  const focusedWeekRun = focusedWeekLesson
+    ? org.lessonRuns.find((run) => run.lessonId === focusedWeekLesson.id)
+    : undefined;
+  const weekLessonsCompleted = lessonsThisWeek.filter((lesson) => {
+    const run = org.lessonRuns.find((item) => item.lessonId === lesson.id);
+    return run ? lessonIsComplete(lesson, run) : false;
+  }).length;
+  const weekLearningProgress = lessonsThisWeek.length
+    ? Math.round((weekLessonsCompleted / lessonsThisWeek.length) * 100)
+    : 0;
   const resourceTierRank = { BASIC: 1, COMPLETE: 2, ADVANCED: 3 } as const;
   const planResourceRank = resourceTierRank[plan.entitlements.resourceTier];
   const libraryResources = state.modules.filter((resourceItem) => {
@@ -1651,6 +1663,7 @@ export default function Home() {
   };
   const openWeek = (w: number) => {
     setWeek(w);
+    setFocusedLessonId(null);
     navigate('semana');
   };
   const kpiForm = (w = org.current) =>
@@ -2358,83 +2371,143 @@ export default function Home() {
     );
   else if (page === 'ruta')
     body = (
-      <div className="route-gallery">
-        {stages.map((s, i) => (
-          <Section
-            key={s}
-            title={s}
-            action={<span className="stage-number">0{i + 1}</span>}
-          >
-            <p className="muted">
-              Semanas {i * 3 + 1}–{i * 3 + 3}
+      <div className="learning-catalog">
+        <section className="catalog-guide">
+          <div>
+            <span className="eyebrow">TU PROGRAMA PASO A PASO</span>
+            <h2>Elige una fase y continúa donde te quedaste</h2>
+            <p>
+              El avance se calcula con tus clases vistas, actividades entregadas
+              y revisiones aprobadas. No necesitas escribir porcentajes.
             </p>
-            {weeks.slice(i * 3, i * 3 + 3).map((w, j) => {
-              const n = i * 3 + j + 1;
-              const reason = available(state, org, n);
-              const r = org.weeks[n - 1];
-              return (
-                <div className="week-row" key={n}>
-                  <div className="section-top">
-                    <span className="week-number">
-                      SEMANA {String(n).padStart(2, '0')}
-                    </span>
-                    {reason ? (
-                      <Badge value="Bloqueada" color="gray" />
-                    ) : (
-                      <Badge
-                        value={r.gate === 'OPEN' ? 'IN_PROGRESS' : r.gate}
-                      />
-                    )}
+          </div>
+          <Button onClick={() => openWeek(org.current)}>
+            Continuar ahora <ArrowRight />
+          </Button>
+        </section>
+        <div className="course-card-grid">
+          {stages.map((stage, index) => {
+            const startWeek = index * 3 + 1;
+            const endWeek = startWeek + 2;
+            const stageLessons = implementationLessons.filter(
+              (lesson) => lesson.week >= startWeek && lesson.week <= endWeek,
+            );
+            const completedLessons = stageLessons.filter((lesson) => {
+              const run = org.lessonRuns.find(
+                (item) => item.lessonId === lesson.id,
+              );
+              return run ? lessonIsComplete(lesson, run) : false;
+            }).length;
+            const stageProgress = stageLessons.length
+              ? Math.round((completedLessons / stageLessons.length) * 100)
+              : 0;
+            const lockedReason = available(state, org, startWeek);
+            const availableWeeks = [startWeek, startWeek + 1, endWeek].filter(
+              (candidate) => !available(state, org, candidate),
+            );
+            const targetWeek =
+              availableWeeks.find(
+                (candidate) => org.weeks[candidate - 1].gate !== 'APPROVED',
+              ) ||
+              availableWeeks.at(-1) ||
+              startWeek;
+            const isCurrent =
+              org.current >= startWeek && org.current <= endWeek;
+            const statusLabel =
+              stageProgress === 100
+                ? 'COMPLETADA'
+                : lockedReason
+                  ? 'BLOQUEADA'
+                  : isCurrent
+                    ? 'EN CURSO'
+                    : 'DISPONIBLE';
+            return (
+              <article
+                className={`course-card ${lockedReason ? 'is-locked' : ''} ${isCurrent ? 'is-current' : ''}`}
+                key={stage}
+              >
+                <div className={`course-cover course-cover-${index + 1}`}>
+                  <span>FASE {String(index + 1).padStart(2, '0')}</span>
+                  <div aria-hidden="true">
+                    <BookOpen size={42} />
+                    <i>{String(index + 1).padStart(2, '0')}</i>
                   </div>
-                  <h3>{w.title}</h3>
-                  <p className="muted">
-                    {reason ||
-                      `${lessonCountByWeek.get(n) || 0} clases · ${w.objective}`}
-                  </p>
-                  <Button variant="outline" onClick={() => openWeek(n)}>
-                    {reason ? <LockKeyhole /> : <ArrowRight />}
-                    {reason ? 'Ver requisitos' : 'Abrir semana'}
+                  {lockedReason && (
+                    <div className="course-lock">
+                      <LockKeyhole size={24} />
+                      <strong>Completa la fase anterior</strong>
+                    </div>
+                  )}
+                </div>
+                <div className="course-card-body">
+                  <div className="section-top">
+                    <Badge
+                      value={statusLabel}
+                      color={
+                        lockedReason
+                          ? 'gray'
+                          : stageProgress === 100
+                            ? ''
+                            : 'amber'
+                      }
+                    />
+                    <small>
+                      Semanas {startWeek}–{endWeek}
+                    </small>
+                  </div>
+                  <h3>{stage}</h3>
+                  <p>{weeks[startWeek - 1].objective}</p>
+                  <Meter
+                    label="Avance automático"
+                    value={stageProgress}
+                    explanation="Cuenta las clases completadas de esta fase y las divide entre el total de clases asignadas."
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => openWeek(targetWeek)}
+                  >
+                    {lockedReason ? <LockKeyhole /> : <ArrowRight />}
+                    {lockedReason
+                      ? 'Ver qué falta'
+                      : isCurrent
+                        ? 'Continuar fase'
+                        : 'Abrir fase'}
                   </Button>
                 </div>
-              );
-            })}
-            {i < 4 && (
-              <div className="phase-gate">
-                <div className="section-top">
-                  <div>
-                    <small>REVISIÓN FINAL · FASE {i + 1}</small>
-                    <strong>
-                      {gateFor(i + 1).ready
-                        ? 'Criterios cumplidos'
-                        : 'Validación pendiente'}
-                    </strong>
-                  </div>
-                  <Badge
-                    value={gateFor(i + 1).status}
-                    color={gateFor(i + 1).ready ? '' : 'amber'}
-                  />
-                </div>
-                <div className="gate-checklist">
-                  {gateFor(i + 1).requirements.map((requirement) => (
-                    <div key={requirement.label}>
-                      {requirement.ok ? (
-                        <Check size={16} className="green" />
-                      ) : (
-                        <LockKeyhole size={15} />
-                      )}
-                      <span>{requirement.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Section>
-        ))}
+              </article>
+            );
+          })}
+        </div>
       </div>
     );
   else if (page === 'semana') {
     const reason = available(state, org, week);
     const r = org.weeks[week - 1];
+    const activeLesson = focusedWeekLesson;
+    const activeRun = focusedWeekRun;
+    const activeUnlocked = activeLesson
+      ? lessonAvailable(state, org, activeLesson.id)
+      : false;
+    const activeYoutubeUrl = activeLesson
+      ? youtubeEmbedUrl(activeLesson.videoUrl)
+      : '';
+    const activeActivityCompleted = activeRun
+      ? ['ENVIADO', 'EN_REVISION', 'APROBADO'].includes(activeRun.status)
+      : false;
+    const activeComplete =
+      activeLesson && activeRun
+        ? lessonIsComplete(activeLesson, activeRun)
+        : false;
+    const activeResources = activeLesson
+      ? state.modules.filter(
+          (resourceItem) =>
+            resourceItem.id === activeLesson.resourceId ||
+            resourceItem.code === activeLesson.resourceId ||
+            resourceItem.relatedLesson === activeLesson.code,
+        )
+      : [];
+    const previousLesson = lessonsThisWeek[focusedWeekLessonIndex - 1];
+    const followingLesson = lessonsThisWeek[focusedWeekLessonIndex + 1];
     body = (
       <>
         <Button variant="ghost" onClick={() => navigate('ruta')}>
@@ -2454,269 +2527,388 @@ export default function Home() {
               mantienen visibles para que sepas cómo avanzar.
             </p>
           </Section>
-        ) : (
-          <div className="dashboard-grid spaced">
-            <Section
-              title={`Clases de la semana ${week}`}
-              className="wide"
-              action={
-                <Badge
-                  value={`${lessonsThisWeek.length} clases`}
-                  color="gray"
-                />
-              }
-            >
-              <div className="week-class-list">
-                {lessonsThisWeek.map((lesson) => {
-                  const run = org.lessonRuns.find(
-                    (item) => item.lessonId === lesson.id,
-                  )!;
-                  const unlocked = lessonAvailable(state, org, lesson.id);
-                  const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
-                  const activityCompleted = [
-                    'ENVIADO',
-                    'EN_REVISION',
-                    'APROBADO',
-                  ].includes(run.status);
-                  const complete = lessonIsComplete(lesson, run);
-                  return (
-                    <LessonDisclosure
-                      key={`${lesson.id}-${lesson.id === nextWeekLessonId}`}
-                      code={lesson.code}
-                      title={lesson.title}
-                      isNext={lesson.id === nextWeekLessonId}
-                      state={
-                        lesson.id === nextWeekLessonId
-                          ? 'next'
-                          : complete
-                            ? 'complete'
-                            : unlocked
-                              ? 'available'
-                              : 'locked'
-                      }
-                    >
-                      <article
-                        className={`week-class ${unlocked ? '' : 'is-locked'}`}
-                      >
-                        <div className="section-top lesson-card-status">
-                          <div className="inline-actions">
-                            <span
-                              className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
-                              title={methodOwnerLabels[lesson.owner]}
-                            >
-                              [{lesson.owner}]
-                            </span>
-                            <Badge
-                              value={unlocked ? run.status : 'Bloqueada'}
-                              color={unlocked ? undefined : 'gray'}
-                            />
-                          </div>
-                        </div>
-                        <p>{lesson.description}</p>
-                        <div className="week-class-detail">
-                          <span>
-                            <small>ACCIÓN</small>
-                            {lesson.action}
-                          </span>
-                          <span>
-                            <small>ENTREGABLE</small>
-                            {lesson.deliverable}
-                          </span>
-                        </div>
-                        {youtubeUrl && unlocked && (
-                          <div className="video-player compact-video">
-                            <iframe
-                              src={youtubeUrl}
-                              title={lesson.title}
-                              loading="lazy"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        )}
-                        <div className="compact-checkpoints">
-                          <div>
-                            <Checkbox
-                              aria-label={`Marcar como vista: ${lesson.title}`}
-                              checked={run.videoCompleted}
-                              disabled={
-                                !unlocked || !youtubeUrl || activityCompleted
-                              }
-                              onCheckedChange={(checked) =>
-                                act({
-                                  type: 'watchLesson',
-                                  targetId: lesson.id,
-                                  checked: checked === true,
-                                })
-                              }
-                            />
-                            Clase vista
-                          </div>
-                          <div>
-                            <Checkbox
-                              aria-label={`Completar actividad: ${lesson.title}`}
-                              checked={activityCompleted}
-                              disabled={
-                                !unlocked ||
-                                !run.videoCompleted ||
-                                activityCompleted
-                              }
-                              onCheckedChange={(checked) => {
-                                if (checked !== true) return;
-                                setForm({
-                                  title: 'Entregar actividad',
-                                  description: `${lesson.deliverable} · La evidencia queda vinculada a esta clase.`,
-                                  command: {
-                                    type: 'submitLesson',
-                                    targetId: lesson.id,
-                                  },
-                                  fields: [
-                                    {
-                                      key: 'text',
-                                      label: 'Respuesta, evidencia o URL',
-                                      type: 'textarea',
-                                      value: run.response,
-                                    },
-                                  ],
-                                  button: lesson.requiresReview
-                                    ? 'Enviar a revisión'
-                                    : 'Completar actividad',
-                                });
-                              }}
-                            />
-                            Actividad completada
-                          </div>
-                        </div>
-                        {!unlocked && (
-                          <small className="muted">
-                            Completa y valida la clase anterior para continuar.
-                          </small>
-                        )}
-                      </article>
-                    </LessonDisclosure>
-                  );
-                })}
-              </div>
-            </Section>
-            <div>
-              <Section title={'Semana ' + week + ' · Objetivo'}>
-                <p>{weeks[week - 1].objective}</p>
-                <Meter
-                  label="Requisitos ejecutados (no equivale a aprobación)"
-                  value={progress(org, week)}
-                />
-                <div className="lesson">
-                  <BookOpen size={24} />
-                  <h3>Guía de trabajo</h3>
-                  <p>
-                    Esta semana produce una evidencia que se pueda revisar.
-                    Reúne la información, explica su fuente y vincula cada
-                    entregable a una decisión del negocio.
-                  </p>
-                  <p className="muted">
-                    Los videos y materiales se administran desde el módulo de
-                    Clases y se publican según plan y avance.
-                  </p>
-                  <label className="check-label">
-                    <Checkbox
-                      checked={r.content}
-                      disabled={['APPROVED', 'REVIEW'].includes(r.gate)}
-                      onCheckedChange={(checked) =>
-                        act({
-                          type: 'weekFlag',
-                          week,
-                          field: 'content',
-                          checked: !!checked,
-                        })
-                      }
-                    />{' '}
-                    He revisado el contenido mínimo
-                  </label>
+        ) : activeLesson && activeRun ? (
+          <>
+            <div className="learning-workspace spaced">
+              <aside className="curriculum-panel">
+                <div className="curriculum-heading">
+                  <span>SEMANA {week}</span>
+                  <strong>{weeks[week - 1].title}</strong>
+                  <small>
+                    {weekLessonsCompleted} de {lessonsThisWeek.length} clases
+                    completadas
+                  </small>
+                  <Progress
+                    aria-label="Avance de clases de la semana"
+                    value={weekLearningProgress}
+                  />
                 </div>
-              </Section>
-              <Section title="Microacciones" className="spaced">
-                {taskList(tasksFor(week))}
-              </Section>
-              <Section title="Notas personales" className="spaced">
-                {org.notes.map((n, i) => (
-                  <p className="feedback" key={i}>
-                    {n.text}
-                    <small>
-                      {n.shared ? 'Compartida con consultor' : 'Solo yo'}
-                    </small>
-                  </p>
-                ))}
-                <div className="inline-actions">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setForm({
-                        title: 'Nota personal',
-                        description: 'Define quién puede consultar esta nota.',
-                        command: { type: 'note', shared: false },
-                        fields: [
-                          {
-                            key: 'text',
-                            label: 'Tu descubrimiento',
-                            type: 'textarea',
-                          },
-                        ],
-                      })
+                <nav aria-label={`Clases de la semana ${week}`}>
+                  {lessonsThisWeek.map((lesson, index) => {
+                    const run = org.lessonRuns.find(
+                      (item) => item.lessonId === lesson.id,
+                    );
+                    const unlocked = lessonAvailable(state, org, lesson.id);
+                    const complete = run
+                      ? lessonIsComplete(lesson, run)
+                      : false;
+                    const isNext = lesson.id === nextWeekLessonId;
+                    return (
+                      <button
+                        type="button"
+                        key={lesson.id}
+                        className={`${lesson.id === activeLesson.id ? 'is-active' : ''} ${complete ? 'is-complete' : ''}`}
+                        aria-current={
+                          lesson.id === activeLesson.id ? 'step' : undefined
+                        }
+                        onClick={() => setFocusedLessonId(lesson.id)}
+                      >
+                        <span className="curriculum-state" aria-hidden="true">
+                          {complete ? (
+                            <Check size={15} />
+                          ) : unlocked ? (
+                            String(index + 1).padStart(2, '0')
+                          ) : (
+                            <LockKeyhole size={14} />
+                          )}
+                        </span>
+                        <span>
+                          <strong>{lesson.title}</strong>
+                          <small>
+                            {isNext
+                              ? 'Siguiente clase'
+                              : complete
+                                ? 'Completada'
+                                : unlocked
+                                  ? `${lesson.duration} min`
+                                  : 'Bloqueada'}
+                          </small>
+                        </span>
+                        <ChevronRight size={16} />
+                      </button>
+                    );
+                  })}
+                </nav>
+              </aside>
+
+              <article className="lesson-stage">
+                <header className="lesson-stage-header">
+                  <div>
+                    <span>
+                      CLASE {focusedWeekLessonIndex + 1} DE{' '}
+                      {lessonsThisWeek.length}
+                    </span>
+                    <h2>
+                      {activeLesson.code} · {activeLesson.title}
+                    </h2>
+                    <p>{activeLesson.description}</p>
+                  </div>
+                  <Badge
+                    value={
+                      activeComplete
+                        ? 'COMPLETADA'
+                        : activeUnlocked
+                          ? activeRun.status
+                          : 'BLOQUEADA'
                     }
-                  >
-                    Solo yo
-                  </Button>
+                    color={activeUnlocked ? undefined : 'gray'}
+                  />
+                </header>
+
+                {!activeUnlocked ? (
+                  <div className="lesson-lock-panel">
+                    <LockKeyhole size={30} />
+                    <strong>Esta clase todavía está bloqueada</strong>
+                    <p>
+                      Completa la clase anterior y su actividad para continuar.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {activeYoutubeUrl ? (
+                      <div className="video-player guided-video">
+                        <iframe
+                          src={activeYoutubeUrl}
+                          title={activeLesson.title}
+                          loading="lazy"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : activeLesson.videoUrl ? (
+                      <div className="video-placeholder pending guided-video">
+                        <BookOpen size={30} />
+                        <span>
+                          El enlace debe ser un video válido de YouTube
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="video-placeholder pending guided-video">
+                        <BookOpen size={30} />
+                        <span>Video pendiente de publicación</span>
+                      </div>
+                    )}
+
+                    <div className="lesson-primary-info">
+                      <div>
+                        <small>QUÉ VAS A LOGRAR</small>
+                        <p>{activeLesson.objective}</p>
+                      </div>
+                      <div>
+                        <small>QUÉ DEBES HACER</small>
+                        <p>{activeLesson.action}</p>
+                      </div>
+                      <div>
+                        <small>QUÉ DEBES ENTREGAR</small>
+                        <p>{activeLesson.deliverable}</p>
+                      </div>
+                    </div>
+
+                    {activeResources.length > 0 && (
+                      <section className="lesson-resources">
+                        <div>
+                          <BookOpen size={19} />
+                          <div>
+                            <strong>Materiales para esta clase</strong>
+                            <small>
+                              Ábrelos cuando vayas a ejecutar la tarea.
+                            </small>
+                          </div>
+                        </div>
+                        {activeResources.map((resourceItem) => (
+                          <div key={resourceItem.id}>
+                            <span>{resourceItem.title}</span>
+                            <FileChips files={resourceItem.files} />
+                          </div>
+                        ))}
+                      </section>
+                    )}
+
+                    {activeRun.feedback && (
+                      <p className="feedback">
+                        Comentario del equipo: {activeRun.feedback}
+                      </p>
+                    )}
+
+                    <section className="guided-checkpoints">
+                      <div className="guided-checkpoints-heading">
+                        <span>PASOS PARA TERMINAR</span>
+                        <strong>Completa estos dos puntos de control</strong>
+                      </div>
+                      <div className="checkpoint-row">
+                        <Checkbox
+                          aria-label={`Marcar como vista: ${activeLesson.title}`}
+                          checked={activeRun.videoCompleted}
+                          disabled={
+                            !activeYoutubeUrl || activeActivityCompleted
+                          }
+                          onCheckedChange={(checked) =>
+                            act({
+                              type: 'watchLesson',
+                              targetId: activeLesson.id,
+                              checked: checked === true,
+                            })
+                          }
+                        />
+                        <span>
+                          <strong>1. Clase vista</strong>
+                          <small>Márcalo cuando termines el video.</small>
+                        </span>
+                      </div>
+                      <div className="checkpoint-row">
+                        <Checkbox
+                          aria-label={`Completar actividad: ${activeLesson.title}`}
+                          checked={activeActivityCompleted}
+                          disabled={
+                            !activeRun.videoCompleted || activeActivityCompleted
+                          }
+                          onCheckedChange={(checked) => {
+                            if (checked !== true) return;
+                            setForm({
+                              title: 'Entregar actividad',
+                              description: `${activeLesson.deliverable} · La evidencia queda vinculada a esta clase.`,
+                              command: {
+                                type: 'submitLesson',
+                                targetId: activeLesson.id,
+                              },
+                              fields: [
+                                {
+                                  key: 'text',
+                                  label: 'Respuesta, evidencia o URL',
+                                  type: 'textarea',
+                                  value: activeRun.response,
+                                },
+                              ],
+                              button: activeLesson.requiresReview
+                                ? 'Enviar a revisión'
+                                : 'Completar actividad',
+                            });
+                          }}
+                        />
+                        <span>
+                          <strong>2. Actividad completada</strong>
+                          <small>
+                            Añade tu respuesta o sustento para registrar el
+                            avance.
+                          </small>
+                        </span>
+                      </div>
+                    </section>
+                  </>
+                )}
+
+                <footer className="lesson-pagination">
                   <Button
                     variant="ghost"
+                    disabled={!previousLesson}
                     onClick={() =>
-                      setForm({
-                        title: 'Nota compartida',
-                        description:
-                          'Visible en el seguimiento para el equipo asignado.',
-                        command: { type: 'note', shared: true },
-                        fields: [
-                          {
-                            key: 'text',
-                            label: 'Nota para el consultor',
-                            type: 'textarea',
-                          },
-                        ],
-                      })
+                      previousLesson && setFocusedLessonId(previousLesson.id)
                     }
                   >
-                    Compartir con consultor
+                    <ChevronLeft /> Anterior
                   </Button>
+                  {followingLesson ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setFocusedLessonId(followingLesson.id)}
+                    >
+                      Siguiente clase <ArrowRight />
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => navigate('ruta')}>
+                      Ver ruta completa <ArrowRight />
+                    </Button>
+                  )}
+                </footer>
+              </article>
+            </div>
+
+            <details className="week-more">
+              <summary>
+                <span>
+                  <strong>Más de esta semana</strong>
+                  <small>Objetivo, pendientes, notas y revisión final</small>
+                </span>
+                <ChevronRight size={19} />
+              </summary>
+              <div className="week-more-content dashboard-grid">
+                <div>
+                  <Section title={'Semana ' + week + ' · Objetivo'}>
+                    <p>{weeks[week - 1].objective}</p>
+                    <Meter
+                      label="Puntos de control completados"
+                      value={progress(org, week)}
+                    />
+                    <div className="check-label">
+                      <Checkbox
+                        checked={r.content}
+                        disabled={['APPROVED', 'REVIEW'].includes(r.gate)}
+                        onCheckedChange={(checked) =>
+                          act({
+                            type: 'weekFlag',
+                            week,
+                            field: 'content',
+                            checked: !!checked,
+                          })
+                        }
+                      />
+                      He revisado el contenido mínimo
+                    </div>
+                  </Section>
+                  <Section title="Pendientes de la semana" className="spaced">
+                    {taskList(tasksFor(week))}
+                  </Section>
                 </div>
-              </Section>
-            </div>
-            <div>
-              {gatePanel(week)}
-              <Section title="Checklist y check-in" className="spaced">
-                <label className="check-label">
-                  <Checkbox
-                    checked={r.checklist}
-                    disabled={['APPROVED', 'REVIEW'].includes(r.gate)}
-                    onCheckedChange={(checked) =>
-                      act({
-                        type: 'weekFlag',
-                        week,
-                        field: 'checklist',
-                        checked: !!checked,
-                      })
-                    }
-                  />{' '}
-                  Confirmo que revisé la fuente y coherencia de mis entregables.
-                </label>
-                <Button
-                  variant="outline"
-                  disabled={r.gate === 'APPROVED'}
-                  onClick={() => kpiForm(week)}
-                >
-                  Registrar número importante
-                </Button>
-              </Section>
-            </div>
-          </div>
+                <div>
+                  {gatePanel(week)}
+                  <Section title="Revisión del cierre" className="spaced">
+                    <div className="check-label">
+                      <Checkbox
+                        checked={r.checklist}
+                        disabled={['APPROVED', 'REVIEW'].includes(r.gate)}
+                        onCheckedChange={(checked) =>
+                          act({
+                            type: 'weekFlag',
+                            week,
+                            field: 'checklist',
+                            checked: !!checked,
+                          })
+                        }
+                      />
+                      Confirmo que revisé la fuente y coherencia de mis
+                      entregables.
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={r.gate === 'APPROVED'}
+                      onClick={() => kpiForm(week)}
+                    >
+                      Registrar número importante
+                    </Button>
+                  </Section>
+                  <Section title="Notas personales" className="spaced">
+                    {org.notes.map((note, index) => (
+                      <p className="feedback" key={index}>
+                        {note.text}
+                        <small>
+                          {note.shared ? 'Compartida con consultor' : 'Solo yo'}
+                        </small>
+                      </p>
+                    ))}
+                    <div className="inline-actions">
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          setForm({
+                            title: 'Nota personal',
+                            description:
+                              'Esta nota queda visible únicamente para ti.',
+                            command: { type: 'note', shared: false },
+                            fields: [
+                              {
+                                key: 'text',
+                                label: 'Tu descubrimiento',
+                                type: 'textarea',
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        Nueva nota
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          setForm({
+                            title: 'Nota compartida',
+                            description:
+                              'Visible en el seguimiento para el equipo asignado.',
+                            command: { type: 'note', shared: true },
+                            fields: [
+                              {
+                                key: 'text',
+                                label: 'Nota para el consultor',
+                                type: 'textarea',
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        Compartir con consultor
+                      </Button>
+                    </div>
+                  </Section>
+                </div>
+              </div>
+            </details>
+          </>
+        ) : (
+          <Section
+            title="Todavía no hay clases en esta semana"
+            className="spaced"
+          >
+            <Empty>El equipo publicará aquí la siguiente actividad.</Empty>
+          </Section>
         )}
       </>
     );
