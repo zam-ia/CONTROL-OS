@@ -1317,15 +1317,24 @@ export default function Home() {
           const payload = (await response.json()) as { user?: SessionUser };
           const authenticatedUser = payload.user || null;
           if (authenticatedUser?.globalRole === 'CLIENT') {
-            const assignedOrganization = s.orgs.find(
+            let assignedOrganization = s.orgs.find(
               (item) =>
                 item.name.trim().toLowerCase() ===
                 authenticatedUser.organization?.name.trim().toLowerCase(),
             );
-            if (!assignedOrganization)
-              throw Error(
-                'Tu empresa aún no está sincronizada en este espacio. Contacta al administrador.',
+            if (!assignedOrganization && authenticatedUser.organization) {
+              const defaultPlan = s.plans[1] || s.plans[0];
+              assignedOrganization = createOrganizationWorkspace(
+                authenticatedUser.organization.id,
+                authenticatedUser.organization.name,
+                authenticatedUser.name,
+                defaultPlan.id,
+                s.lessons,
               );
+              s = { ...s, orgs: [...s.orgs, assignedOrganization] };
+            }
+            if (!assignedOrganization)
+              throw Error('Tu cuenta no tiene una empresa activa asignada.');
             s = { ...s, selected: assignedOrganization.id };
           }
           if (!active) return;
@@ -1484,18 +1493,32 @@ export default function Home() {
               const nextMode: Mode =
                 authenticatedUser.globalRole === 'CLIENT' ? 'client' : 'admin';
               if (authenticatedUser.globalRole === 'CLIENT') {
-                const assignedOrganization = state.orgs.find(
+                let assignedOrganization = state.orgs.find(
                   (item) =>
                     item.name.trim().toLowerCase() ===
                     authenticatedUser.organization?.name.trim().toLowerCase(),
                 );
+                let availableState = state;
+                if (!assignedOrganization && authenticatedUser.organization) {
+                  const defaultPlan = state.plans[1] || state.plans[0];
+                  assignedOrganization = createOrganizationWorkspace(
+                    authenticatedUser.organization.id,
+                    authenticatedUser.organization.name,
+                    authenticatedUser.name,
+                    defaultPlan.id,
+                    state.lessons,
+                  );
+                  availableState = {
+                    ...state,
+                    orgs: [...state.orgs, assignedOrganization],
+                  };
+                }
                 if (!assignedOrganization)
                   return {
-                    error:
-                      'Tu empresa aún no está sincronizada. Contacta al administrador.',
+                    error: 'Tu cuenta no tiene una empresa activa asignada.',
                   };
                 const nextState = {
-                  ...state,
+                  ...availableState,
                   selected: assignedOrganization.id,
                 };
                 persist(nextState);
