@@ -2253,6 +2253,7 @@ export type Command = {
   status?: string;
   role?: string;
   username?: string;
+  password?: string;
   name?: string;
   orgId?: string;
   newOrgName?: string;

@@ -518,9 +518,10 @@ function FormDialog({
 }: {
   form: FormSpec | null;
   onClose: () => void;
-  onSave: (c: Command) => boolean;
+  onSave: (c: Command) => boolean | Promise<boolean>;
 }) {
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [creatingOrganization, setCreatingOrganization] = useState(false);
   return (
     <Dialog
@@ -535,8 +536,9 @@ function FormDialog({
         {form && (
           <form
             key={form.title + JSON.stringify(form.command)}
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
+              setError('');
               const data = new FormData(e.currentTarget);
               const c: Command = { ...form.command };
               let fileError = '';
@@ -572,11 +574,22 @@ function FormDialog({
                 setError(fileError);
                 return;
               }
-              if (onSave(c)) onClose();
-              else
+              setSaving(true);
+              try {
+                if (await onSave(c)) onClose();
+                else
+                  setError(
+                    'Verifica los datos. El detalle del error aparece en el aviso inferior.',
+                  );
+              } catch (saveError) {
                 setError(
-                  'Verifica los datos. El detalle del error aparece en el aviso inferior.',
+                  saveError instanceof Error
+                    ? saveError.message
+                    : 'No se pudo guardar el cambio.',
                 );
+              } finally {
+                setSaving(false);
+              }
             }}
           >
             {form.fields.map((f) => {
@@ -665,10 +678,17 @@ function FormDialog({
               </p>
             )}
             <div className="form-footer">
-              <Button variant="outline" type="button" onClick={onClose}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+              >
                 Cancelar
               </Button>
-              <Button type="submit">{form.button || 'Guardar'}</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Guardando…' : form.button || 'Guardar'}
+              </Button>
             </div>
           </form>
         )}
@@ -688,10 +708,12 @@ async function responseError(response: Response, fallback: string) {
 
 function EditUserDialog({
   user,
+  organizationName,
   onClose,
   onSave,
 }: {
   user: ManagedUser | null;
+  organizationName?: string;
   onClose: () => void;
   onSave: (command: Command) => boolean;
 }) {
@@ -729,7 +751,7 @@ function EditUserDialog({
                 typeof rawPassword === 'string' ? rawPassword : '';
               setSaving(true);
               try {
-                const response = await fetch(
+                let response = await fetch(
                   `/api/admin/users/${encodeURIComponent(user.username)}`,
                   {
                     method: 'PATCH',
@@ -738,6 +760,20 @@ function EditUserDialog({
                     body: JSON.stringify({ name, username, password }),
                   },
                 );
+                if (response.status === 404 && user.role === 'CLIENTE') {
+                  response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name,
+                      username,
+                      password,
+                      role: user.role,
+                      organizationName,
+                    }),
+                  });
+                }
                 if (!response.ok) {
                   const localOnly =
                     !password &&
@@ -4539,6 +4575,13 @@ export default function Home() {
                       hint: 'Puede ser DNI, RUC o un identificador interno.',
                     },
                     {
+                      key: 'password',
+                      label: 'Contraseña temporal (opcional)',
+                      type: 'password',
+                      required: false,
+                      hint: 'Si la asignas, deberá cambiarla después de ingresar.',
+                    },
+                    {
                       key: 'role',
                       label: 'Rol',
                       value: 'CLIENTE',
@@ -5041,10 +5084,55 @@ export default function Home() {
         key={form?.title + JSON.stringify(form?.command)}
         form={form}
         onClose={() => setForm(null)}
-        onSave={(c) => {
+        onSave={async (c) => {
           if (c.type === 'score') {
             const raw = c as Command & Record<string, unknown>;
             c.values = dimensions.map((_, i) => Number(raw['dimension' + i]));
+          }
+          if (c.type === 'createUser') {
+            const current = stateRef.current;
+            if (!current) throw Error('Espera a que cargue CONTROL OS.');
+            let next: State;
+            try {
+              next = execute(current, current.selected, mode, c);
+            } catch (validationError) {
+              const message =
+                validationError instanceof Error
+                  ? validationError.message
+                  : 'Verifica los datos del usuario.';
+              setNotice(message);
+              throw Error(message);
+            }
+            const selectedOrganization = current.orgs.find(
+              (item) => item.id === c.orgId,
+            );
+            const organizationName =
+              typeof c.newOrgName === 'string' && c.newOrgName.trim()
+                ? c.newOrgName.trim()
+                : selectedOrganization?.name || '';
+            const response = await fetch('/api/admin/users', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: c.name,
+                username: c.username,
+                password: c.password,
+                role: c.role,
+                organizationName,
+              }),
+            });
+            if (!response.ok) {
+              const message = await responseError(
+                response,
+                'No se pudo crear el acceso en Supabase.',
+              );
+              setNotice(message);
+              throw Error(message);
+            }
+            persist(next);
+            setNotice(getOrg(next, next.selected).events[0].text);
+            return true;
           }
           return act(c);
         }}
@@ -5052,6 +5140,9 @@ export default function Home() {
       <EditUserDialog
         key={editingUser?.id || 'closed-user-editor'}
         user={editingUser}
+        organizationName={
+          state.orgs.find((item) => item.id === editingUser?.orgId)?.name
+        }
         onClose={() => setEditingUser(null)}
         onSave={act}
       />
