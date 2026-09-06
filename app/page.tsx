@@ -121,6 +121,14 @@ type FormSpec = {
   button?: string;
 };
 type ManagedUser = State['users'][number];
+type SessionUser = {
+  id: string;
+  name: string;
+  username: string;
+  globalRole: string;
+  mustChangePassword: boolean;
+  organization: { id: string; name: string } | null;
+};
 const STORAGE = 'control-os-production-v1';
 function download(filename: string, text: string, type = 'text/plain') {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -976,6 +984,7 @@ function PasswordDialog({
 export default function Home() {
   const [state, setState] = useState<State | null>(null);
   const [sessionActive, setSessionActive] = useState<boolean | null>(null);
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -1001,7 +1010,7 @@ export default function Home() {
   }, []);
   useEffect(() => {
     let active = true;
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       if (!active) return;
       let s = seed();
       try {
@@ -1215,16 +1224,47 @@ export default function Home() {
           'No se pudo recuperar la sesión anterior; se inició un espacio nuevo.',
         );
       }
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (response.ok) {
+          const payload = (await response.json()) as { user?: SessionUser };
+          const authenticatedUser = payload.user || null;
+          if (authenticatedUser?.globalRole === 'CLIENT') {
+            const assignedOrganization = s.orgs.find(
+              (item) =>
+                item.name.trim().toLowerCase() ===
+                authenticatedUser.organization?.name.trim().toLowerCase(),
+            );
+            if (!assignedOrganization)
+              throw Error(
+                'Tu empresa aún no está sincronizada en este espacio. Contacta al administrador.',
+              );
+            s = { ...s, selected: assignedOrganization.id };
+          }
+          if (!active) return;
+          setSessionUser(authenticatedUser);
+          setMode(
+            authenticatedUser?.globalRole === 'CLIENT' ? 'client' : 'admin',
+          );
+          setSessionActive(Boolean(authenticatedUser));
+        } else if (active) {
+          setSessionUser(null);
+          setSessionActive(false);
+        }
+      } catch {
+        if (active) {
+          setSessionUser(null);
+          setSessionActive(false);
+        }
+      }
+      if (!active) return;
       stateRef.current = s;
       setState(s);
       setWeek(getOrg(s, s.selected).current);
-      try {
-        setSessionActive(
-          sessionStorage.getItem('control-os-session') === 'true',
-        );
-      } catch {
-        setSessionActive(false);
-      }
     });
     return () => {
       active = false;
@@ -1253,7 +1293,9 @@ export default function Home() {
     try {
       const current = stateRef.current;
       if (!current) throw Error('Espera a que cargue CONTROL OS.');
-      const next = execute(current, current.selected, mode, c);
+      const effectiveMode =
+        sessionUser?.globalRole === 'CLIENT' ? 'client' : mode;
+      const next = execute(current, current.selected, effectiveMode, c);
       persist(next);
       setNotice(getOrg(next, next.selected).events[0].text);
       return true;
@@ -1349,49 +1391,55 @@ export default function Home() {
             });
             if (response.ok) {
               const payload = (await response.json()) as {
-                user?: {
-                  globalRole?: string;
-                  mustChangePassword?: boolean;
-                };
+                user?: SessionUser;
               };
+              const authenticatedUser = payload.user;
+              if (!authenticatedUser)
+                return { error: 'No se pudo identificar la cuenta.' };
               const nextMode: Mode =
-                payload.user?.globalRole === 'CLIENT' ? 'client' : 'admin';
+                authenticatedUser.globalRole === 'CLIENT' ? 'client' : 'admin';
+              if (authenticatedUser.globalRole === 'CLIENT') {
+                const assignedOrganization = state.orgs.find(
+                  (item) =>
+                    item.name.trim().toLowerCase() ===
+                    authenticatedUser.organization?.name.trim().toLowerCase(),
+                );
+                if (!assignedOrganization)
+                  return {
+                    error:
+                      'Tu empresa aún no está sincronizada. Contacta al administrador.',
+                  };
+                const nextState = {
+                  ...state,
+                  selected: assignedOrganization.id,
+                };
+                persist(nextState);
+                setWeek(assignedOrganization.current);
+              }
+              setSessionUser(authenticatedUser);
               setMode(nextMode);
               setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
               setSessionActive(true);
-              setPasswordDialogOpen(Boolean(payload.user?.mustChangePassword));
+              setPasswordDialogOpen(authenticatedUser.mustChangePassword);
               setNotice(
-                payload.user?.mustChangePassword
+                authenticatedUser.mustChangePassword
                   ? 'Crea una contraseña personal para continuar.'
                   : 'Sesión iniciada.',
               );
               return { error: '' };
             }
-            if (response.status !== 503)
-              return {
-                error: await responseError(
-                  response,
-                  'No se pudo iniciar sesión.',
-                ),
-              };
-          } catch {
-            // Local validation remains available until server integration is enabled.
-          }
-          const account = state.users.find(
-            (user) => user.username.toLowerCase() === username,
-          );
-          if (!account) return { error: 'La cuenta no está registrada.' };
-          if (account.status === 'SUSPENDIDO')
             return {
-              error: 'Esta cuenta está suspendida. Contacta al administrador.',
+              error: await responseError(
+                response,
+                'No se pudo iniciar sesión.',
+              ),
             };
-          const nextMode: Mode =
-            account.role === 'CLIENTE' ? 'client' : 'admin';
-          setMode(nextMode);
-          setPage(nextMode === 'admin' ? 'portafolio' : 'inicio');
-          setSessionActive(true);
-          setNotice('Sesión iniciada.');
-          return { error: '' };
+          } catch {
+            return {
+              error:
+                'No se pudo conectar con el acceso seguro. Intenta nuevamente.',
+            };
+          }
         }}
       />
     );
@@ -1460,6 +1508,7 @@ export default function Home() {
   const secondaryNav = mode === 'client' ? navClientMore : [];
   const allNavigation = [...nav, ...secondaryNav];
   const switchOrg = (v: string) => {
+    if (sessionUser?.globalRole === 'CLIENT') return;
     persist({ ...state, selected: v });
     setWeek(getOrg(state, v).current);
     setTaskId(null);
@@ -4864,14 +4913,20 @@ export default function Home() {
           <small>
             {mode === 'client' ? 'ORGANIZACIÓN' : 'CLIENTE SELECCIONADO'}
           </small>
-          <Pick
-            label={
-              mode === 'client' ? 'Organización activa' : 'Cliente seleccionado'
-            }
-            value={state.selected}
-            options={state.orgs.map((o) => ({ value: o.id, label: o.name }))}
-            onChange={switchOrg}
-          />
+          {sessionUser?.globalRole === 'CLIENT' ? (
+            <strong>{org.name}</strong>
+          ) : (
+            <Pick
+              label={
+                mode === 'client'
+                  ? 'Organización activa'
+                  : 'Cliente seleccionado'
+              }
+              value={state.selected}
+              options={state.orgs.map((o) => ({ value: o.id, label: o.name }))}
+              onChange={switchOrg}
+            />
+          )}
           <small>
             {plan.name.replace('CONTROL ', '')} · v{plan.version}
           </small>
@@ -4993,19 +5048,21 @@ export default function Home() {
               <span>Mi Empresa</span>
               <ArrowUpRight size={14} />
             </Link>
-            <Pick
-              label="Cambiar espacio de trabajo"
-              value={mode}
-              options={[
-                { value: 'client', label: 'Vista cliente' },
-                { value: 'admin', label: 'Vista admin' },
-              ]}
-              onChange={(v) => {
-                setMode(v as Mode);
-                navigate(v === 'admin' ? 'portafolio' : 'inicio');
-                setForm(null);
-              }}
-            />
+            {sessionUser?.globalRole !== 'CLIENT' && (
+              <Pick
+                label="Cambiar espacio de trabajo"
+                value={mode}
+                options={[
+                  { value: 'client', label: 'Vista cliente' },
+                  { value: 'admin', label: 'Vista admin' },
+                ]}
+                onChange={(v) => {
+                  setMode(v as Mode);
+                  navigate(v === 'admin' ? 'portafolio' : 'inicio');
+                  setForm(null);
+                }}
+              />
+            )}
             {mode === 'client' && (
               <Button
                 variant="ghost"
@@ -5038,10 +5095,16 @@ export default function Home() {
                 try {
                   sessionStorage.removeItem('control-os-session');
                 } catch {}
+                setSessionUser(null);
                 setSessionActive(false);
               }}
             >
-              {mode === 'admin' ? 'CC' : 'AP'}
+              {sessionUser?.name
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join('')
+                .toUpperCase() || (mode === 'admin' ? 'CC' : 'CL')}
             </button>
           </div>
         </header>

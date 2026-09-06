@@ -67,6 +67,10 @@ type View =
   | 'import'
   | 'settings';
 type FormKind = 'income' | 'expense' | 'client' | 'service' | null;
+type SessionUser = {
+  globalRole: string;
+  organization: { id: string; name: string } | null;
+};
 
 const primaryNavigation = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
@@ -189,17 +193,43 @@ export default function BusinessPage() {
 
   useEffect(() => {
     let active = true;
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       if (!active) return;
-      const hasSession =
-        sessionStorage.getItem('control-os-session') === 'true';
-      setAuthorized(hasSession);
       setCollapsed(
         localStorage.getItem('control-business-sidebar-collapsed') === 'true',
       );
+      let authenticatedUser: SessionUser | null = null;
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (response.ok) {
+          const payload = (await response.json()) as { user?: SessionUser };
+          authenticatedUser = payload.user || null;
+        }
+      } catch {}
+      if (!active) return;
+      setAuthorized(Boolean(authenticatedUser));
       let initial = businessSeed();
-      const requestedOrganization =
+      const requestedFromUrl =
         new URLSearchParams(window.location.search).get('org') || 'norte';
+      const clientOrganization = authenticatedUser?.organization;
+      const knownClientOrganization = clientOrganization
+        ? Object.entries(organizationNames).find(
+            ([, name]) =>
+              name.toLowerCase() === clientOrganization.name.toLowerCase(),
+          )?.[0]
+        : null;
+      const requestedOrganization =
+        authenticatedUser?.globalRole === 'CLIENT'
+          ? knownClientOrganization || clientOrganization?.id || 'norte'
+          : requestedFromUrl;
+      const requestedOrganizationName =
+        authenticatedUser?.globalRole === 'CLIENT'
+          ? clientOrganization?.name || 'Mi empresa'
+          : organizationNames[requestedOrganization] || 'Mi empresa';
       const saved = localStorage.getItem(STORAGE);
       if (saved) {
         try {
@@ -220,8 +250,7 @@ export default function BusinessPage() {
         initial = businessSeed();
         initial.workspace.organizationId = requestedOrganization;
         initial.workspace.id = `business-${requestedOrganization}`;
-        initial.workspace.name =
-          organizationNames[requestedOrganization] || 'Mi empresa';
+        initial.workspace.name = requestedOrganizationName;
       }
       setState(initial);
       setSessionReady(true);
