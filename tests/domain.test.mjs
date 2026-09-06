@@ -16,6 +16,15 @@ import {
   methodSteps,
   phaseGate,
 } from '../lib/control.ts';
+import {
+  businessAlerts,
+  businessMetrics,
+  businessSeed,
+  clientProfitability,
+  executeBusiness,
+  objectiveProgress,
+  validateExpenseAllocations,
+} from '../lib/business.ts';
 const org = 'norte';
 const run = (s, c, mode = 'client') => execute(s, org, mode, c);
 function ready() {
@@ -54,24 +63,99 @@ test('seed includes one protected primary administrator', () => {
   assert.equal(admin.role, 'ADMIN');
   assert.equal(admin.status, 'ACTIVO');
 });
+
+test('Business OS reconciles revenue, expenses, profit and cash', () => {
+  const metrics = businessMetrics(businessSeed());
+  assert.equal(metrics.revenue, 31400);
+  assert.equal(metrics.expenses, 16750);
+  assert.equal(metrics.operatingProfit, 14650);
+  assert.equal(metrics.cashMovement, 11850);
+  assert.equal(metrics.operatingMargin, 46.66);
+});
+
+test('Business OS client profitability uses allocations instead of a manual field', () => {
+  const aurora = clientProfitability(businessSeed()).find(
+    (client) => client.id === 'client-aurora',
+  );
+  assert.equal(aurora.revenue, 14000);
+  assert.equal(aurora.directCost, 5300);
+  assert.equal(aurora.contribution, 8700);
+  assert.equal(aurora.margin, 62.14);
+});
+
+test('Business OS rejects allocations above the expense total', () => {
+  const expense = structuredClone(businessSeed().expenses[0]);
+  expense.grossAmount = 100;
+  assert.throws(() => validateExpenseAllocations(expense), /superar/);
+});
+
+test('Business OS objectives derive progress only from checkpoints', () => {
+  const base = businessSeed();
+  const objective = base.objectives[0];
+  assert.equal(objectiveProgress(objective), 67);
+  const next = executeBusiness(base, {
+    type: 'toggleObjectiveCheckpoint',
+    objectiveId: objective.id,
+    checkpointId: 'margin-3',
+  });
+  assert.equal(objectiveProgress(next.objectives[0]), 100);
+  assert.equal(next.objectives[0].status, 'ACHIEVED');
+});
+
+test('Business OS locked periods reject new financial movements', () => {
+  const locked = executeBusiness(businessSeed(), { type: 'lockPeriod' });
+  assert.throws(
+    () =>
+      executeBusiness(locked, {
+        type: 'addIncome',
+        entry: {
+          ...locked.incomes[0],
+          id: 'income-after-lock',
+        },
+      }),
+    /cerrado/,
+  );
+});
+
+test('Business OS alerts expose the rule and destination', () => {
+  const alerts = businessAlerts(businessSeed());
+  assert.ok(alerts.some((alert) => alert.id === 'overdue-income'));
+  assert.ok(alerts.every((alert) => alert.explanation && alert.destination));
+});
 test('curriculum 03–07 includes 36 advanced classes and 34 resources', () => {
   const s = seed();
-  assert.equal(s.lessons.filter((lesson) => [3, 4].includes(lesson.stage)).length, 36);
-  assert.equal(s.modules.filter((module) => module.code?.startsWith('RES-')).length, 34);
+  assert.equal(
+    s.lessons.filter((lesson) => [3, 4].includes(lesson.stage)).length,
+    36,
+  );
+  assert.equal(
+    s.modules.filter((module) => module.code?.startsWith('RES-')).length,
+    34,
+  );
   assert.equal(methodSteps.length, 82);
 });
 test('commercial plans expose configurable depth without changing the method', () => {
   const s = seed();
   assert.deepEqual(
-    s.plans.map((plan) => [plan.accessLevel, plan.entitlements.maxStageAccess, plan.entitlements.resourceTier]),
+    s.plans.map((plan) => [
+      plan.accessLevel,
+      plan.entitlements.maxStageAccess,
+      plan.entitlements.resourceTier,
+    ]),
     [
       ['LOW', 1, 'BASIC'],
       ['MEDIUM', 3, 'COMPLETE'],
       ['HIGH', 4, 'ADVANCED'],
     ],
   );
-  assert.equal(lessonsFor(s, getOrg(s, 'norte')).some((lesson) => lesson.stage === 4), false);
-  assert.equal(lessonsFor(s, getOrg(s, 'vertice')).some((lesson) => lesson.stage === 4), true);
+  assert.equal(
+    lessonsFor(s, getOrg(s, 'norte')).some((lesson) => lesson.stage === 4),
+    false,
+  );
+  assert.equal(
+    lessonsFor(s, getOrg(s, 'vertice')).some((lesson) => lesson.stage === 4),
+    true,
+  );
 });
 test('support tickets retain type, privacy, priority and plan SLA', () => {
   const s = run(seed(), {
@@ -90,13 +174,14 @@ test('support tickets retain type, privacy, priority and plan SLA', () => {
 });
 test('technical support cannot expose tenant details in community', () => {
   assert.throws(
-    () => run(seed(), {
-      type: 'support',
-      text: 'No puedo acceder a un archivo privado.',
-      supportType: 'TECNICO',
-      priority: 'NORMAL',
-      privacy: 'COMUNIDAD',
-    }),
+    () =>
+      run(seed(), {
+        type: 'support',
+        text: 'No puedo acceder a un archivo privado.',
+        supportType: 'TECNICO',
+        priority: 'NORMAL',
+        privacy: 'COMUNIDAD',
+      }),
     /privada/,
   );
 });
@@ -664,7 +749,9 @@ test('one methodology exposes 82 internal controls across four phases', () => {
   assert.equal(methodSteps.filter((step) => step.phase === 2).length, 24);
   assert.equal(methodSteps.filter((step) => step.phase === 3).length, 18);
   assert.equal(methodSteps.filter((step) => step.phase === 4).length, 18);
-  assert.ok(methodSteps.every((step) => ['C', 'E', 'C+E', 'A'].includes(step.owner)));
+  assert.ok(
+    methodSteps.every((step) => ['C', 'E', 'C+E', 'A'].includes(step.owner)),
+  );
 });
 test('client curriculum stays compact and access grows without changing methodology', () => {
   const s = seed();
@@ -678,7 +765,10 @@ test('client curriculum stays compact and access grows without changing methodol
   assert.equal(medium.filter((lesson) => lesson.stage === 4).length, 0);
   assert.equal(high.filter((lesson) => lesson.stage <= 2).length, 40);
   assert.equal(high.filter((lesson) => lesson.stage === 4).length, 18);
-  assert.equal(s.orgs.every((organization) => organization.lessonRuns.length === 76), true);
+  assert.equal(
+    s.orgs.every((organization) => organization.lessonRuns.length === 76),
+    true,
+  );
 });
 test('phase gates expose evidence-based exit criteria', () => {
   const gate = phaseGate(seed(), getOrg(seed(), org), 1);

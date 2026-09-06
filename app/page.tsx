@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import Link from 'next/link';
 import { flushSync } from 'react-dom';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -8,6 +9,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  BriefcaseBusiness,
   CalendarDays,
   Check,
   CheckSquare,
@@ -609,9 +611,7 @@ export default function Home() {
         setSidebarCollapsed(
           localStorage.getItem('control-os-sidebar-collapsed') === 'true',
         );
-        const saved =
-          localStorage.getItem(STORAGE) ||
-          localStorage.getItem('control-os-demo-v1');
+        const saved = localStorage.getItem(STORAGE);
         if (saved) {
           const candidate = JSON.parse(saved);
           if (
@@ -639,18 +639,6 @@ export default function Home() {
               if (typeof legacyRun.videoCompleted !== 'boolean')
                 legacyRun.videoCompleted = (legacyRun.playback || 0) >= 90;
               delete legacyRun.playback;
-            });
-            o.events.forEach((event) => {
-              if (event.text.includes('Workspace de demostración'))
-                event.text = 'Espacio de trabajo activado.';
-            });
-            o.finances.forEach((entry) => {
-              if (entry.note.includes('ficticio'))
-                entry.note = 'Movimiento inicial registrado';
-            });
-            o.followUps.forEach((follow) => {
-              if (follow.owner === 'Consultor demo')
-                follow.owner = 'Consultor asignado';
             });
             o.tasks.forEach((task) =>
               task.evidence.forEach((evidence) => {
@@ -702,15 +690,19 @@ export default function Home() {
             if (!savedModules.has(String(resourceItem.code || resourceItem.id)))
               candidate.modules.push(resourceItem);
           });
-          candidate.modules.forEach((resourceItem: State['modules'][number]) => {
-            resourceItem.category = resourceItem.category || 'General';
-            resourceItem.version = resourceItem.version || '1.0.0';
-            resourceItem.tier = resourceItem.tier || 'BASIC';
-            resourceItem.tags = Array.isArray(resourceItem.tags) ? resourceItem.tags : [];
-            resourceItem.editorialStatus =
-              resourceItem.editorialStatus ||
-              (resourceItem.files.length ? 'LISTO' : 'EN_PRODUCCION');
-          });
+          candidate.modules.forEach(
+            (resourceItem: State['modules'][number]) => {
+              resourceItem.category = resourceItem.category || 'General';
+              resourceItem.version = resourceItem.version || '1.0.0';
+              resourceItem.tier = resourceItem.tier || 'BASIC';
+              resourceItem.tags = Array.isArray(resourceItem.tags)
+                ? resourceItem.tags
+                : [];
+              resourceItem.editorialStatus =
+                resourceItem.editorialStatus ||
+                (resourceItem.files.length ? 'LISTO' : 'EN_PRODUCCION');
+            },
+          );
           candidate.users = Array.isArray(candidate.users)
             ? candidate.users
             : s.users;
@@ -718,9 +710,10 @@ export default function Home() {
             ? candidate.lessons
             : [];
           const savedLessons = new Map<string, Lesson>(
-            candidate.lessons.map(
-              (lesson: Lesson): [string, Lesson] => [lesson.id, lesson],
-            ),
+            candidate.lessons.map((lesson: Lesson): [string, Lesson] => [
+              lesson.id,
+              lesson,
+            ]),
           );
           s.lessons.forEach((canonicalLesson) => {
             const savedLesson = savedLessons.get(canonicalLesson.id);
@@ -810,8 +803,10 @@ export default function Home() {
               legacy.type = legacy.type || 'ACOMPANAMIENTO';
               legacy.priority = legacy.priority || 'NORMAL';
               legacy.privacy = legacy.privacy || 'PRIVADA';
-              legacy.status = legacy.status || (legacy.reply ? 'RESPONDIDO' : 'ABIERTO');
-              legacy.due = legacy.due || new Date(Date.now() + 48 * 3600000).toISOString();
+              legacy.status =
+                legacy.status || (legacy.reply ? 'RESPONDIDO' : 'ABIERTO');
+              legacy.due =
+                legacy.due || new Date(Date.now() + 48 * 3600000).toISOString();
               legacy.lessonId = legacy.lessonId || '';
             });
           });
@@ -828,8 +823,7 @@ export default function Home() {
       setWeek(getOrg(s, s.selected).current);
       try {
         setSessionActive(
-          sessionStorage.getItem('control-os-session') === 'true' ||
-            sessionStorage.getItem('control-os-demo-session') === 'true',
+          sessionStorage.getItem('control-os-session') === 'true',
         );
       } catch {
         setSessionActive(false);
@@ -977,9 +971,7 @@ export default function Home() {
   );
   const onboardingMetrics = lessonMetrics(state, org, 0);
   const phaseGates = new Map(
-    [1, 2, 3, 4].map(
-      (phase) => [phase, phaseGate(state, org, phase)] as const,
-    ),
+    [1, 2, 3, 4].map((phase) => [phase, phaseGate(state, org, phase)] as const),
   );
   const gateFor = (phase: number) => phaseGates.get(phase)!;
   const lessonsThisWeek = implementationLessons.filter(
@@ -1004,7 +996,8 @@ export default function Home() {
       .join(' ')
       .toLowerCase()
       .includes(query.toLowerCase());
-    const matchesCategory = filter === 'all' || resourceItem.category === filter;
+    const matchesCategory =
+      filter === 'all' || resourceItem.category === filter;
     return matchesSearch && matchesCategory;
   });
   const implementationGaps = state.orgs.filter((item) => {
@@ -1527,9 +1520,7 @@ export default function Home() {
             />
           </Section>
           <Section title="Validación">
-            <div className="big-number">
-              {onboardingMetrics.validation}%
-            </div>
+            <div className="big-number">{onboardingMetrics.validation}%</div>
             <Meter
               label="Entregables aprobados"
               value={onboardingMetrics.validation}
@@ -1572,7 +1563,9 @@ export default function Home() {
                       [{lesson.owner}]
                     </span>
                     <Badge
-                      value={complete ? 'APROBADO' : run?.status || 'NO_INICIADO'}
+                      value={
+                        complete ? 'APROBADO' : run?.status || 'NO_INICIADO'
+                      }
                       color={!unlocked ? 'gray' : undefined}
                     />
                   </div>
@@ -1751,18 +1744,16 @@ export default function Home() {
                   />
                 </div>
                 <div className="gate-checklist">
-                  {gateFor(i + 1).requirements.map(
-                    (requirement) => (
-                      <div key={requirement.label}>
-                        {requirement.ok ? (
-                          <Check size={16} className="green" />
-                        ) : (
-                          <LockKeyhole size={15} />
-                        )}
-                        <span>{requirement.label}</span>
-                      </div>
-                    ),
-                  )}
+                  {gateFor(i + 1).requirements.map((requirement) => (
+                    <div key={requirement.label}>
+                      {requirement.ok ? (
+                        <Check size={16} className="green" />
+                      ) : (
+                        <LockKeyhole size={15} />
+                      )}
+                      <span>{requirement.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1806,124 +1797,122 @@ export default function Home() {
             >
               <div className="week-class-list">
                 {lessonsThisWeek.map((lesson) => {
-                    const run = org.lessonRuns.find(
-                      (item) => item.lessonId === lesson.id,
-                    )!;
-                    const unlocked = lessonAvailable(state, org, lesson.id);
-                    const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
-                    const activityCompleted = [
-                      'ENVIADO',
-                      'EN_REVISION',
-                      'APROBADO',
-                    ].includes(run.status);
-                    return (
-                      <article
-                        className={`week-class ${unlocked ? '' : 'is-locked'}`}
-                        key={lesson.id}
-                      >
-                        <div className="section-top">
-                          <div>
-                            <small>{lesson.code}</small>
-                            <strong>{lesson.title}</strong>
-                          </div>
-                          <div className="inline-actions">
-                            <span
-                              className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
-                              title={methodOwnerLabels[lesson.owner]}
-                            >
-                              [{lesson.owner}]
-                            </span>
-                            <Badge
-                              value={
-                                unlocked ? run.status : 'Bloqueada'
-                              }
-                              color={unlocked ? undefined : 'gray'}
-                            />
-                          </div>
+                  const run = org.lessonRuns.find(
+                    (item) => item.lessonId === lesson.id,
+                  )!;
+                  const unlocked = lessonAvailable(state, org, lesson.id);
+                  const youtubeUrl = youtubeEmbedUrl(lesson.videoUrl);
+                  const activityCompleted = [
+                    'ENVIADO',
+                    'EN_REVISION',
+                    'APROBADO',
+                  ].includes(run.status);
+                  return (
+                    <article
+                      className={`week-class ${unlocked ? '' : 'is-locked'}`}
+                      key={lesson.id}
+                    >
+                      <div className="section-top">
+                        <div>
+                          <small>{lesson.code}</small>
+                          <strong>{lesson.title}</strong>
                         </div>
-                        <p>{lesson.description}</p>
-                        <div className="week-class-detail">
-                          <span>
-                            <small>ACCIÓN</small>
-                            {lesson.action}
+                        <div className="inline-actions">
+                          <span
+                            className={`owner-chip owner-${lesson.owner.replace('+', '')}`}
+                            title={methodOwnerLabels[lesson.owner]}
+                          >
+                            [{lesson.owner}]
                           </span>
-                          <span>
-                            <small>ENTREGABLE</small>
-                            {lesson.deliverable}
-                          </span>
+                          <Badge
+                            value={unlocked ? run.status : 'Bloqueada'}
+                            color={unlocked ? undefined : 'gray'}
+                          />
                         </div>
-                        {youtubeUrl && unlocked && (
-                          <div className="video-player compact-video">
-                            <iframe
-                              src={youtubeUrl}
-                              title={lesson.title}
-                              loading="lazy"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            />
-                          </div>
-                        )}
-                        <div className="compact-checkpoints">
-                          <div>
-                            <Checkbox
-                              aria-label={`Marcar como vista: ${lesson.title}`}
-                              checked={run.videoCompleted}
-                              disabled={
-                                !unlocked || !youtubeUrl || activityCompleted
-                              }
-                              onCheckedChange={(checked) =>
-                                act({
-                                  type: 'watchLesson',
+                      </div>
+                      <p>{lesson.description}</p>
+                      <div className="week-class-detail">
+                        <span>
+                          <small>ACCIÓN</small>
+                          {lesson.action}
+                        </span>
+                        <span>
+                          <small>ENTREGABLE</small>
+                          {lesson.deliverable}
+                        </span>
+                      </div>
+                      {youtubeUrl && unlocked && (
+                        <div className="video-player compact-video">
+                          <iframe
+                            src={youtubeUrl}
+                            title={lesson.title}
+                            loading="lazy"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      )}
+                      <div className="compact-checkpoints">
+                        <div>
+                          <Checkbox
+                            aria-label={`Marcar como vista: ${lesson.title}`}
+                            checked={run.videoCompleted}
+                            disabled={
+                              !unlocked || !youtubeUrl || activityCompleted
+                            }
+                            onCheckedChange={(checked) =>
+                              act({
+                                type: 'watchLesson',
+                                targetId: lesson.id,
+                                checked: checked === true,
+                              })
+                            }
+                          />
+                          Clase vista
+                        </div>
+                        <div>
+                          <Checkbox
+                            aria-label={`Completar actividad: ${lesson.title}`}
+                            checked={activityCompleted}
+                            disabled={
+                              !unlocked ||
+                              !run.videoCompleted ||
+                              activityCompleted
+                            }
+                            onCheckedChange={(checked) => {
+                              if (checked !== true) return;
+                              setForm({
+                                title: 'Entregar actividad',
+                                description: `${lesson.deliverable} · La evidencia queda vinculada a esta clase.`,
+                                command: {
+                                  type: 'submitLesson',
                                   targetId: lesson.id,
-                                  checked: checked === true,
-                                })
-                              }
-                            />
-                            Clase vista
-                          </div>
-                          <div>
-                            <Checkbox
-                              aria-label={`Completar actividad: ${lesson.title}`}
-                              checked={activityCompleted}
-                              disabled={
-                                !unlocked ||
-                                !run.videoCompleted ||
-                                activityCompleted
-                              }
-                              onCheckedChange={(checked) => {
-                                if (checked !== true) return;
-                                setForm({
-                                  title: 'Entregar actividad',
-                                  description: `${lesson.deliverable} · La evidencia queda vinculada a esta clase.`,
-                                  command: {
-                                    type: 'submitLesson',
-                                    targetId: lesson.id,
+                                },
+                                fields: [
+                                  {
+                                    key: 'text',
+                                    label: 'Respuesta, evidencia o URL',
+                                    type: 'textarea',
+                                    value: run.response,
                                   },
-                                  fields: [
-                                    {
-                                      key: 'text',
-                                      label: 'Respuesta, evidencia o URL',
-                                      type: 'textarea',
-                                      value: run.response,
-                                    },
-                                  ],
-                                  button: lesson.requiresReview
-                                    ? 'Enviar a revisión'
-                                    : 'Completar actividad',
-                                });
-                              }}
-                            />
-                            Actividad completada
-                          </div>
+                                ],
+                                button: lesson.requiresReview
+                                  ? 'Enviar a revisión'
+                                  : 'Completar actividad',
+                              });
+                            }}
+                          />
+                          Actividad completada
                         </div>
-                        {!unlocked && (
-                          <small className="muted">
-                            Completa y valida la clase anterior para continuar.
-                          </small>
-                        )}
-                      </article>
-                    );
-                  })}
+                      </div>
+                      {!unlocked && (
+                        <small className="muted">
+                          Completa y valida la clase anterior para continuar.
+                        </small>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             </Section>
             <div>
@@ -2171,8 +2160,8 @@ export default function Home() {
               </li>
             </ul>
             <small className="muted">
-              Cálculo acumulado hasta la semana actual. Las ventanas semanales
-              y SLA se configuran según la operación de cada empresa.
+              Cálculo acumulado hasta la semana actual. Las ventanas semanales y
+              SLA se configuran según la operación de cada empresa.
             </small>
           </Section>
         </div>
@@ -2278,7 +2267,11 @@ export default function Home() {
             options={[
               { value: 'all', label: 'Todas las categorías' },
               ...Array.from(
-                new Set(state.modules.map((resourceItem) => resourceItem.category || 'General')),
+                new Set(
+                  state.modules.map(
+                    (resourceItem) => resourceItem.category || 'General',
+                  ),
+                ),
               ).map((category) => ({ value: category, label: category })),
             ]}
           />
@@ -2294,20 +2287,37 @@ export default function Home() {
               <Section
                 title={resourceItem.title}
                 key={resourceItem.id}
-                action={<Badge value={resourceItem.code || `SEM ${resourceItem.week}`} color="gray" />}
+                action={
+                  <Badge
+                    value={resourceItem.code || `SEM ${resourceItem.week}`}
+                    color="gray"
+                  />
+                }
               >
                 <div className="inline-actions">
-                  <Badge value={resourceItem.category || 'General'} color="blue" />
-                  <Badge value={`v${resourceItem.version || '1.0.0'}`} color="gray" />
+                  <Badge
+                    value={resourceItem.category || 'General'}
+                    color="blue"
+                  />
+                  <Badge
+                    value={`v${resourceItem.version || '1.0.0'}`}
+                    color="gray"
+                  />
                   <Badge value={tier} color="gray" />
                 </div>
-                <p className="resource-description">{resourceItem.description}</p>
+                <p className="resource-description">
+                  {resourceItem.description}
+                </p>
                 <small className="muted">
                   Semana {resourceItem.week}
-                  {resourceItem.relatedLesson ? ` · Clase ${resourceItem.relatedLesson}` : ''}
+                  {resourceItem.relatedLesson
+                    ? ` · Clase ${resourceItem.relatedLesson}`
+                    : ''}
                   {resourceItem.editable ? ' · Editable' : ''}
                 </small>
-                {resourceItem.files.length > 0 && <FileChips files={resourceItem.files} />}
+                {resourceItem.files.length > 0 && (
+                  <FileChips files={resourceItem.files} />
+                )}
                 <div className="inline-actions">
                   <Button
                     variant="outline"
@@ -2315,17 +2325,28 @@ export default function Home() {
                     onClick={() => setResource(resourceItem.id)}
                   >
                     {!planAllows ? (
-                      <><LockKeyhole /> Fuera de tu plan</>
+                      <>
+                        <LockKeyhole /> Fuera de tu plan
+                      </>
                     ) : !routeAllows ? (
-                      <><LockKeyhole /> Se habilita en tu ruta</>
+                      <>
+                        <LockKeyhole /> Se habilita en tu ruta
+                      </>
                     ) : !ready ? (
-                      <><Clock3 /> En producción editorial</>
+                      <>
+                        <Clock3 /> En producción editorial
+                      </>
                     ) : (
-                      <>Abrir recurso <ArrowUpRight /></>
+                      <>
+                        Abrir recurso <ArrowUpRight />
+                      </>
                     )}
                   </Button>
                   {resourceItem.relatedLesson && routeAllows && (
-                    <Button variant="ghost" onClick={() => openWeek(resourceItem.week)}>
+                    <Button
+                      variant="ghost"
+                      onClick={() => openWeek(resourceItem.week)}
+                    >
                       Ver en mi ruta
                     </Button>
                   )}
@@ -2398,8 +2419,14 @@ export default function Home() {
                     label: 'Privacidad',
                     value: 'PRIVADA',
                     options: [
-                      { value: 'PRIVADA', label: 'Privada con el equipo CONTROL' },
-                      { value: 'COMUNIDAD', label: 'Compartida con la comunidad' },
+                      {
+                        value: 'PRIVADA',
+                        label: 'Privada con el equipo CONTROL',
+                      },
+                      {
+                        value: 'COMUNIDAD',
+                        label: 'Compartida con la comunidad',
+                      },
                     ],
                   },
                   {
@@ -2441,7 +2468,16 @@ export default function Home() {
               className="spaced"
             >
               <div className="inline-actions">
-                <Badge value={t.priority} color={t.priority === 'URGENTE' ? 'red' : t.priority === 'ALTA' ? 'amber' : 'gray'} />
+                <Badge
+                  value={t.priority}
+                  color={
+                    t.priority === 'URGENTE'
+                      ? 'red'
+                      : t.priority === 'ALTA'
+                        ? 'amber'
+                        : 'gray'
+                  }
+                />
                 <Badge value={t.privacy} color="gray" />
                 <Badge value={t.status} />
               </div>
@@ -3013,13 +3049,16 @@ export default function Home() {
             <Section
               key={resourceItem.id}
               title={resourceItem.title}
-              action={<Badge value={'Semana ' + resourceItem.week} color="gray" />}
+              action={
+                <Badge value={'Semana ' + resourceItem.week} color="gray" />
+              }
             >
               <p>{resourceItem.description}</p>
               <p className="muted text-small">
                 {resourceItem.planId === 'all'
                   ? 'Todos los planes'
-                  : state.plans.find((item) => item.id === resourceItem.planId)?.name}
+                  : state.plans.find((item) => item.id === resourceItem.planId)
+                      ?.name}
               </p>
               <FileChips files={resourceItem.files} />
               <div className="inline-actions spaced-small">
@@ -3031,7 +3070,10 @@ export default function Home() {
                     variant="ghost"
                     onClick={() => {
                       if (window.confirm('¿Eliminar este módulo?'))
-                        act({ type: 'deleteModule', targetId: resourceItem.id });
+                        act({
+                          type: 'deleteModule',
+                          targetId: resourceItem.id,
+                        });
                     }}
                   >
                     <Trash2 size={16} /> Eliminar
@@ -3426,7 +3468,9 @@ export default function Home() {
         <div className="method-rule methodology-rule">
           <ShieldCheck size={22} />
           <div>
-            <strong>Una sola metodología CONTROL para todas las empresas.</strong>
+            <strong>
+              Una sola metodología CONTROL para todas las empresas.
+            </strong>
             <span>
               El plan modifica acompañamiento, intervención y herramientas;
               nunca reemplaza el proceso ni borra el historial del cliente.
@@ -3458,22 +3502,20 @@ export default function Home() {
                 }
               >
                 <p className="muted">
-                  Semanas {phase === 1 ? '1–3' : '4–6'} ·{' '}
-                  {phaseLessons.length} clases visibles para el cliente.
+                  Semanas {phase === 1 ? '1–3' : '4–6'} · {phaseLessons.length}{' '}
+                  clases visibles para el cliente.
                 </p>
                 <div className="gate-checklist">
-                  {gateFor(phase).requirements.map(
-                    (requirement) => (
-                      <div key={requirement.label}>
-                        {requirement.ok ? (
-                          <Check size={16} className="green" />
-                        ) : (
-                          <LockKeyhole size={15} />
-                        )}
-                        <span>{requirement.label}</span>
-                      </div>
-                    ),
-                  )}
+                  {gateFor(phase).requirements.map((requirement) => (
+                    <div key={requirement.label}>
+                      {requirement.ok ? (
+                        <Check size={16} className="green" />
+                      ) : (
+                        <LockKeyhole size={15} />
+                      )}
+                      <span>{requirement.label}</span>
+                    </div>
+                  ))}
                 </div>
               </Section>
             );
@@ -3496,12 +3538,15 @@ export default function Home() {
           }
         >
           <p className="muted">
-            El equipo CONTROL ve el detalle completo; el cliente recibe una
-            ruta simplificada por semanas, clases y entregables.
+            El equipo CONTROL ve el detalle completo; el cliente recibe una ruta
+            simplificada por semanas, clases y entregables.
           </p>
           <div className="method-legend">
             {Object.entries(methodOwnerLabels).map(([owner, label]) => (
-              <span className={`owner-chip owner-${owner.replace('+', '')}`} key={owner}>
+              <span
+                className={`owner-chip owner-${owner.replace('+', '')}`}
+                key={owner}
+              >
                 [{owner}] {label}
               </span>
             ))}
@@ -3981,10 +4026,17 @@ export default function Home() {
                 ))}
               </ul>
               <p className="muted">
-                Nivel de acceso: {p.accessLevel === 'LOW' ? 'Base' : p.accessLevel === 'MEDIUM' ? 'Ampliado' : 'Completo'} · Equipo: {p.team} · Sesiones: {p.sessions}
+                Nivel de acceso:{' '}
+                {p.accessLevel === 'LOW'
+                  ? 'Base'
+                  : p.accessLevel === 'MEDIUM'
+                    ? 'Ampliado'
+                    : 'Completo'}{' '}
+                · Equipo: {p.team} · Sesiones: {p.sessions}
               </p>
               <p className="caption">
-                Al ampliar el plan, el cliente continúa desde su historial actual.
+                Al ampliar el plan, el cliente continúa desde su historial
+                actual.
               </p>
             </Section>
           ))}
@@ -4318,6 +4370,15 @@ export default function Home() {
             </button>
           ))}
         </nav>
+        <Link
+          className="business-launcher-sidebar"
+          href={`/business?org=${encodeURIComponent(org.id)}`}
+          title={sidebarCollapsed ? 'Mi Empresa' : undefined}
+        >
+          <BriefcaseBusiness size={18} />
+          <span>Mi Empresa</span>
+          <ArrowUpRight size={15} />
+        </Link>
         <div className="sidebar-bottom">
           <ShieldCheck size={21} />
           <p>
@@ -4360,6 +4421,14 @@ export default function Home() {
             </div>
           </div>
           <div className="header-right">
+            <Link
+              className="business-launcher-header"
+              href={`/business?org=${encodeURIComponent(org.id)}`}
+            >
+              <BriefcaseBusiness size={17} />
+              <span>Mi Empresa</span>
+              <ArrowUpRight size={14} />
+            </Link>
             <Pick
               label="Cambiar espacio de trabajo"
               value={mode}
@@ -4389,7 +4458,6 @@ export default function Home() {
               onClick={() => {
                 try {
                   sessionStorage.removeItem('control-os-session');
-                  sessionStorage.removeItem('control-os-demo-session');
                 } catch {}
                 setSessionActive(false);
               }}
@@ -4613,8 +4681,8 @@ export default function Home() {
       >
         <DialogContent className="control-dialog">
           <DialogTitle>
-            {state.modules.find((resourceItem) => resourceItem.id === resource)?.title ||
-              'Recurso CONTROL'}
+            {state.modules.find((resourceItem) => resourceItem.id === resource)
+              ?.title || 'Recurso CONTROL'}
           </DialogTitle>
           <DialogDescription>
             Recurso versionado del expediente de implementación.
@@ -4630,8 +4698,14 @@ export default function Home() {
                   <>
                     <p>{selectedResource.description}</p>
                     <div className="inline-actions">
-                      <Badge value={selectedResource.category || 'General'} color="blue" />
-                      <Badge value={`v${selectedResource.version || '1.0.0'}`} color="gray" />
+                      <Badge
+                        value={selectedResource.category || 'General'}
+                        color="blue"
+                      />
+                      <Badge
+                        value={`v${selectedResource.version || '1.0.0'}`}
+                        color="gray"
+                      />
                     </div>
                     <FileChips files={selectedResource.files} />
                     <p className="caption">

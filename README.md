@@ -16,6 +16,8 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 ## Funcionalidad incluida
 
 - Portal cliente y Command Center responsive, con barra lateral contraíble y navegación adaptada a móvil.
+- Launcher **Mi Empresa** con sesión y organización compartidas, sin segundo login ni iframe.
+- CONTROL Business OS como bounded context separado dentro del mismo repositorio: dashboard ejecutivo, libro financiero, rentabilidad por cliente/servicio, objetivos por checkpoints, tareas, procesos/SOP, reportes e importación preparada.
 - Etapa 00 de onboarding con ocho clases, desbloqueo progresivo y regla **aprender → aplicar → entregar → recibir feedback → avanzar**.
 - Una metodología maestra para todos los planes: 82 controles internos y 68 clases de implementación a lo largo de las cuatro etapas.
 - Gates de salida basados en evidencia al finalizar cada etapa, incluida Delegación y Controles y Escalar con Propósito.
@@ -51,16 +53,19 @@ El esquema versionado está en `supabase/migrations`:
 5. Usuarios únicos, creación de empresas y checkpoints de objetivos.
 6. Metodología maestra, profundidad de acceso por plan, expediente empresarial, entregables y gates de fase.
 7. Currículo de módulos 03–07, recursos versionados, soporte con SLA, sesiones y entitlements.
+8. Foundation de CONTROL Business OS: workspace, permisos financieros por scope, clientes, servicios, ingresos, gastos e imputaciones, períodos, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y RLS multiempresa.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 
 ## Estado de integración
 
-La interfaz actual conserva su estado en `localStorage` para permitir validación funcional. Todavía no está conectada a Supabase Auth, REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
+Las interfaces de CONTROL OS y Business OS conservan su estado en `localStorage` para permitir validación funcional. Las variables públicas de Supabase están configuradas en Vercel, pero las pantallas todavía no escriben en Auth, REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración de servidor, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
 
 Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. El avance de clases y objetivos se mide por checkpoints completados, no mediante porcentajes ingresados por el usuario.
 
 También siguen pendientes 2FA, invitaciones por correo, auditoría inmutable, backups verificados, email transaccional, pagos, facturación, políticas de retención y UAT con usuarios reales.
+
+La decisión de arquitectura, límites de despliegue y secuencia de construcción están resumidos en [docs/ARCHITECTURE_V2.md](docs/ARCHITECTURE_V2.md).
 
 ## Verificación
 
@@ -79,3 +84,4 @@ Las pruebas de dominio cubren evidencias, adjuntos, secuencia, planes, KPIs, apr
 - Reglas de dominio: `lib/control.ts`
 - Estilos: `app/globals.css`
 - Configuración de base de datos: `docs/SUPABASE_SETUP.md`
+- Arquitectura de plataforma: `docs/ARCHITECTURE_V2.md`

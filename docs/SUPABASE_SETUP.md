@@ -21,8 +21,9 @@ Opción Dashboard: abre **SQL Editor** y ejecuta, en orden y una sola vez:
 5. `supabase/migrations/20260905010000_usernames_organizations_goal_checkpoints.sql`
 6. `supabase/migrations/20260905020000_master_methodology_phase_gates.sql`
 7. `supabase/migrations/20260905030000_curriculum_modules_03_07.sql`
+8. `supabase/migrations/20260905040000_business_os_foundation.sql`
 
-La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance. La sexta fija una sola metodología CONTROL, añade niveles de acceso sin pérdida de historial, los 46 controles internos, el expediente empresarial, entregables estructurados y gates de salida por fase. La séptima incorpora las 36 clases de las etapas 3 y 4, 34 recursos editoriales versionados, gates avanzados, tickets con SLA, sesiones y entitlements de los módulos 05–07.
+La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance. La sexta fija una sola metodología CONTROL, añade niveles de acceso sin pérdida de historial, los 46 controles internos, el expediente empresarial, entregables estructurados y gates de salida por fase. La séptima incorpora las 36 clases de las etapas 3 y 4, 34 recursos editoriales versionados, gates avanzados, tickets con SLA, sesiones y entitlements de los módulos 05–07. La octava crea la foundation multiempresa de CONTROL Business OS, con scopes financieros, clientes, servicios, ledger, imputaciones, períodos cerrables, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y almacenamiento privado.
 
 La clave publicable/anon permite usar Auth, REST y Storage bajo RLS, pero no ejecutar DDL. Para aplicar migraciones se necesita una sesión administrativa de Supabase o la contraseña de la base de datos. La clave `service_role` o secret jamás debe exponerse con prefijo `NEXT_PUBLIC_` ni versionarse.
 
@@ -36,7 +37,7 @@ set global_role = 'SUPER_ADMIN'
 where id = '<USER_UUID>';
 ```
 
-Para el administrador principal definido en la interfaz, crea primero la identidad interna `admin@crisdalcompany.com` desde **Authentication → Users**. Este correo no se muestra como acceso en CONTROL OS; la interfaz utiliza el usuario `admin`. Después puedes promoverlo sin copiar el UUID manualmente:
+Para el administrador principal definido en la interfaz, crea primero la identidad interna `admin@crisdalcompany.com` desde **Authentication → Users**. Este correo no se muestra como acceso en CONTROL OS; la migración 8 le asigna el usuario visible `aldaircrizam`. Después puedes promoverlo sin copiar el UUID manualmente:
 
 ```sql
 update public.profiles p
@@ -46,9 +47,13 @@ where p.id = u.id
   and lower(u.email) = 'admin@crisdalcompany.com';
 ```
 
-El usuario visible asignado a esta identidad en CONTROL OS es `aldaircrizam`.
+La asignación se omite de forma segura si el alias `aldaircrizam` ya pertenece a otra cuenta.
 
 La contraseña se configura exclusivamente en Supabase Auth. No debe añadirse a migraciones, variables `NEXT_PUBLIC_*` ni archivos del repositorio. La integración productiva deberá resolver el usuario hacia la identidad de Auth exclusivamente desde el servidor, sin exponer correos internos al navegador.
+
+## Archivos de Business OS
+
+El bucket `control-business-files` es privado y limita cada objeto a 25 MB. Usa el UUID de la organización como primer segmento de la ruta. Los movimientos financieros se protegen además con scopes `finance_read` y `finance_write`; el acceso del staff requiere asignación, consentimiento y vigencia en `business_staff_access`.
 
 ## Archivos de evidencia
 
