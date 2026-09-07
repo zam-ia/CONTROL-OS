@@ -848,3 +848,74 @@ export function businessSeed(): BusinessState {
     ],
   };
 }
+
+const legacyDemoClientIds = new Set([
+  'client-aurora',
+  'client-boreal',
+  'client-costa',
+  'client-delta',
+]);
+const legacyDemoServiceIds = new Set([
+  'service-control90',
+  'service-audit',
+  'service-partner',
+]);
+
+export function removeBusinessDemoData(
+  state: BusinessState,
+  organizationId: string,
+  organizationName: string,
+  plan = 'CONTROL 90',
+): BusinessState {
+  const next = structuredClone(state);
+  next.workspace = {
+    ...next.workspace,
+    id: `business-${organizationId}`,
+    organizationId,
+    name: organizationName,
+    plan,
+  };
+  next.clients = next.clients.filter(
+    (client) => !legacyDemoClientIds.has(client.id),
+  );
+  next.services = next.services.filter(
+    (service) => !legacyDemoServiceIds.has(service.id),
+  );
+  next.incomes = next.incomes.filter(
+    (income) =>
+      !legacyDemoClientIds.has(income.clientId) &&
+      !legacyDemoServiceIds.has(income.serviceId),
+  );
+  next.expenses = next.expenses
+    .filter((expense) => !/^expense-[1-6]$/.test(expense.id))
+    .map((expense) => ({
+      ...expense,
+      allocations: expense.allocations.filter(
+        (allocation) =>
+          !legacyDemoClientIds.has(allocation.clientId || '') &&
+          !legacyDemoServiceIds.has(allocation.serviceId || ''),
+      ),
+    }));
+  next.objectives = next.objectives.filter(
+    (objective) =>
+      !['objective-margin', 'objective-founder'].includes(objective.id),
+  );
+  next.tasks = next.tasks.filter((task) => !/^task-[1-4]$/.test(task.id));
+  next.processes = next.processes.filter(
+    (process) =>
+      ![
+        'process-onboarding',
+        'process-delivery',
+        'process-collection',
+      ].includes(process.id),
+  );
+  next.events = next.events.filter((event) => event.id !== 'event-seed-1');
+  if (!next.events.length) {
+    next.events.push({
+      id: `event-workspace-${organizationId}`,
+      at: new Date().toISOString(),
+      text: 'Espacio empresarial listo para registrar información real.',
+    });
+  }
+  return next;
+}

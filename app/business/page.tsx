@@ -50,6 +50,7 @@ import {
   executeBusiness,
   monthlyTrend,
   objectiveProgress,
+  removeBusinessDemoData,
   serviceProfitability,
   type BusinessCommand,
   type BusinessState,
@@ -258,6 +259,13 @@ export default function BusinessPage() {
         initial.workspace.organizationId = requestedOrganization;
         initial.workspace.id = `business-${requestedOrganization}`;
         initial.workspace.name = requestedOrganizationName;
+      }
+      if (requestedOrganization !== 'norte') {
+        initial = removeBusinessDemoData(
+          initial,
+          requestedOrganization,
+          requestedOrganizationName,
+        );
       }
       setState(initial);
       setSessionReady(true);

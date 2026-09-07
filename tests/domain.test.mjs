@@ -23,6 +23,7 @@ import {
   clientProfitability,
   executeBusiness,
   objectiveProgress,
+  removeBusinessDemoData,
   validateExpenseAllocations,
 } from '../lib/business.ts';
 const org = 'norte';
@@ -71,6 +72,23 @@ test('Business OS reconciles revenue, expenses, profit and cash', () => {
   assert.equal(metrics.operatingProfit, 14650);
   assert.equal(metrics.cashMovement, 11850);
   assert.equal(metrics.operatingMargin, 46.66);
+});
+
+test('a real client workspace never inherits demonstration records', () => {
+  const clean = removeBusinessDemoData(
+    businessSeed(),
+    'org-black-sheep',
+    'Black Sheep',
+  );
+  assert.equal(clean.workspace.organizationId, 'org-black-sheep');
+  assert.equal(clean.workspace.name, 'Black Sheep');
+  assert.deepEqual(clean.clients, []);
+  assert.deepEqual(clean.services, []);
+  assert.deepEqual(clean.incomes, []);
+  assert.deepEqual(clean.expenses, []);
+  assert.deepEqual(clean.objectives, []);
+  assert.deepEqual(clean.tasks, []);
+  assert.deepEqual(clean.processes, []);
 });
 
 test('Business OS client profitability uses allocations instead of a manual field', () => {
