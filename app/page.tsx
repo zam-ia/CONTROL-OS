@@ -243,12 +243,102 @@ const navClient = [
 ];
 const navClientMore = [
   { id: 'onboarding', label: 'Bienvenida', icon: BookOpen },
-  { id: 'ruta', label: 'Ruta completa', icon: Route },
+  { id: 'ruta', label: 'Programa completo', icon: Route },
   { id: 'objetivos', label: 'Metas', icon: Target },
   { id: 'indicadores', label: 'Números importantes', icon: BarChart3 },
   { id: 'logros', label: 'Logros', icon: Flag },
   { id: 'biblioteca', label: 'Materiales', icon: BookOpen },
   { id: 'sesiones', label: 'Sesiones', icon: CalendarDays },
+];
+const classroomBlocks: {
+  id: number;
+  title: string;
+  question: string;
+  outcome: string;
+  weeks: number[];
+  destination: 'onboarding' | 'weeks' | 'biblioteca';
+}[] = [
+  {
+    id: 0,
+    title: '🚀 Empieza Aquí',
+    question: 'Activa tu CONTROL',
+    outcome:
+      'Diagnóstico, objetivo y primer reto completados en menos de 72 horas.',
+    weeks: [],
+    destination: 'onboarding',
+  },
+  {
+    id: 1,
+    title: '💰 Controla tus Números',
+    question: '¿Mi negocio realmente gana dinero?',
+    outcome: 'Facturación, utilidad, margen, caja y fugas bajo control.',
+    weeks: [1, 2],
+    destination: 'weeks',
+  },
+  {
+    id: 2,
+    title: '🎯 Recupera el Foco',
+    question: '¿Qué negocio estamos intentando construir?',
+    outcome: 'Un objetivo, un mercado, una oferta y tres prioridades.',
+    weeks: [3],
+    destination: 'weeks',
+  },
+  {
+    id: 3,
+    title: '⚙️ Ordena la Operación',
+    question: '¿Cómo funciona realmente mi empresa?',
+    outcome: 'Procesos críticos, responsables e instrucciones claras.',
+    weeks: [4, 5],
+    destination: 'weeks',
+  },
+  {
+    id: 4,
+    title: '👤 Saca al Fundador del Medio',
+    question: '¿Dónde sigo siendo el cuello de botella?',
+    outcome: 'Una responsabilidad recurrente sale del fundador.',
+    weeks: [6],
+    destination: 'weeks',
+  },
+  {
+    id: 5,
+    title: '👥 Construye un Equipo Responsable',
+    question: '¿Quién posee cada resultado?',
+    outcome: 'Roles, responsabilidades y medición sin ambigüedad.',
+    weeks: [7],
+    destination: 'weeks',
+  },
+  {
+    id: 6,
+    title: '✅ Ejecuta con Control',
+    question: '¿Cómo hacemos que lo importante realmente ocurra?',
+    outcome: 'Prioridades, bloqueos y un ritual semanal repetible.',
+    weeks: [8, 9],
+    destination: 'weeks',
+  },
+  {
+    id: 7,
+    title: '📈 Crece sin Romper el Negocio',
+    question: '¿Cómo crecemos sin destruir margen o capacidad?',
+    outcome: 'Crecimiento con capacidad, economía y responsables.',
+    weeks: [10, 11],
+    destination: 'weeks',
+  },
+  {
+    id: 8,
+    title: '🧠 Lee y Dirige tu Empresa',
+    question: '¿Cuál es el principal problema del negocio este mes?',
+    outcome: 'Un CONTROL Board que convierte señales en decisiones.',
+    weeks: [12],
+    destination: 'weeks',
+  },
+  {
+    id: 9,
+    title: '🧰 Recursos CONTROL',
+    question: 'Consulta solo lo que necesitas para avanzar',
+    outcome: 'Plantillas, ejemplos, tutoriales, preguntas y replays.',
+    weeks: [],
+    destination: 'biblioteca',
+  },
 ];
 const navAdmin = [
   { id: 'portafolio', label: 'Clientes', icon: Users },
@@ -303,6 +393,27 @@ const youtubeEmbedUrl = (value: string) => {
   } catch {
     return '';
   }
+};
+const businessDestination = (lesson: Lesson) => {
+  const context = [
+    lesson.title,
+    lesson.description,
+    lesson.action,
+    lesson.deliverable,
+  ]
+    .join(' ')
+    .toLowerCase();
+  if (/ingreso|gasto|financ|margen|rentabilidad|caja|presupuesto/.test(context))
+    return { view: 'finance', label: 'Abrir Finanzas' };
+  if (/cliente|icp|segmento/.test(context))
+    return { view: 'clients', label: 'Abrir Clientes' };
+  if (/servicio|oferta|pricing|precio/.test(context))
+    return { view: 'services', label: 'Abrir Servicios' };
+  if (/proceso|flujo|instrucci|automatiza|sop|sla/.test(context))
+    return { view: 'processes', label: 'Abrir Procesos' };
+  if (/objetivo|prioridad|tarea|roadmap|sprint|backlog/.test(context))
+    return { view: 'work', label: 'Abrir Objetivos y tareas' };
+  return { view: 'dashboard', label: 'Abrir Mi Empresa' };
 };
 const today = () => new Date().toISOString().slice(0, 10);
 const displayDate = (date: string) =>
@@ -1232,6 +1343,18 @@ export default function Home() {
             if (savedLesson) {
               savedLesson.owner = canonicalLesson.owner;
               savedLesson.minAccess = canonicalLesson.minAccess;
+              if (canonicalLesson.stage === 0) {
+                savedLesson.title = canonicalLesson.title;
+                savedLesson.description = canonicalLesson.description;
+                savedLesson.objective = canonicalLesson.objective;
+                savedLesson.learnings = canonicalLesson.learnings;
+                savedLesson.action = canonicalLesson.action;
+                savedLesson.resourceType = canonicalLesson.resourceType;
+                savedLesson.deliverable = canonicalLesson.deliverable;
+                savedLesson.requiresReview = canonicalLesson.requiresReview;
+                savedLesson.requiredForUnlock =
+                  canonicalLesson.requiredForUnlock;
+              }
             } else candidate.lessons.push(canonicalLesson);
           });
           candidate.lessons.forEach((lesson: Lesson) => {
@@ -2039,8 +2162,8 @@ export default function Home() {
   };
   const allTitles: Record<string, string> = {
     inicio: 'Menos ruido. Más control.',
-    onboarding: 'Etapa 00 · Onboarding y bienvenida',
-    ruta: 'Tu ruta de implementación',
+    onboarding: 'Empieza aquí · Activa tu CONTROL',
+    ruta: 'Tu programa CONTROL',
     tareas: 'De la intención a la evidencia',
     objetivos: 'Resultados que importan',
     indicadores: 'Los números, con contexto',
@@ -2374,35 +2497,44 @@ export default function Home() {
       <div className="learning-catalog">
         <section className="catalog-guide">
           <div>
-            <span className="eyebrow">TU PROGRAMA PASO A PASO</span>
-            <h2>Elige una fase y continúa donde te quedaste</h2>
+            <span className="eyebrow">CLASSROOM CONTROL</span>
+            <h2>Aprende, ejecútalo en tu negocio y recién entonces avanza</h2>
             <p>
-              El avance se calcula con tus clases vistas, actividades entregadas
-              y revisiones aprobadas. No necesitas escribir porcentajes.
+              Cada bloque termina en un resultado real. El contenido explica qué
+              hacer; Mi Empresa te permite hacerlo y tu mentor valida el avance.
             </p>
           </div>
-          <Button onClick={() => openWeek(org.current)}>
+          <Button
+            onClick={() =>
+              onboardingMetrics.validation >= 90
+                ? openWeek(org.current)
+                : navigate('onboarding')
+            }
+          >
             Continuar ahora <ArrowRight />
           </Button>
         </section>
         <div className="course-card-grid">
-          {stages.map((stage, index) => {
-            const startWeek = index * 3 + 1;
-            const endWeek = startWeek + 2;
-            const stageLessons = implementationLessons.filter(
-              (lesson) => lesson.week >= startWeek && lesson.week <= endWeek,
-            );
-            const completedLessons = stageLessons.filter((lesson) => {
+          {classroomBlocks.map((block, index) => {
+            const blockLessons =
+              block.id === 0
+                ? onboardingLessons
+                : block.id === 9
+                  ? []
+                  : implementationLessons.filter((lesson) =>
+                      block.weeks.includes(lesson.week),
+                    );
+            const completedLessons = blockLessons.filter((lesson) => {
               const run = org.lessonRuns.find(
                 (item) => item.lessonId === lesson.id,
               );
               return run ? lessonIsComplete(lesson, run) : false;
             }).length;
-            const stageProgress = stageLessons.length
-              ? Math.round((completedLessons / stageLessons.length) * 100)
+            const blockProgress = blockLessons.length
+              ? Math.round((completedLessons / blockLessons.length) * 100)
               : 0;
-            const lockedReason = available(state, org, startWeek);
-            const availableWeeks = [startWeek, startWeek + 1, endWeek].filter(
+            const firstWeek = block.weeks[0];
+            const availableWeeks = block.weeks.filter(
               (candidate) => !available(state, org, candidate),
             );
             const targetWeek =
@@ -2410,32 +2542,50 @@ export default function Home() {
                 (candidate) => org.weeks[candidate - 1].gate !== 'APPROVED',
               ) ||
               availableWeeks.at(-1) ||
-              startWeek;
+              firstWeek ||
+              org.current;
+            const blockLocked =
+              block.destination === 'weeks' &&
+              (blockLessons.length === 0 ||
+                Boolean(available(state, org, firstWeek)) ||
+                !blockLessons.some((lesson) =>
+                  lessonAvailable(state, org, lesson.id),
+                ));
             const isCurrent =
-              org.current >= startWeek && org.current <= endWeek;
+              block.id === 0
+                ? onboardingMetrics.validation < 90
+                : block.destination === 'weeks' &&
+                  onboardingMetrics.validation >= 90 &&
+                  block.weeks.includes(org.current);
             const statusLabel =
-              stageProgress === 100
-                ? 'COMPLETADA'
-                : lockedReason
-                  ? 'BLOQUEADA'
-                  : isCurrent
-                    ? 'EN CURSO'
-                    : 'DISPONIBLE';
+              block.id === 9
+                ? 'BIBLIOTECA'
+                : blockProgress === 100
+                  ? 'COMPLETADA'
+                  : blockLocked
+                    ? 'BLOQUEADA'
+                    : isCurrent
+                      ? 'EN CURSO'
+                      : 'DISPONIBLE';
             return (
               <article
-                className={`course-card ${lockedReason ? 'is-locked' : ''} ${isCurrent ? 'is-current' : ''}`}
-                key={stage}
+                className={`course-card ${blockLocked ? 'is-locked' : ''} ${isCurrent ? 'is-current' : ''}`}
+                key={block.id}
               >
-                <div className={`course-cover course-cover-${index + 1}`}>
-                  <span>FASE {String(index + 1).padStart(2, '0')}</span>
+                <div className={`course-cover course-cover-${(index % 4) + 1}`}>
+                  <span>BLOQUE {String(block.id).padStart(2, '0')}</span>
                   <div aria-hidden="true">
-                    <BookOpen size={42} />
-                    <i>{String(index + 1).padStart(2, '0')}</i>
+                    {block.id === 9 ? (
+                      <FolderPlus size={42} />
+                    ) : (
+                      <BookOpen size={42} />
+                    )}
+                    <i>{String(block.id).padStart(2, '0')}</i>
                   </div>
-                  {lockedReason && (
+                  {blockLocked && (
                     <div className="course-lock">
                       <LockKeyhole size={24} />
-                      <strong>Completa la fase anterior</strong>
+                      <strong>Completa el bloque anterior</strong>
                     </div>
                   )}
                 </div>
@@ -2444,34 +2594,53 @@ export default function Home() {
                     <Badge
                       value={statusLabel}
                       color={
-                        lockedReason
+                        blockLocked
                           ? 'gray'
-                          : stageProgress === 100
+                          : blockProgress === 100
                             ? ''
                             : 'amber'
                       }
                     />
                     <small>
-                      Semanas {startWeek}–{endWeek}
+                      {block.id === 0
+                        ? 'Primeras 72 horas'
+                        : block.id === 9
+                          ? `${libraryResources.length} recursos disponibles`
+                          : block.weeks.length === 1
+                            ? `Semana ${firstWeek}`
+                            : `Semanas ${firstWeek}–${block.weeks.at(-1)}`}
                     </small>
                   </div>
-                  <h3>{stage}</h3>
-                  <p>{weeks[startWeek - 1].objective}</p>
-                  <Meter
-                    label="Avance automático"
-                    value={stageProgress}
-                    explanation="Cuenta las clases completadas de esta fase y las divide entre el total de clases asignadas."
-                  />
+                  <h3>{block.title}</h3>
+                  <p>
+                    <strong>{block.question}</strong>
+                    <span>{block.outcome}</span>
+                  </p>
+                  {block.id !== 9 && (
+                    <Meter
+                      label="Avance automático"
+                      value={blockProgress}
+                      explanation="Cuenta las clases completadas de este bloque y las divide entre el total asignado."
+                    />
+                  )}
                   <Button
                     variant="outline"
-                    onClick={() => openWeek(targetWeek)}
+                    onClick={() =>
+                      block.destination === 'onboarding'
+                        ? navigate('onboarding')
+                        : block.destination === 'biblioteca'
+                          ? navigate('biblioteca')
+                          : openWeek(targetWeek)
+                    }
                   >
-                    {lockedReason ? <LockKeyhole /> : <ArrowRight />}
-                    {lockedReason
+                    {blockLocked ? <LockKeyhole /> : <ArrowRight />}
+                    {blockLocked
                       ? 'Ver qué falta'
                       : isCurrent
-                        ? 'Continuar fase'
-                        : 'Abrir fase'}
+                        ? 'Continuar bloque'
+                        : block.id === 9
+                          ? 'Consultar recursos'
+                          : 'Abrir bloque'}
                   </Button>
                 </div>
               </article>
@@ -2498,6 +2667,26 @@ export default function Home() {
       activeLesson && activeRun
         ? lessonIsComplete(activeLesson, activeRun)
         : false;
+    const activeBusinessDestination = activeLesson
+      ? businessDestination(activeLesson)
+      : { view: 'dashboard', label: 'Abrir Mi Empresa' };
+    const activeLessonCycle = activeRun
+      ? [
+          { label: 'Entender', done: activeRun.videoCompleted },
+          { label: 'Ejecutar', done: activeRun.videoCompleted },
+          { label: 'Completar', done: activeActivityCompleted },
+          { label: 'Interpretar', done: Boolean(activeRun.response.trim()) },
+          { label: 'Compartir', done: activeActivityCompleted },
+          {
+            label: 'Feedback',
+            done: ['EN_REVISION', 'OBSERVADO', 'APROBADO'].includes(
+              activeRun.status,
+            ),
+          },
+          { label: 'Avanzar', done: activeComplete },
+        ]
+      : [];
+    const activeCycleIndex = activeLessonCycle.findIndex((step) => !step.done);
     const activeResources = activeLesson
       ? state.modules.filter(
           (resourceItem) =>
@@ -2615,6 +2804,21 @@ export default function Home() {
                   />
                 </header>
 
+                <ol
+                  className="lesson-cycle"
+                  aria-label="Ruta de aprendizaje de esta clase"
+                >
+                  {activeLessonCycle.map((step, index) => (
+                    <li
+                      key={step.label}
+                      className={`${step.done ? 'is-done' : ''} ${index === activeCycleIndex ? 'is-current' : ''}`}
+                    >
+                      <span>{step.done ? <Check size={13} /> : index + 1}</span>
+                      <small>{step.label}</small>
+                    </li>
+                  ))}
+                </ol>
+
                 {!activeUnlocked ? (
                   <div className="lesson-lock-panel">
                     <LockKeyhole size={30} />
@@ -2663,6 +2867,25 @@ export default function Home() {
                         <p>{activeLesson.deliverable}</p>
                       </div>
                     </div>
+
+                    <section className="lesson-business-action">
+                      <div>
+                        <span>2 · EJECUTAR EN TU NEGOCIO</span>
+                        <h3>Convierte esta clase en una acción real</h3>
+                        <p>
+                          Abre la sección correcta de Mi Empresa, registra la
+                          información y vuelve para dejar tu descubrimiento.
+                        </p>
+                      </div>
+                      <Link
+                        className="lesson-business-cta"
+                        href={`/business?org=${encodeURIComponent(org.id)}&view=${activeBusinessDestination.view}`}
+                      >
+                        <BriefcaseBusiness size={18} />
+                        {activeBusinessDestination.label}
+                        <ArrowUpRight size={17} />
+                      </Link>
+                    </section>
 
                     {activeResources.length > 0 && (
                       <section className="lesson-resources">
@@ -2753,6 +2976,43 @@ export default function Home() {
                           </small>
                         </span>
                       </div>
+                    </section>
+
+                    <section className="lesson-reflection">
+                      <div>
+                        <span>
+                          4–6 · INTERPRETAR, COMPARTIR Y RECIBIR FEEDBACK
+                        </span>
+                        <strong>¿Qué descubriste al aplicarlo?</strong>
+                        <p>
+                          No compartas cifras confidenciales. Explica qué
+                          pensabas antes, qué encontraste y qué decisión
+                          tomarás.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        disabled={!activeRun.videoCompleted}
+                        onClick={() =>
+                          setForm({
+                            title: 'Compartir mi descubrimiento',
+                            description:
+                              'Tu mentor podrá leerlo y dejar feedback. No incluyas datos confidenciales.',
+                            command: { type: 'note', shared: true },
+                            fields: [
+                              {
+                                key: 'text',
+                                label: 'Mi descubrimiento',
+                                type: 'textarea',
+                                value: `Antes pensaba que ___. Después de trabajar “${activeLesson.title}”, descubrí que ___. Mi siguiente decisión será ___.`,
+                              },
+                            ],
+                            button: 'Compartir con mi mentor',
+                          })
+                        }
+                      >
+                        <MessageSquare size={17} /> Compartir descubrimiento
+                      </Button>
                     </section>
                   </>
                 )}

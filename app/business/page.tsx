@@ -213,8 +213,15 @@ export default function BusinessPage() {
       if (!active) return;
       setAuthorized(Boolean(authenticatedUser));
       let initial = businessSeed();
-      const requestedFromUrl =
-        new URLSearchParams(window.location.search).get('org') || 'norte';
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedFromUrl = searchParams.get('org') || 'norte';
+      const requestedView = searchParams.get('view');
+      if (
+        requestedView &&
+        navigation.some((item) => item.id === requestedView)
+      ) {
+        setView(requestedView as View);
+      }
       const clientOrganization = authenticatedUser?.organization;
       const knownClientOrganization = clientOrganization
         ? Object.entries(organizationNames).find(

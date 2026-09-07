@@ -696,6 +696,17 @@ test('stage 00 ships eight action-oriented onboarding classes', () => {
   assert.equal(lessons.length, 8);
   assert.ok(lessons.every((lesson) => lesson.action && lesson.deliverable));
   assert.ok(lessons.every((lesson) => lesson.stage === 0));
+  assert.deepEqual(
+    lessons.slice(2).map((lesson) => lesson.title),
+    [
+      'Cómo usar CONTROL OS y Business OS',
+      'Define tu objetivo de 90 días',
+      'Completa tu CONTROL Score inicial',
+      'Detecta tu primera fuga o cuello de botella',
+      'Publica tu punto de partida',
+      'Activa tu plan de las primeras 72 horas',
+    ],
+  );
 });
 test('watching a class is not enough to complete it', () => {
   const lessonId = 'lesson-00-1';
