@@ -1,6 +1,6 @@
-# CONTROL OS
+# CENTRA
 
-Plataforma de implementación del Método CONTROL™ para gestionar aprendizaje, ejecución, evidencias, seguimiento, usuarios y control financiero por cliente.
+Sistema operativo para negocios que integra la implementación del Método CONTROL™ con finanzas, clientes, equipo y procesos en un solo lugar.
 
 ## Ejecutar localmente
 
@@ -17,12 +17,12 @@ Abre la dirección local indicada por el servidor. En Windows también puede usa
 
 - Portal cliente y Command Center responsive, con barra lateral contraíble y navegación adaptada a móvil.
 - Launcher **Mi Empresa** con sesión y organización compartidas, sin segundo login ni iframe.
-- CONTROL Business OS como bounded context separado dentro del mismo repositorio: dashboard ejecutivo, libro financiero, rentabilidad por cliente/servicio, objetivos por checkpoints, tareas, procesos/SOP, reportes e importación preparada.
+- **Mi Empresa** como contexto funcional separado dentro del mismo repositorio: dashboard ejecutivo, libro financiero, rentabilidad por cliente/servicio, objetivos por checkpoints, tareas, procesos/SOP, reportes e importación preparada.
 - Etapa 00 de onboarding con ocho clases, desbloqueo progresivo y regla **aprender → aplicar → entregar → recibir feedback → avanzar**.
 - Una metodología maestra para todos los planes: 82 controles internos y 68 clases de implementación a lo largo de las cuatro etapas.
 - Gates de salida basados en evidencia al finalizar cada etapa, incluida Delegación y Controles y Escalar con Propósito.
 - Etiquetas de responsabilidad `[C]`, `[E]`, `[C+E]` y `[A]` para separar trabajo del cliente, equipo y sistema.
-- Clases reproducidas desde enlaces de YouTube, sin almacenar archivos de video en CONTROL OS.
+- Clases reproducidas desde enlaces de YouTube, sin almacenar archivos de video en CENTRA.
 - Seguimiento separado de aprendizaje, ejecución y validación; alerta ante alto consumo y baja aplicación.
 - Constructor administrativo de clases con objetivo, aprendizajes, acción, recurso, actividad, entregable, puntuación, revisión y asignación por plan o cliente.
 - Controles administrativos para desbloquear, omitir requisito, reabrir y ampliar vencimientos.
@@ -53,14 +53,14 @@ El esquema versionado está en `supabase/migrations`:
 5. Usuarios únicos, creación de empresas y checkpoints de objetivos.
 6. Metodología maestra, profundidad de acceso por plan, expediente empresarial, entregables y gates de fase.
 7. Currículo de módulos 03–07, recursos versionados, soporte con SLA, sesiones y entitlements.
-8. Foundation de CONTROL Business OS: workspace, permisos financieros por scope, clientes, servicios, ingresos, gastos e imputaciones, períodos, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y RLS multiempresa.
+8. Foundation de Mi Empresa: workspace, permisos financieros por scope, clientes, servicios, ingresos, gastos e imputaciones, períodos, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y RLS multiempresa.
 9. Credenciales administradas: edición segura de clientes, contraseña temporal y obligación de reemplazarla después del acceso.
 
 Consulta [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) para aplicarlo en orden y crear el primer administrador.
 
 ## Estado de integración
 
-Las interfaces de CONTROL OS y Business OS conservan su estado en `localStorage` para permitir validación funcional. La edición de contraseña ya dispone de endpoints protegidos para Supabase Auth, pero requiere la sesión real y la variable privada `SUPABASE_SECRET_KEY`; el resto de pantallas todavía no escribe en REST ni Storage. Por ello no deben cargarse datos reales o confidenciales hasta completar la integración de servidor, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
+Las interfaces de CENTRA conservan su estado demostrativo en `localStorage` mientras se habilita la persistencia remota. La edición de contraseña ya dispone de endpoints protegidos para Supabase Auth y el modelo CENTRA v2 está versionado en una migración aditiva; ambos requieren la sesión real y las variables privadas de Supabase. No deben cargarse datos reales o confidenciales hasta aplicar la migración remota, verificar el aislamiento RLS y ejecutar pruebas de seguridad.
 
 Los selectores de archivo conservan únicamente nombre, tipo y tamaño en el navegador; la carga real al bucket privado queda preparada en el esquema, pero requiere conectar la interfaz. El avance de clases y objetivos se mide por checkpoints completados, no mediante porcentajes ingresados por el usuario.
 

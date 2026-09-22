@@ -717,7 +717,7 @@ test('stage 00 ships eight action-oriented onboarding classes', () => {
   assert.deepEqual(
     lessons.slice(2).map((lesson) => lesson.title),
     [
-      'Cómo usar CONTROL OS y Business OS',
+    'Cómo usar CENTRA y Mi Empresa',
       'Define tu objetivo de 90 días',
       'Completa tu CONTROL Score inicial',
       'Detecta tu primera fuga o cuello de botella',

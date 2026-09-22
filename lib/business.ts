@@ -67,7 +67,53 @@ export type BusinessTask = {
   owner: string;
   dueOn: string;
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'BLOCKED' | 'DONE';
-  source: 'CONTROL_METHOD' | 'PROCESS' | 'ALERT' | 'MANUAL';
+  source:
+    | 'CONTROL_METHOD'
+    | 'COMPANY'
+    | 'PROCESS'
+    | 'RECURRING_CHECKLIST'
+    | 'INTERVENTION'
+    | 'ALERT'
+    | 'MANUAL';
+};
+
+export type BusinessTeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  status: 'ACTIVE' | 'PAUSED';
+  monthlyCost: number;
+  modality: 'PAYROLL' | 'CONTRACTOR' | 'FREELANCE';
+  supervisor: string;
+};
+
+export type BusinessPosition = {
+  id: string;
+  name: string;
+  area: string;
+  purpose: string;
+  functions: string[];
+  kpis: string[];
+  backup: string;
+};
+
+export type BusinessChecklist = {
+  id: string;
+  positionId: string;
+  owner: string;
+  task: string;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  dueOn: string;
+  evidenceRequired: boolean;
+  completed: boolean;
+};
+
+export type BusinessCalendarEvent = {
+  id: string;
+  title: string;
+  startsAt: string;
+  type: 'MEETING' | 'PROGRAM' | 'COLLECTION' | 'DEADLINE';
+  owner: string;
 };
 
 export type BusinessProcess = {
@@ -100,6 +146,10 @@ export type BusinessState = {
   expenses: BusinessExpense[];
   objectives: BusinessObjective[];
   tasks: BusinessTask[];
+  team: BusinessTeamMember[];
+  positions: BusinessPosition[];
+  checklists: BusinessChecklist[];
+  calendar: BusinessCalendarEvent[];
   processes: BusinessProcess[];
   events: { id: string; at: string; text: string }[];
 };
@@ -147,6 +197,7 @@ export type BusinessCommand =
       checkpointId: string;
     }
   | { type: 'toggleTask'; taskId: string }
+  | { type: 'toggleChecklist'; checklistId: string }
   | { type: 'lockPeriod' };
 
 const round = (value: number) =>
@@ -459,6 +510,17 @@ export function executeBusiness(
       id: `event-${Date.now()}`,
       at: new Date().toISOString(),
       text: 'Estado de tarea actualizado.',
+    });
+  } else if (command.type === 'toggleChecklist') {
+    const checklist = next.checklists.find(
+      (item) => item.id === command.checklistId,
+    );
+    if (!checklist) throw Error('Checklist no encontrado.');
+    checklist.completed = !checklist.completed;
+    next.events.unshift({
+      id: `event-${Date.now()}`,
+      at: new Date().toISOString(),
+      text: 'Checklist recurrente actualizado.',
     });
   } else if (command.type === 'lockPeriod') {
     next.workspace.periodStatus = 'LOCKED';
@@ -804,6 +866,84 @@ export function businessSeed(): BusinessState {
         source: 'CONTROL_METHOD',
       },
     ],
+    team: [
+      {
+        id: 'team-andrea',
+        name: 'Andrea Pérez',
+        email: 'andrea@empresa.pe',
+        status: 'ACTIVE',
+        monthlyCost: 5200,
+        modality: 'PAYROLL',
+        supervisor: 'Dirección',
+      },
+      {
+        id: 'team-carlos',
+        name: 'Carlos Rojas',
+        email: 'carlos@empresa.pe',
+        status: 'ACTIVE',
+        monthlyCost: 3800,
+        modality: 'CONTRACTOR',
+        supervisor: 'Andrea Pérez',
+      },
+    ],
+    positions: [
+      {
+        id: 'position-operations',
+        name: 'Responsable de Operaciones',
+        area: 'Operaciones',
+        purpose: 'Asegurar entregas completas y dentro del plazo acordado.',
+        functions: ['Priorizar entregas', 'Resolver bloqueos', 'Cerrar la semana'],
+        kpis: ['Entregas a tiempo', 'Retrabajos'],
+        backup: 'Dirección',
+      },
+      {
+        id: 'position-client-success',
+        name: 'Responsable de Clientes',
+        area: 'Clientes',
+        purpose: 'Sostener la comunicación y anticipar riesgos de la cuenta.',
+        functions: ['Revisar pendientes', 'Actualizar acuerdos', 'Escalar riesgos'],
+        kpis: ['Retención', 'Tiempo de respuesta'],
+        backup: 'Operaciones',
+      },
+    ],
+    checklists: [
+      {
+        id: 'checklist-1',
+        positionId: 'position-operations',
+        owner: 'Carlos Rojas',
+        task: 'Revisar entregas comprometidas de la semana',
+        frequency: 'WEEKLY',
+        dueOn: '2026-09-22',
+        evidenceRequired: false,
+        completed: false,
+      },
+      {
+        id: 'checklist-2',
+        positionId: 'position-client-success',
+        owner: 'Andrea Pérez',
+        task: 'Actualizar riesgos y próximos acuerdos por cliente',
+        frequency: 'WEEKLY',
+        dueOn: '2026-09-22',
+        evidenceRequired: true,
+        completed: true,
+      },
+    ],
+    calendar: [
+      {
+        id: 'calendar-1',
+        title: 'Revisión semanal de operaciones',
+        startsAt: '2026-09-22T10:00:00-05:00',
+        type: 'MEETING',
+        owner: 'Andrea Pérez',
+      },
+      {
+        id: 'calendar-2',
+        title: 'Seguimiento de cobranza',
+        startsAt: '2026-09-22T15:00:00-05:00',
+        type: 'COLLECTION',
+        owner: 'Andrea Pérez',
+      },
+    ],
     processes: [
       {
         id: 'process-onboarding',
@@ -843,7 +983,7 @@ export function businessSeed(): BusinessState {
       {
         id: 'event-seed-1',
         at: '2026-09-05T14:00:00.000Z',
-        text: 'Espacio empresarial sincronizado con CONTROL OS.',
+        text: 'Espacio empresarial sincronizado con CENTRA.',
       },
     ],
   };

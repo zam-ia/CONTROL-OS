@@ -41,6 +41,8 @@ CLAUDE.md
 /outputs/
 /work/
 *.tsbuildinfo
+/.artifacts/
+/supabase/.temp/
 
 .vercel
 .env*

@@ -9,18 +9,18 @@ export const metadata: Metadata = {
   metadataBase: new URL(metadataOrigin),
   icons: { icon: '/favicon.svg' },
   openGraph: {
-    title: 'CONTROL OS',
-    description: 'Escalamiento con control · Una plataforma de Crisdal Agency',
+    title: 'CENTRA',
+    description: 'Todo tu negocio en un solo lugar',
     images: [{ url: '/og.png', width: 1536, height: 1024 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CONTROL OS',
-    description: 'Escalamiento con control · Una plataforma de Crisdal Agency',
+    title: 'CENTRA',
+    description: 'Todo tu negocio en un solo lugar',
     images: ['/og.png'],
   },
-  title: 'CONTROL OS · Tu negocio en control',
-  description: 'Ejecución, evidencias e indicadores para escalar con control.',
+  title: 'CENTRA · Todo tu negocio en un solo lugar',
+  description: 'Finanzas, clientes, equipo y procesos conectados para decidir mejor.',
   robots: { index: false, follow: false },
 };
 export default function RootLayout({

@@ -1,12 +1,12 @@
 .business-shell {
-  --business-black: #11100d;
-  --business-ink: #27231b;
-  --business-muted: #706b62;
-  --business-line: #e6dfd2;
-  --business-paper: #f7f5f0;
+  --business-black: #0e0e0d;
+  --business-ink: #1a1a1a;
+  --business-muted: #6b7280;
+  --business-line: #e6e0d8;
+  --business-paper: #faf7f0;
   --business-card: #fff;
-  --business-gold: #ffb612;
-  --business-green: #194f45;
+  --business-gold: #f5b400;
+  --business-green: #335d68;
   --business-red: #a63c32;
   min-height: 100vh;
   background: var(--business-paper);
@@ -214,6 +214,19 @@
 .back-to-control:hover {
   background: #242119;
   color: white;
+  text-decoration: none;
+}
+
+.business-brand .centra-logo {
+  max-width: 205px;
+}
+
+.business-brand .centra-logo-copy small {
+  display: none;
+}
+
+.business-shell.is-collapsed .business-brand .centra-logo-copy {
+  display: none;
 }
 
 .business-sidebar nav button.active {
@@ -1093,6 +1106,26 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
+}
+
+.business-agenda-row {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--business-line);
+}
+
+.business-agenda-row > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.business-agenda-row small {
+  color: var(--business-muted);
+  font-size: 10px;
 }
 
 .checkpoint-list input,

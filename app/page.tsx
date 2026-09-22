@@ -1,5 +1,4 @@
 'use client';
-import Image from 'next/image';
 import Link from 'next/link';
 import { flushSync } from 'react-dom';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -16,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
-  ClipboardCheck,
   Clock3,
   Download,
   FileSpreadsheet,
@@ -47,6 +45,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
+import { CentraLogo } from '@/components/brand/centra-logo';
 import {
   Dialog,
   DialogContent,
@@ -100,6 +99,7 @@ import {
   type State,
   type Task,
 } from '@/lib/control';
+import { nextAction, phaseForWeek } from '@/lib/centra';
 type Field = {
   key: string;
   label: string;
@@ -237,18 +237,17 @@ function download(filename: string, text: string, type = 'text/plain') {
 }
 const navClient = [
   { id: 'inicio', label: 'Inicio', icon: LayoutDashboard },
-  { id: 'semana', label: 'Mi semana', icon: CalendarDays },
-  { id: 'tareas', label: 'Pendientes', icon: CheckSquare },
-  { id: 'soporte', label: 'Ayuda', icon: MessageSquare },
+  { id: 'ruta', label: 'Mi Ruta', icon: Route },
+  { id: 'biblioteca', label: 'Biblioteca', icon: BookOpen },
 ];
 const navClientMore = [
-  { id: 'onboarding', label: 'Bienvenida', icon: BookOpen },
-  { id: 'ruta', label: 'Programa completo', icon: Route },
+  { id: 'semana', label: 'Semana actual', icon: CalendarDays },
+  { id: 'tareas', label: 'Agenda y tareas', icon: CheckSquare },
   { id: 'objetivos', label: 'Metas', icon: Target },
   { id: 'indicadores', label: 'Números importantes', icon: BarChart3 },
   { id: 'logros', label: 'Logros', icon: Flag },
-  { id: 'biblioteca', label: 'Materiales', icon: BookOpen },
   { id: 'sesiones', label: 'Sesiones', icon: CalendarDays },
+  { id: 'soporte', label: 'Ayuda', icon: MessageSquare },
 ];
 const classroomBlocks: {
   id: number;
@@ -341,14 +340,9 @@ const classroomBlocks: {
   },
 ];
 const navAdmin = [
-  { id: 'portafolio', label: 'Clientes', icon: Users },
-  { id: 'metodologia', label: 'Metodología', icon: Route },
-  { id: 'revisiones', label: 'Revisiones', icon: ClipboardCheck },
-  { id: 'intervenciones', label: 'Intervenciones', icon: Flag },
-  { id: 'clases', label: 'Clases', icon: BookOpen },
-  { id: 'modulos', label: 'Módulos', icon: FolderPlus },
-  { id: 'finanzas', label: 'Finanzas', icon: WalletCards },
-  { id: 'planes', label: 'Planes y accesos', icon: ShieldCheck },
+  { id: 'portafolio', label: 'Portafolio', icon: Users },
+  { id: 'metodologia', label: 'Programa', icon: Route },
+  { id: 'finanzas', label: 'Rentabilidad de cartera', icon: WalletCards },
   { id: 'configuracion', label: 'Configuración', icon: Settings },
 ];
 const controlFlow = [
@@ -626,20 +620,11 @@ function AuthScreen({
     <main className="auth-shell">
       <section className="auth-brand-panel">
         <div className="auth-brand">
-          <Image
-            src="/crisdal-agency.png"
-            alt="Crisdal Agency"
-            width={190}
-            height={190}
-            priority
-          />
-          <span>
-            CONTROL <b>OS</b>
-          </span>
+          <CentraLogo inverted priority />
         </div>
         <div>
-          <p className="eyebrow">ESCALAMIENTO CON CONTROL</p>
-          <h1>Todo el acompañamiento, en un solo lugar.</h1>
+          <p className="eyebrow">INTEGRA · ORGANIZA · CRECE</p>
+          <h1>Todo tu negocio en un solo lugar.</h1>
           <p>
             Avances, evidencias, finanzas y decisiones con una ruta clara para
             cada cliente.
@@ -649,7 +634,7 @@ function AuthScreen({
       </section>
       <section className="auth-card">
         <div>
-          <p className="eyebrow">CONTROL OS</p>
+          <p className="eyebrow">CENTRA</p>
           <h2>Iniciar sesión</h2>
           <p className="muted">
             Ingresa con el usuario asignado por tu administrador.
@@ -1218,6 +1203,23 @@ export default function Home() {
     return () => media.removeEventListener('change', update);
   }, []);
   useEffect(() => {
+    queueMicrotask(() => {
+      const params = new URLSearchParams(window.location.search);
+      const requestedPage = params.get('page');
+      const requestedWeek = Number(params.get('week'));
+      const requestedMode = params.get('mode');
+      if (requestedPage) setPage(requestedPage);
+      if (
+        Number.isInteger(requestedWeek) &&
+        requestedWeek >= 1 &&
+        requestedWeek <= 12
+      )
+        setWeek(requestedWeek);
+      if (requestedMode === 'admin' && sessionUser?.globalRole !== 'CLIENT')
+        setMode('admin');
+    });
+  }, [sessionUser]);
+  useEffect(() => {
     let active = true;
     queueMicrotask(async () => {
       if (!active) return;
@@ -1532,7 +1534,7 @@ export default function Home() {
   const act = (c: Command) => {
     try {
       const current = stateRef.current;
-      if (!current) throw Error('Espera a que cargue CONTROL OS.');
+      if (!current) throw Error('Espera a que cargue CENTRA.');
       const effectiveMode =
         sessionUser?.globalRole === 'CLIENT' ? 'client' : mode;
       const next = execute(current, current.selected, effectiveMode, c);
@@ -1580,9 +1582,9 @@ export default function Home() {
         context.registerTool(
           {
             name: 'control_os_open_week',
-            title: 'Abrir semana CONTROL OS',
+            title: 'Abrir semana CENTRA',
             description:
-              'Abre una semana de CONTROL OS; no envía evidencia ni cambia progreso.',
+              'Abre una semana de CENTRA; no envía evidencia ni cambia progreso.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -1597,7 +1599,7 @@ export default function Home() {
               if (!Number.isInteger(w) || !w || w < 1 || w > 12)
                 throw Error('Semana inválida');
               const s = stateRef.current;
-              if (!s) throw Error('CONTROL OS no ha terminado de cargar');
+              if (!s) throw Error('CENTRA no ha terminado de cargar');
               const message = available(s, getOrg(s, s.selected), w);
               if (message) throw Error(message);
               flushSync(() => {
@@ -1616,7 +1618,7 @@ export default function Home() {
   }, []);
   if (!state || sessionActive === null)
     return (
-      <output className="loading">Preparando tu espacio de CONTROL OS…</output>
+      <output className="loading">Preparando tu espacio de CENTRA…</output>
     );
   if (!sessionActive)
     return (
@@ -1857,6 +1859,8 @@ export default function Home() {
   };
   const tasksFor = (w?: number) =>
     org.tasks.filter((t) => (w ? t.week === w : t.week <= org.current));
+  const todayNextTask = nextAction(tasksFor());
+  const visiblePhase = phaseForWeek(org.current);
   const taskList = (tasks: Task[]) =>
     tasks.length ? (
       tasks.map((t) => (
@@ -2161,25 +2165,25 @@ export default function Home() {
     );
   };
   const allTitles: Record<string, string> = {
-    inicio: 'Menos ruido. Más control.',
+    inicio: 'Todo tu negocio en un solo lugar',
     onboarding: 'Empieza aquí · Activa tu CONTROL',
-    ruta: 'Tu programa CONTROL',
+    ruta: 'Mi Ruta',
     tareas: 'De la intención a la evidencia',
     objetivos: 'Resultados que importan',
     indicadores: 'Los números, con contexto',
     logros: 'Avances con evidencia',
-    biblioteca: 'Herramientas para ejecutar',
+    biblioteca: 'Biblioteca',
     sesiones: 'Acompañamiento con propósito',
     soporte: 'Desbloquea tu siguiente paso',
-    portafolio: 'Clientes y seguimiento',
-    metodologia: 'Un proceso maestro. Distintos niveles de acompañamiento.',
+    portafolio: 'Portafolio y cola de atención',
+    metodologia: 'Programa',
     cliente: org.name + ' · Seguimiento',
     revisiones: 'El avance merece validación',
     intervenciones: 'Actúa antes del estancamiento',
     clases: 'Aprender, aplicar, entregar y avanzar',
     planes: 'Acceso claro. Alcance definido.',
     modulos: 'Contenido que acompaña la ejecución',
-    finanzas: 'Rentabilidad por cliente, sin perder contexto',
+    finanzas: 'Rentabilidad de cartera',
     configuracion: 'Configuración y gobierno',
     notificaciones: 'Actividad y notificaciones',
     semana: weeks[week - 1].title,
@@ -2188,6 +2192,49 @@ export default function Home() {
   if (page === 'inicio')
     body = (
       <>
+        <section className="today-command" aria-labelledby="today-next-action">
+          <div className="today-command-copy">
+            <p className="eyebrow">
+              FASE {visiblePhase.id} · SEMANA {org.current}
+            </p>
+            <h2 id="today-next-action">Tu siguiente acción</h2>
+            <p>{visiblePhase.name} · {visiblePhase.result}</p>
+          </div>
+          <div className="today-command-action">
+            <span>AHORA</span>
+            <strong>{todayNextTask?.title || 'Continúa tu semana actual'}</strong>
+            <small>
+              {todayNextTask
+                ? `Vence ${displayDate(todayNextTask.due)}`
+                : 'Tu ruta está lista para continuar'}
+            </small>
+            <Button
+              onClick={() =>
+                todayNextTask ? setTaskId(todayNextTask.id) : openWeek(org.current)
+              }
+            >
+              Continuar ahora <ArrowRight />
+            </Button>
+          </div>
+        </section>
+        <div className="today-strip" aria-label="Resumen de hoy">
+          <button type="button" onClick={() => navigate('tareas')}>
+            <CheckSquare />
+            <span><b>{tasksFor().filter((task) => task.status !== 'DONE').length}</b> tareas activas</span>
+          </button>
+          <button type="button" onClick={() => navigate('sesiones')}>
+            <CalendarDays />
+            <span><b>{plan.sessions}</b> sesiones incluidas</span>
+          </button>
+          <button type="button" onClick={() => navigate('notificaciones')}>
+            <Bell />
+            <span><b>{h.reasons.length}</b> alertas accionables</span>
+          </button>
+          <Link href={`/business?org=${encodeURIComponent(org.id)}`}>
+            <BriefcaseBusiness />
+            <span><b>Mi Empresa</b> abrir pulso del negocio</span>
+          </Link>
+        </div>
         <div className="dashboard-grid">
           <section className="card route-hero">
             <div className="section-top">
@@ -3518,7 +3565,7 @@ export default function Home() {
             responsable y evidencia.
           </p>
           <p>
-            La agenda se administra dentro de CONTROL OS. Las integraciones con
+            La agenda se administra dentro de CENTRA. Las integraciones con
             calendario, email y reuniones externas están pendientes.
           </p>
           <Badge value="Sin integraciones externas" color="gray" />
@@ -3659,7 +3706,7 @@ export default function Home() {
         <div className="toolbar">
           <p className="muted">
             Cada clase exige una acción y un criterio de cierre. Añade un enlace
-            de YouTube para reproducirlo dentro de CONTROL OS sin cargar el
+            de YouTube para reproducirlo dentro de CENTRA sin cargar el
             servidor.
           </p>
           <Button
@@ -5423,7 +5470,7 @@ export default function Home() {
             variant="outline"
             onClick={() =>
               download(
-                'control-os-export.json',
+                'centra-export.json',
                 JSON.stringify(state, null, 2),
                 'application/json',
               )
@@ -5455,7 +5502,7 @@ export default function Home() {
     body = (
       <Section title="Actividad local" action={<Bell size={19} />}>
         <p className="muted">
-          Actividad registrada en CONTROL OS. El envío por email se configura
+          Actividad registrada en CENTRA. El envío por email se configura
           por separado.
         </p>
         {timeline(mode === 'admin')}
@@ -5473,19 +5520,8 @@ export default function Home() {
         inert={isMobileViewport && !mobileNavOpen ? true : undefined}
       >
         <div className="sidebar-head">
-          <div className="brand" aria-label="CONTROL OS">
-            <span className="brand-symbol" aria-hidden="true">
-              <Image
-                src="/crisdal-agency.png"
-                alt=""
-                width={108}
-                height={108}
-                priority
-              />
-            </span>
-            <span className="brand-label">
-              CONTROL <b>OS</b>
-            </span>
+          <div className="brand">
+            <CentraLogo compact={sidebarCollapsed} inverted priority />
           </div>
           <button
             className="sidebar-toggle"
@@ -5542,7 +5578,7 @@ export default function Home() {
           </small>
         </div>
         <small className="eyebrow">
-          {mode === 'client' ? 'TU ESPACIO DE CONTROL' : 'COMMAND CENTER'}
+          {mode === 'client' ? 'TU NEGOCIO, MÁS CLARO CADA DÍA' : 'COMMAND CENTER'}
         </small>
         <nav
           aria-label={mode === 'client' ? 'Portal cliente' : 'Administración'}
@@ -5614,7 +5650,7 @@ export default function Home() {
             <br />
             <strong>Un dueño en control.</strong>
           </p>
-          <span>CRISDAL AGENCY · CONTROL OS</span>
+          <span>CENTRA · INTEGRA · ORGANIZA · CRECE</span>
         </div>
       </aside>
       <button
@@ -5723,8 +5759,8 @@ export default function Home() {
             <div>
               <p className="eyebrow">
                 {mode === 'client'
-                  ? 'TU RUTA DE ESCALAMIENTO'
-                  : 'VISIBILIDAD · EJECUCIÓN · RESULTADOS'}
+                  ? 'BIENVENIDO A CENTRA'
+                  : 'CENTRA · VISIBILIDAD · EJECUCIÓN'}
               </p>
               <h1>{allTitles[page]}</h1>
               <p className="muted">
@@ -5748,7 +5784,7 @@ export default function Home() {
           )}
           {body}
           <footer>
-            CONTROL OS <span>Escalamiento con Control · Método CONTROL™</span>
+            CENTRA <span>Todo tu negocio en un solo lugar · Método CONTROL™</span>
             <span>America/Lima · PEN</span>
           </footer>
         </div>
@@ -5764,7 +5800,7 @@ export default function Home() {
           }
           if (c.type === 'createUser') {
             const current = stateRef.current;
-            if (!current) throw Error('Espera a que cargue CONTROL OS.');
+            if (!current) throw Error('Espera a que cargue CENTRA.');
             let next: State;
             try {
               next = execute(current, current.selected, mode, c);

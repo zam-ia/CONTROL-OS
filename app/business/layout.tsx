@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './business.css';
 
 export const metadata: Metadata = {
-  title: 'Mi Empresa | CONTROL Business OS',
-  description: 'Gestión financiera y operativa integrada con CONTROL OS.',
+  title: 'Mi Empresa | CENTRA',
+  description: 'Gestión financiera y operativa integrada en CENTRA.',
 };
 
 export default function BusinessLayout({

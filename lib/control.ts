@@ -1113,7 +1113,7 @@ export function seed(): State {
     ],
     [
       '00.3',
-      'Cómo usar CONTROL OS y Business OS',
+      'Cómo usar CENTRA y Mi Empresa',
       'Aprende dónde estudiar, dónde ejecutar y cómo enviar sustentos.',
       'Moverte entre ambas plataformas sin depender del equipo.',
       'Abrir Mi Empresa y completar el recorrido guiado.',

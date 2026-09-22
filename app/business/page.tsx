@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -36,6 +35,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CentraLogo } from '@/components/brand/centra-logo';
 import {
   Dialog,
   DialogContent,
@@ -62,6 +62,7 @@ type View =
   | 'finance'
   | 'clients'
   | 'services'
+  | 'team'
   | 'work'
   | 'processes'
   | 'reports'
@@ -78,7 +79,8 @@ const primaryNavigation = [
   { id: 'finance', label: 'Finanzas', icon: WalletCards },
   { id: 'clients', label: 'Clientes', icon: Users },
   { id: 'services', label: 'Servicios', icon: BriefcaseBusiness },
-  { id: 'work', label: 'Objetivos y tareas', icon: Target },
+  { id: 'team', label: 'Equipo', icon: Users },
+  { id: 'work', label: 'Agenda y tareas', icon: Target },
 ] as const;
 const advancedNavigation = [
   { id: 'processes', label: 'Procesos e instrucciones', icon: FolderCog },
@@ -247,7 +249,19 @@ export default function BusinessPage() {
             candidate.workspace &&
             Array.isArray(candidate.incomes)
           )
-            initial = candidate;
+            initial = {
+              ...candidate,
+              team: Array.isArray(candidate.team) ? candidate.team : initial.team,
+              positions: Array.isArray(candidate.positions)
+                ? candidate.positions
+                : initial.positions,
+              checklists: Array.isArray(candidate.checklists)
+                ? candidate.checklists
+                : initial.checklists,
+              calendar: Array.isArray(candidate.calendar)
+                ? candidate.calendar
+                : initial.calendar,
+            };
         } catch {
           setNotice(
             'No se pudo recuperar el estado anterior; se abrió un espacio limpio.',
@@ -323,22 +337,16 @@ export default function BusinessPage() {
   if (!sessionReady || !state || !metrics)
     return (
       <output className="business-loading">
-        Preparando CONTROL Business OS…
+        Preparando CENTRA…
       </output>
     );
 
   if (!authorized)
     return (
       <main className="business-access">
-        <Image
-          src="/crisdal-agency.png"
-          alt="Crisdal Agency"
-          width={116}
-          height={116}
-          priority
-        />
-        <p className="business-kicker">CONTROL BUSINESS OS</p>
-        <h1>Inicia sesión desde CONTROL OS</h1>
+        <CentraLogo inverted priority />
+        <p className="business-kicker">CENTRA · MI EMPRESA</p>
+        <h1>Inicia sesión desde CENTRA</h1>
         <p>
           Mi Empresa comparte la misma sesión y organización. No necesitas una
           segunda cuenta.
@@ -797,6 +805,121 @@ export default function BusinessPage() {
         </div>
       </section>
     );
+  else if (view === 'team')
+    content = (
+      <div className="business-grid work-grid">
+        <section className="business-card business-wide">
+          <div className="business-card-head">
+            <div>
+              <p className="business-kicker">EQUIPO Y CAPACIDAD</p>
+              <h3>Personas, puestos y responsabilidades</h3>
+            </div>
+            <Users />
+          </div>
+          <div className="business-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Persona</th>
+                  <th>Modalidad</th>
+                  <th>Supervisor</th>
+                  <th className="numeric">Costo mensual</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.team.map((member) => (
+                  <tr key={member.id}>
+                    <td><strong>{member.name}</strong><small>{member.email}</small></td>
+                    <td>{member.modality}</td>
+                    <td>{member.supervisor}</td>
+                    <td className="numeric">{money(member.monthlyCost)}</td>
+                    <td><Status value={member.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section className="business-card business-wide">
+          <div className="business-card-head">
+            <div>
+              <p className="business-kicker">PUESTOS</p>
+              <h3>Qué resultado posee cada rol</h3>
+            </div>
+            <BriefcaseBusiness />
+          </div>
+          <div className="service-cards">
+            {state.positions.map((position) => (
+              <article key={position.id}>
+                <div><span className="service-icon"><Users /></span><Status value="ACTIVE" /></div>
+                <h4>{position.name}</h4>
+                <p>{position.area} · Backup: {position.backup}</p>
+                <strong>{position.purpose}</strong>
+                <ul>
+                  {position.functions.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="business-card business-wide">
+          <div className="business-card-head">
+            <div>
+              <p className="business-kicker">CHECKLISTS RECURRENTES</p>
+              <h3>Funciones críticas de esta semana</h3>
+            </div>
+            <ClipboardCheck />
+          </div>
+          <div className="business-task-list">
+            {state.checklists.map((checklist) => (
+              <label key={checklist.id}>
+                <input
+                  type="checkbox"
+                  checked={checklist.completed}
+                  onChange={() =>
+                    run({ type: 'toggleChecklist', checklistId: checklist.id })
+                  }
+                />
+                <span>
+                  <strong>{checklist.task}</strong>
+                  <small>
+                    {checklist.owner} · {checklist.frequency} · vence {shortDate(checklist.dueOn)}
+                    {checklist.evidenceRequired ? ' · requiere evidencia' : ''}
+                  </small>
+                </span>
+                <Status value={checklist.completed ? 'DONE' : 'TODO'} />
+              </label>
+            ))}
+          </div>
+        </section>
+        <section className="business-card">
+          <div className="business-card-head">
+            <div>
+              <p className="business-kicker">AGENDA</p>
+              <h3>Próximos eventos</h3>
+            </div>
+            <BarChart3 />
+          </div>
+          <div className="business-task-list">
+            {state.calendar.map((event) => (
+              <div className="business-agenda-row" key={event.id}>
+                <span>
+                  <strong>{event.title}</strong>
+                  <small>
+                    {new Intl.DateTimeFormat('es-PE', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(event.startsAt))} · {event.owner}
+                  </small>
+                </span>
+                <Status value={event.type} />
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
   else if (view === 'work')
     content = (
       <div className="business-grid work-grid">
@@ -880,6 +1003,31 @@ export default function BusinessPage() {
                 </span>
                 <Status value={task.status} />
               </label>
+            ))}
+          </div>
+        </section>
+        <section className="business-card">
+          <div className="business-card-head">
+            <div>
+              <p className="business-kicker">CALENDARIO</p>
+              <h3>Agenda de la semana</h3>
+            </div>
+            <BarChart3 />
+          </div>
+          <div className="business-task-list">
+            {state.calendar.map((event) => (
+              <div className="business-agenda-row" key={event.id}>
+                <span>
+                  <strong>{event.title}</strong>
+                  <small>
+                    {new Intl.DateTimeFormat('es-PE', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(event.startsAt))} · {event.owner}
+                  </small>
+                </span>
+                <Status value={event.type} />
+              </div>
             ))}
           </div>
         </section>
@@ -1093,7 +1241,7 @@ export default function BusinessPage() {
           <ul className="security-list">
             <li>
               <CheckCircle2 />
-              Identidad y organización compartidas con CONTROL OS
+              Identidad y organización compartidas con CENTRA
             </li>
             <li>
               <CheckCircle2 />
@@ -1117,7 +1265,7 @@ export default function BusinessPage() {
               <RefreshCw />
             </span>
             <span>
-              <strong>CONTROL OS ↔ Mi Empresa</strong>
+              <strong>CENTRA ↔ Mi Empresa</strong>
               <small>
                 Misma sesión, organization_id estable y retorno a la ruta de
                 implementación.
@@ -1146,11 +1294,8 @@ export default function BusinessPage() {
         inert={isMobileViewport && !mobileOpen ? true : undefined}
       >
         <div className="business-brand">
-          <Link href="/" aria-label="Volver a CONTROL OS">
-            <Image src="/crisdal-agency.png" alt="" width={76} height={76} />
-            <span>
-              CONTROL <b>Business OS</b>
-            </span>
+          <Link href="/" aria-label="Volver a CENTRA">
+            <CentraLogo compact={collapsed} inverted />
           </Link>
           <button
             type="button"
@@ -1231,7 +1376,7 @@ export default function BusinessPage() {
           href={`/?return_from=business&org=${encodeURIComponent(state.workspace.organizationId)}`}
         >
           <ArrowLeft />
-          <span>Volver a CONTROL OS</span>
+          <span>Volver a CENTRA</span>
         </Link>
         <div className="business-sidebar-foot">
           <Building2 />
@@ -1272,7 +1417,7 @@ export default function BusinessPage() {
             </span>
             <button
               className="business-avatar"
-              title="Sesión compartida con CONTROL OS"
+              title="Sesión compartida con CENTRA"
             >
               AC
             </button>
@@ -1281,7 +1426,7 @@ export default function BusinessPage() {
         <div className="business-content">
           <div className="business-heading">
             <div>
-              <p className="business-kicker">CONTROL BUSINESS OS</p>
+              <p className="business-kicker">CENTRA · MI EMPRESA</p>
               <h1>{activeTitle}</h1>
               <p>{state.workspace.name} · información operativa y financiera</p>
             </div>
@@ -1293,7 +1438,7 @@ export default function BusinessPage() {
           </div>
           {content}
           <footer className="business-footer">
-            <span>CONTROL Business OS</span>
+            <span>CENTRA · Todo tu negocio en un solo lugar</span>
             <span>America/Lima · PEN · {state.workspace.name}</span>
           </footer>
         </div>

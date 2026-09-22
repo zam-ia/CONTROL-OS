@@ -1,4 +1,4 @@
-# Supabase para CONTROL OS
+# Supabase para CENTRA
 
 El proyecto está asociado al `project_id` configurado en `supabase/config.toml`. La migración inicial crea el modelo multiempresa, contenido del programa, roles, políticas RLS y almacenamiento privado para evidencias.
 
@@ -25,7 +25,7 @@ Opción Dashboard: abre **SQL Editor** y ejecuta, en orden y una sola vez:
 9. `supabase/migrations/20260905050000_managed_credentials.sql`
 10. `supabase/migrations/20260905060000_primary_admin_role.sql`
 
-La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance. La sexta fija una sola metodología CONTROL, añade niveles de acceso sin pérdida de historial, los 46 controles internos, el expediente empresarial, entregables estructurados y gates de salida por fase. La séptima incorpora las 36 clases de las etapas 3 y 4, 34 recursos editoriales versionados, gates avanzados, tickets con SLA, sesiones y entitlements de los módulos 05–07. La octava crea la foundation multiempresa de CONTROL Business OS, con scopes financieros, clientes, servicios, ledger, imputaciones, períodos cerrables, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y almacenamiento privado.
+La segunda migración añade suspensión de perfiles, módulos y archivos, movimientos financieros, seguimientos y un bucket privado de módulos. La tercera añade clases de implementación, enlaces de YouTube, avance de aprendizaje, entrega, revisión y desbloqueos administrativos. La cuarta sustituye el porcentaje manual del video por el checkpoint `video_completed`. La quinta añade usuarios únicos, objetivos y checkpoints de avance. La sexta fija una sola metodología CONTROL, añade niveles de acceso sin pérdida de historial, los 46 controles internos, el expediente empresarial, entregables estructurados y gates de salida por fase. La séptima incorpora las 36 clases de las etapas 3 y 4, 34 recursos editoriales versionados, gates avanzados, tickets con SLA, sesiones y entitlements de los módulos 05–07. La octava crea la base multiempresa de Mi Empresa, con scopes financieros, clientes, servicios, ledger, imputaciones, períodos cerrables, objetivos por checkpoints, procesos/SOP, snapshots, eventos, exportaciones, SSO one-time y almacenamiento privado. La migración CENTRA v2 añade la arquitectura funcional del PRD sin eliminar tablas ni historial.
 
 La novena migración añade la marca de contraseña temporal, la fecha del último cambio y el permiso controlado para editar perfiles. Las contraseñas nunca se guardan en Postgres: permanecen exclusivamente en Supabase Auth.
 
@@ -43,7 +43,7 @@ set global_role = 'SUPER_ADMIN'
 where id = '<USER_UUID>';
 ```
 
-Para el administrador principal definido en la interfaz, crea primero la identidad interna `admin@crisdalcompany.com` desde **Authentication → Users**. Este correo no se muestra como acceso en CONTROL OS; la migración 8 le asigna el usuario visible `aldaircrizam`. Después puedes promoverlo sin copiar el UUID manualmente:
+Para el administrador principal definido en la interfaz, crea primero la identidad interna `admin@crisdalcompany.com` desde **Authentication → Users**. Este correo no se muestra como acceso en CENTRA; la migración 8 le asigna el usuario visible `aldaircrizam`. Después puedes promoverlo sin copiar el UUID manualmente:
 
 ```sql
 update public.profiles p
@@ -77,4 +77,4 @@ El bucket `control-os-modules` también es privado, admite únicamente PDF, Word
 
 ## Videos de las clases
 
-Los videos no se cargan a Supabase ni al servidor de CONTROL OS. El administrador pega una URL HTTPS de YouTube y la plataforma conserva únicamente la referencia y el checkpoint de clase vista. Esto reduce almacenamiento, transferencia y carga operativa. El usuario no ingresa porcentajes manualmente.
+Los videos no se cargan a Supabase ni al servidor de CENTRA. El administrador pega una URL HTTPS de YouTube y la plataforma conserva únicamente la referencia y el checkpoint de clase vista. Esto reduce almacenamiento, transferencia y carga operativa. El usuario no ingresa porcentajes manualmente.

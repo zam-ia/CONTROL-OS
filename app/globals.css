@@ -1242,11 +1242,17 @@ footer {
   --radius-lg: 10px;
 }
 :root {
-  --background: #f8f6f1;
-  --foreground: #211a0d;
-  --primary: #fab713;
-  --border: #e6dfd1;
-  --font-sans: Arial, Helvetica, sans-serif;
+  --background: #faf7f0;
+  --foreground: #1a1a1a;
+  --primary: #f5b400;
+  --border: #e6e0d8;
+  --centra-black: #0e0e0d;
+  --centra-bone: #faf7f0;
+  --centra-gold: #f5b400;
+  --centra-petrol: #335d68;
+  --centra-sand: #ddd3c4;
+  --centra-muted: #6b7280;
+  --font-sans: Inter, Arial, Helvetica, sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -2851,5 +2857,205 @@ a {
   .sidebar-backdrop,
   .sidebar nav button {
     transition: none;
+  }
+}
+
+/* CENTRA brand system */
+.centra-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--centra-black);
+}
+.centra-logo-mark {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+.centra-logo-copy {
+  display: grid;
+  line-height: 1;
+  min-width: 0;
+}
+.centra-logo-copy strong {
+  color: currentColor;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+.centra-logo-copy small {
+  margin-top: 6px;
+  color: var(--centra-muted);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.centra-logo.is-inverted {
+  color: #fff;
+}
+.centra-logo.is-inverted .centra-logo-copy small {
+  color: #c5c8c7;
+}
+.centra-logo.is-compact .centra-logo-copy {
+  display: none;
+}
+.sidebar .brand {
+  overflow: visible;
+}
+.sidebar-collapsed .centra-logo-copy {
+  display: none;
+}
+.auth-brand .centra-logo-mark {
+  width: 64px;
+  height: 64px;
+}
+.auth-brand .centra-logo-copy strong {
+  font-size: 31px;
+}
+.auth-brand .centra-logo-copy small {
+  color: #d8d8d5;
+  font-size: 10px;
+}
+.today-command {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  gap: 30px;
+  margin-bottom: 16px;
+  padding: clamp(22px, 4vw, 42px);
+  overflow: hidden;
+  border: 1px solid #e7dfd1;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 95% 15%, rgb(245 180 0 / 16%), transparent 33%),
+    linear-gradient(135deg, #fff 0%, #fffdf8 100%);
+  box-shadow: 0 14px 40px rgb(14 14 13 / 7%);
+}
+.today-command-copy {
+  align-self: center;
+}
+.today-command-copy h2 {
+  margin-bottom: 10px;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 0.98;
+  letter-spacing: -2.2px;
+}
+.today-command-copy > p:last-child {
+  max-width: 510px;
+  color: var(--centra-muted);
+  font-size: 16px;
+}
+.today-command-action {
+  position: relative;
+  display: grid;
+  align-content: center;
+  min-height: 210px;
+  padding: 28px;
+  border-radius: 18px;
+  background: var(--centra-black);
+  color: #fff;
+}
+.today-command-action::after {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 48px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--centra-gold);
+  content: '';
+}
+.today-command-action > span {
+  color: var(--centra-gold);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+.today-command-action > strong {
+  max-width: 440px;
+  margin: 12px 0 5px;
+  font-size: clamp(21px, 3vw, 30px);
+  line-height: 1.12;
+}
+.today-command-action > small {
+  margin-bottom: 22px;
+  color: #babebd;
+}
+.today-command-action [data-slot='button'] {
+  justify-self: start;
+  min-height: 44px;
+  background: var(--centra-gold);
+  color: var(--centra-black);
+}
+.today-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.today-strip > button,
+.today-strip > a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--foreground);
+  text-align: left;
+  text-decoration: none;
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+.today-strip > button:hover,
+.today-strip > a:hover {
+  border-color: var(--centra-gold);
+  transform: translateY(-1px);
+}
+.today-strip svg {
+  width: 21px;
+  flex: 0 0 21px;
+  color: var(--centra-petrol);
+}
+.today-strip span {
+  display: grid;
+  color: var(--centra-muted);
+  font-size: 11px;
+}
+.today-strip b {
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+@media (max-width: 1050px) {
+  .today-command {
+    grid-template-columns: 1fr;
+  }
+  .today-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .today-command {
+    gap: 18px;
+    padding: 20px;
+    border-radius: 18px;
+  }
+  .today-command-copy h2 {
+    font-size: 36px;
+  }
+  .today-command-action {
+    min-height: 190px;
+    padding: 22px;
+  }
+  .today-strip {
+    grid-template-columns: 1fr;
+  }
+  .today-strip > button,
+  .today-strip > a {
+    min-height: 56px;
   }
 }

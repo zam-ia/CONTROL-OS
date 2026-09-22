@@ -1,8 +1,8 @@
-# Arquitectura de CONTROL Platform v2
+# Arquitectura de CENTRA v2
 
 ## Decisión
 
-CONTROL OS y CONTROL Business OS forman una sola plataforma para el usuario, pero mantienen límites de dominio explícitos. En esta etapa viven en un único repositorio y un único proyecto Next.js para reducir costo operativo. Business OS se publica como ruta independiente, conserva su propio estado de interfaz y usa tablas `business_*` separadas. No se necesita un segundo repositorio para el MVP.
+CENTRA integra la ruta del Método CONTROL™ y Mi Empresa en una sola plataforma, manteniendo límites de dominio explícitos. En esta etapa viven en un único repositorio y un único proyecto Next.js para reducir costo operativo. Mi Empresa se publica como ruta independiente, conserva su propio estado de interfaz y usa tablas `business_*` separadas. No se necesita un segundo repositorio para el MVP.
 
 Esta estructura permite extraer Business OS a `apps/business-web` o a otro repositorio cuando exista un equipo, ritmo de despliegue, requisito contractual o necesidad de disponibilidad independiente. La extracción no debe cambiar `organization_id`, contratos, eventos ni ownership de datos.
 
@@ -10,12 +10,12 @@ Esta estructura permite extraer Business OS a `apps/business-web` o a otro repos
 
 | Contexto            | Responsabilidad                                                                                                                    |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| CONTROL OS          | Metodología, clases, actividades, evidencias, gates, scores, sesiones, soporte y Command Center.                                   |
-| CONTROL Business OS | Finanzas operativas, clientes, servicios, objetivos de negocio, tareas continuas, procesos, SOP, rentabilidad, alertas y reportes. |
+| Mi Ruta             | Metodología, clases, actividades, evidencias, gates, scores, sesiones, soporte y gestión del programa.                             |
+| Mi Empresa          | Finanzas operativas, clientes, servicios, objetivos de negocio, tareas continuas, procesos, SOP, rentabilidad, alertas y reportes. |
 | Identity Core       | Usuarios, organizaciones, membresías, planes y entitlements.                                                                       |
 | Integración         | Deep links, contexto de actividad, referencias de evidencia, snapshots y eventos versionados.                                      |
 
-Business OS no duplica entregables editables de CONTROL OS. Cuando una actividad produce información operativa, CONTROL OS conserva una referencia al recurso o snapshot de Business OS.
+Mi Empresa no duplica entregables editables de Mi Ruta. Cuando una actividad produce información operativa, Mi Ruta conserva una referencia al recurso o snapshot de Mi Empresa.
 
 ## Despliegue
 
@@ -31,6 +31,6 @@ Toda tabla cliente resuelve `organization_id` desde la sesión. Las políticas R
 
 ## Estado de implementación
 
-La ruta `/business` implementa el shell responsive y los principales flujos del MVP: dashboard, ledger, rentabilidad, checkpoints, tareas, procesos, reportes e importación preparada. La migración `20260905040000_business_os_foundation.sql` implementa el modelo de datos y las políticas base.
+La ruta `/business` implementa el shell responsive y los principales flujos del MVP: dashboard, finanzas, equipo, rentabilidad, checkpoints, tareas, procesos, reportes e importación preparada. La migración `20260922020102_centra_v2_product_architecture.sql` amplía el modelo con entregables, revisiones, intervenciones, tareas canónicas, checklists, calendario, notificaciones y políticas RLS multiempresa.
 
 Antes de usar información real todavía se debe conectar la interfaz a Supabase Auth/REST/Storage, implementar el intercambio SSO en servidor, levantar workers persistentes, completar 2FA, probar IDOR/RLS y ejecutar UAT con una empresa piloto.
