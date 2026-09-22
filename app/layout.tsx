@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './responsive-critical.css';
 
 const metadataOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
