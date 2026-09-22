@@ -71,6 +71,8 @@ type View =
   | 'import'
   | 'settings';
 type FormKind = 'income' | 'expense' | 'client' | 'service' | null;
+type ActiveFormKind = Exclude<FormKind, null>;
+type FormDrafts = Partial<Record<ActiveFormKind, Record<string, string>>>;
 type SessionUser = {
   globalRole: string;
   organization: { id: string; name: string } | null;
@@ -185,6 +187,10 @@ export default function BusinessPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [form, setForm] = useState<FormKind>(null);
+  const [returnForm, setReturnForm] = useState<'income' | 'expense' | null>(
+    null,
+  );
+  const [formDrafts, setFormDrafts] = useState<FormDrafts>({});
   const [notice, setNotice] = useState('');
   const [importFile, setImportFile] = useState('');
 
@@ -352,6 +358,45 @@ export default function BusinessPage() {
     setMobileOpen(false);
   };
 
+  const closeForm = () => {
+    if (form || returnForm) {
+      setFormDrafts((current) => {
+        const next = { ...current };
+        if (form) delete next[form];
+        if (returnForm) delete next[returnForm];
+        return next;
+      });
+    }
+    setReturnForm(null);
+    setForm(null);
+  };
+
+  const cancelCurrentForm = () => {
+    if (returnForm && (form === 'client' || form === 'service')) {
+      setForm(returnForm);
+      setReturnForm(null);
+      return;
+    }
+    closeForm();
+  };
+
+  const openRelatedForm = (
+    target: 'client' | 'service',
+    source: 'income' | 'expense',
+    sourceForm: HTMLFormElement | null,
+  ) => {
+    if (sourceForm) {
+      const draft = Object.fromEntries(
+        [...new FormData(sourceForm).entries()].filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+      );
+      setFormDrafts((current) => ({ ...current, [source]: draft }));
+    }
+    setReturnForm(source);
+    setForm(target);
+  };
+
   if (!sessionReady || !state || !metrics)
     return <output className="business-loading">Preparando CENTRA…</output>;
 
@@ -378,6 +423,9 @@ export default function BusinessPage() {
   const activeTitle =
     navigation.find((item) => item.id === view)?.label || 'Inicio';
   const nextAction = alerts[0];
+  const currentDraft = form ? formDrafts[form] || {} : {};
+  const draftValue = (key: string, fallback = '') =>
+    currentDraft[key] ?? fallback;
 
   let content: React.ReactNode;
   if (view === 'dashboard')
@@ -1527,7 +1575,7 @@ export default function BusinessPage() {
       <Dialog
         open={form !== null}
         onOpenChange={(open) => {
-          if (!open) setForm(null);
+          if (!open) closeForm();
         }}
       >
         <DialogContent className="control-dialog business-dialog">
@@ -1541,7 +1589,13 @@ export default function BusinessPage() {
                   : 'Crear servicio'}
           </DialogTitle>
           <DialogDescription>
-            La información quedará vinculada a este espacio y a su organización.
+            {form === 'income'
+              ? 'Anota una venta o un pago que recibió tu negocio.'
+              : form === 'expense'
+                ? 'Anota una compra, pago o salida de dinero de tu negocio.'
+                : form === 'client'
+                  ? 'Guarda los datos básicos para reconocer y atender a este cliente.'
+                  : 'Guarda lo que vendes, cuánto cobras y cuántos clientes puedes atender.'}
           </DialogDescription>
           <form
             onSubmit={(event) => {
@@ -1553,6 +1607,7 @@ export default function BusinessPage() {
               };
               const amount = (key: string) => Number(value(key));
               let ok = false;
+              let createdRelatedId = '';
               if (form === 'income')
                 ok = run({
                   type: 'addIncome',
@@ -1602,11 +1657,12 @@ export default function BusinessPage() {
                         : [],
                   },
                 });
-              } else if (form === 'client')
+              } else if (form === 'client') {
+                createdRelatedId = makeId('client');
                 ok = run({
                   type: 'addClient',
                   client: {
-                    id: makeId('client'),
+                    id: createdRelatedId,
                     name: value('name'),
                     segment: value('segment') || 'General',
                     status: 'ACTIVE',
@@ -1614,11 +1670,12 @@ export default function BusinessPage() {
                     startedOn: value('date'),
                   },
                 });
-              else if (form === 'service')
+              } else if (form === 'service') {
+                createdRelatedId = makeId('service');
                 ok = run({
                   type: 'addService',
                   service: {
-                    id: makeId('service'),
+                    id: createdRelatedId,
                     name: value('name'),
                     category: value('category') || 'General',
                     status: 'ACTIVE',
@@ -1626,160 +1683,349 @@ export default function BusinessPage() {
                     capacityMonth: amount('capacity'),
                   },
                 });
-              if (ok) setForm(null);
+              }
+              if (!ok) return;
+              if (
+                createdRelatedId &&
+                returnForm &&
+                (form === 'client' || form === 'service')
+              ) {
+                const relationKey =
+                  form === 'client' ? 'clientId' : 'serviceId';
+                setFormDrafts((current) => ({
+                  ...current,
+                  [returnForm]: {
+                    ...current[returnForm],
+                    [relationKey]: createdRelatedId,
+                  },
+                }));
+                setForm(returnForm);
+                setReturnForm(null);
+                return;
+              }
+              setFormDrafts((current) => {
+                const next = { ...current };
+                if (form) delete next[form];
+                return next;
+              });
+              setForm(null);
             }}
           >
             {(form === 'income' || form === 'expense') && (
               <label htmlFor="business-date">
-                <span>Fecha</span>
+                <span>{form === 'income' ? '¿Cuándo recibiste este ingreso?' : '¿Cuándo hiciste este gasto?'}</span>
                 <Input
                   id="business-date"
                   type="date"
                   name="date"
-                  defaultValue="2026-09-05"
+                  defaultValue={draftValue('date', '2026-09-05')}
                   required
                 />
+                <small className="business-field-help">
+                  Usa la fecha que aparece en el pago, comprobante o movimiento bancario.
+                </small>
               </label>
             )}
             {form === 'income' && (
               <>
-                <label htmlFor="business-client">
-                  <span>Cliente</span>
-                  <select id="business-client" name="clientId" required>
-                    {state.clients
-                      .filter((item) => item.status === 'ACTIVE')
-                      .map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label htmlFor="business-service">
-                  <span>Servicio</span>
-                  <select id="business-service" name="serviceId" required>
-                    {state.services
-                      .filter((item) => item.status === 'ACTIVE')
-                      .map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                <div className="business-field">
+                  <label htmlFor="business-client">
+                    <span>¿Qué cliente te pagó?</span>
+                    <select
+                      id="business-client"
+                      name="clientId"
+                      defaultValue={draftValue('clientId')}
+                      required
+                    >
+                      <option value="" disabled>
+                        Elige un cliente
+                      </option>
+                      {state.clients
+                        .filter((item) => item.status === 'ACTIVE')
+                        .map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <small className="business-field-help">
+                    Selecciona la persona o empresa que compró.
+                  </small>
+                  <button
+                    className="business-inline-create"
+                    type="button"
+                    onClick={(event) =>
+                      openRelatedForm('client', 'income', event.currentTarget.form)
+                    }
+                  >
+                    <Plus /> No aparece: añadir cliente
+                  </button>
+                </div>
+                <div className="business-field">
+                  <label htmlFor="business-service">
+                    <span>¿Qué le vendiste?</span>
+                    <select
+                      id="business-service"
+                      name="serviceId"
+                      defaultValue={draftValue('serviceId')}
+                      required
+                    >
+                      <option value="" disabled>
+                        Elige un servicio o producto
+                      </option>
+                      {state.services
+                        .filter((item) => item.status === 'ACTIVE')
+                        .map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <small className="business-field-help">
+                    Elige el servicio o producto por el que recibiste el dinero.
+                  </small>
+                  <button
+                    className="business-inline-create"
+                    type="button"
+                    onClick={(event) =>
+                      openRelatedForm('service', 'income', event.currentTarget.form)
+                    }
+                  >
+                    <Plus /> No aparece: añadir servicio
+                  </button>
+                </div>
                 <label htmlFor="business-description">
-                  <span>Concepto</span>
+                  <span>¿Por qué recibiste este dinero?</span>
                   <Input
                     id="business-description"
                     name="description"
+                    defaultValue={draftValue('description')}
+                    placeholder="Ej. Pago mensual de asesoría"
                     required
                   />
+                  <small className="business-field-help">
+                    Escribe una frase corta que luego puedas reconocer.
+                  </small>
                 </label>
                 <label htmlFor="business-amount">
-                  <span>Monto sin impuestos</span>
+                  <span>¿Cuánto ganó tu negocio antes de impuestos?</span>
                   <Input
                     id="business-amount"
                     type="number"
                     min="0.01"
                     step="0.01"
                     name="amount"
+                    defaultValue={draftValue('amount')}
+                    placeholder="0.00"
                     required
                   />
+                  <small className="business-field-help">
+                    Escribe el valor de la venta sin IGV u otros impuestos.
+                  </small>
                 </label>
                 <label htmlFor="business-payment-status">
-                  <span>Estado de cobro</span>
-                  <select id="business-payment-status" name="paymentStatus">
-                    <option value="COLLECTED">Cobrado</option>
-                    <option value="PENDING">Pendiente</option>
-                    <option value="OVERDUE">Vencido</option>
+                  <span>¿Ya recibiste el pago?</span>
+                  <select
+                    id="business-payment-status"
+                    name="paymentStatus"
+                    defaultValue={draftValue('paymentStatus', 'COLLECTED')}
+                  >
+                    <option value="COLLECTED">Sí, ya cobré</option>
+                    <option value="PENDING">Todavía no me pagan</option>
+                    <option value="OVERDUE">El pago ya está atrasado</option>
                   </select>
+                  <small className="business-field-help">
+                    Esto te ayuda a separar lo vendido de lo realmente cobrado.
+                  </small>
                 </label>
               </>
             )}
             {form === 'expense' && (
               <>
                 <label htmlFor="business-supplier">
-                  <span>Proveedor</span>
-                  <Input id="business-supplier" name="supplier" required />
+                  <span>¿A quién le pagaste?</span>
+                  <Input
+                    id="business-supplier"
+                    name="supplier"
+                    defaultValue={draftValue('supplier')}
+                    placeholder="Ej. Google, contador o proveedor local"
+                    required
+                  />
+                  <small className="business-field-help">
+                    Escribe el nombre de la empresa o persona que recibió el pago.
+                  </small>
                 </label>
                 <label htmlFor="business-expense-description">
-                  <span>Concepto</span>
+                  <span>¿En qué gastaste?</span>
                   <Input
                     id="business-expense-description"
                     name="description"
+                    defaultValue={draftValue('description')}
+                    placeholder="Ej. Publicidad de septiembre"
                     required
                   />
+                  <small className="business-field-help">
+                    Describe brevemente qué compraste o pagaste.
+                  </small>
                 </label>
                 <label htmlFor="business-category">
-                  <span>Categoría</span>
-                  <Input id="business-category" name="category" required />
+                  <span>¿Qué clase de gasto fue?</span>
+                  <Input
+                    id="business-category"
+                    name="category"
+                    defaultValue={draftValue('category')}
+                    placeholder="Ej. Publicidad, software, oficina o personal"
+                    required
+                  />
+                  <small className="business-field-help">
+                    Agrupar gastos parecidos te permite ver en qué se va el dinero.
+                  </small>
                 </label>
                 <label htmlFor="business-expense-type">
-                  <span>Tipo</span>
-                  <select id="business-expense-type" name="expenseType">
-                    <option value="VARIABLE">Variable</option>
-                    <option value="FIXED">Fijo</option>
-                    <option value="MIXED">Mixto</option>
+                  <span>¿Este gasto se repite?</span>
+                  <select
+                    id="business-expense-type"
+                    name="expenseType"
+                    defaultValue={draftValue('expenseType', 'VARIABLE')}
+                  >
+                    <option value="VARIABLE">Cambia según el uso o las ventas</option>
+                    <option value="FIXED">Se repite por un monto parecido</option>
+                    <option value="MIXED">Tiene una parte fija y otra variable</option>
                   </select>
+                  <small className="business-field-help">
+                    Ejemplo: alquiler es fijo; comisiones por venta son variables.
+                  </small>
                 </label>
                 <label htmlFor="business-expense-amount">
-                  <span>Monto total</span>
+                  <span>¿Cuánto pagaste en total?</span>
                   <Input
                     id="business-expense-amount"
                     type="number"
                     min="0.01"
                     step="0.01"
                     name="amount"
+                    defaultValue={draftValue('amount')}
+                    placeholder="0.00"
                     required
                   />
+                  <small className="business-field-help">
+                    Usa el total que salió o saldrá de tu negocio.
+                  </small>
                 </label>
-                <label htmlFor="business-expense-client">
-                  <span>Imputar a cliente</span>
-                  <select id="business-expense-client" name="clientId">
-                    <option value="">Gasto general</option>
-                    {state.clients.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label htmlFor="business-expense-service">
-                  <span>Imputar a servicio</span>
-                  <select id="business-expense-service" name="serviceId">
-                    <option value="">Sin servicio</option>
-                    {state.services.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="business-field">
+                  <label htmlFor="business-expense-client">
+                    <span>¿Este gasto fue para atender a un cliente?</span>
+                    <select
+                      id="business-expense-client"
+                      name="clientId"
+                      defaultValue={draftValue('clientId')}
+                    >
+                      <option value="">No, fue para todo el negocio</option>
+                      {state.clients.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <small className="business-field-help">
+                    Elige un cliente solo si el gasto se hizo específicamente por él.
+                  </small>
+                  <button
+                    className="business-inline-create"
+                    type="button"
+                    onClick={(event) =>
+                      openRelatedForm('client', 'expense', event.currentTarget.form)
+                    }
+                  >
+                    <Plus /> No aparece: añadir cliente
+                  </button>
+                </div>
+                <div className="business-field">
+                  <label htmlFor="business-expense-service">
+                    <span>¿Este gasto pertenece a un servicio?</span>
+                    <select
+                      id="business-expense-service"
+                      name="serviceId"
+                      defaultValue={draftValue('serviceId')}
+                    >
+                      <option value="">No, es un gasto general</option>
+                      {state.services.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <small className="business-field-help">
+                    Esto ayuda a saber cuánto cuesta entregar cada servicio.
+                  </small>
+                  <button
+                    className="business-inline-create"
+                    type="button"
+                    onClick={(event) =>
+                      openRelatedForm('service', 'expense', event.currentTarget.form)
+                    }
+                  >
+                    <Plus /> No aparece: añadir servicio
+                  </button>
+                </div>
                 <label htmlFor="business-paid">
-                  <span>Pago</span>
-                  <select id="business-paid" name="paid">
-                    <option value="true">Pagado</option>
-                    <option value="false">Pendiente</option>
+                  <span>¿Ya salió el dinero?</span>
+                  <select
+                    id="business-paid"
+                    name="paid"
+                    defaultValue={draftValue('paid', 'true')}
+                  >
+                    <option value="true">Sí, ya pagué</option>
+                    <option value="false">Todavía está pendiente</option>
                   </select>
+                  <small className="business-field-help">
+                    Marca pendiente si sabes del gasto pero aún no lo pagaste.
+                  </small>
                 </label>
               </>
             )}
             {form === 'client' && (
               <>
                 <label htmlFor="business-client-name">
-                  <span>Nombre</span>
-                  <Input id="business-client-name" name="name" required />
+                  <span>¿Cómo se llama tu cliente?</span>
+                  <Input
+                    id="business-client-name"
+                    name="name"
+                    placeholder="Persona o empresa"
+                    required
+                  />
+                  <small className="business-field-help">
+                    Usa el nombre con el que lo reconoces en tu negocio.
+                  </small>
                 </label>
                 <label htmlFor="business-client-segment">
-                  <span>Segmento</span>
-                  <Input id="business-client-segment" name="segment" />
+                  <span>¿Qué tipo de cliente es? (opcional)</span>
+                  <Input
+                    id="business-client-segment"
+                    name="segment"
+                    placeholder="Ej. Empresa, emprendedor o cliente frecuente"
+                  />
+                  <small className="business-field-help">
+                    Sirve para juntar clientes parecidos. Si no estás seguro, déjalo vacío.
+                  </small>
                 </label>
                 <label htmlFor="business-client-owner">
-                  <span>Responsable</span>
-                  <Input id="business-client-owner" name="owner" />
+                  <span>¿Quién atiende a este cliente? (opcional)</span>
+                  <Input
+                    id="business-client-owner"
+                    name="owner"
+                    placeholder="Nombre de la persona de tu equipo"
+                  />
+                  <small className="business-field-help">
+                    Es la persona que hará seguimiento y responderá al cliente.
+                  </small>
                 </label>
                 <label htmlFor="business-client-date">
-                  <span>Fecha de inicio</span>
+                  <span>¿Desde cuándo trabajas con este cliente?</span>
                   <Input
                     id="business-client-date"
                     type="date"
@@ -1787,40 +2033,66 @@ export default function BusinessPage() {
                     defaultValue="2026-09-05"
                     required
                   />
+                  <small className="business-field-help">
+                    Si es nuevo, usa la fecha de hoy o la fecha del primer acuerdo.
+                  </small>
                 </label>
               </>
             )}
             {form === 'service' && (
               <>
                 <label htmlFor="business-service-name">
-                  <span>Nombre</span>
-                  <Input id="business-service-name" name="name" required />
+                  <span>¿Cómo se llama lo que vendes?</span>
+                  <Input
+                    id="business-service-name"
+                    name="name"
+                    placeholder="Ej. Asesoría mensual o diseño de página web"
+                    required
+                  />
+                  <small className="business-field-help">
+                    Puede ser un servicio, producto o paquete.
+                  </small>
                 </label>
                 <label htmlFor="business-service-category">
-                  <span>Categoría</span>
-                  <Input id="business-service-category" name="category" />
+                  <span>¿Qué tipo de servicio o producto es? (opcional)</span>
+                  <Input
+                    id="business-service-category"
+                    name="category"
+                    placeholder="Ej. Consultoría, diseño, formación o producto"
+                  />
+                  <small className="business-field-help">
+                    Sirve para agrupar lo que vendes. Puedes dejarlo vacío.
+                  </small>
                 </label>
                 <label htmlFor="business-service-price">
-                  <span>Precio de lista</span>
+                  <span>¿Cuánto cobras normalmente?</span>
                   <Input
                     id="business-service-price"
                     type="number"
                     min="0"
                     step="0.01"
                     name="amount"
+                    placeholder="0.00"
                     required
                   />
+                  <small className="business-field-help">
+                    Coloca tu precio habitual antes de descuentos.
+                  </small>
                 </label>
                 <label htmlFor="business-service-capacity">
-                  <span>Capacidad mensual</span>
+                  <span>¿Cuántos puedes vender o atender al mes?</span>
                   <Input
                     id="business-service-capacity"
                     type="number"
                     min="0"
                     step="1"
                     name="capacity"
+                    placeholder="Ej. 8"
                     required
                   />
+                  <small className="business-field-help">
+                    Piensa en un mes normal y escribe una cantidad realista.
+                  </small>
                 </label>
               </>
             )}
@@ -1828,9 +2100,11 @@ export default function BusinessPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setForm(null)}
+                onClick={cancelCurrentForm}
               >
-                Cancelar
+                {returnForm && (form === 'client' || form === 'service')
+                  ? 'Volver'
+                  : 'Cancelar'}
               </Button>
               <Button type="submit">Guardar</Button>
             </div>

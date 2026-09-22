@@ -1494,6 +1494,44 @@
   font-weight: 800;
 }
 
+.business-field {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.business-field-help {
+  color: var(--business-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.business-inline-create {
+  width: max-content;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid #d9c47b;
+  border-radius: 9px;
+  background: #fff8df;
+  color: #725200;
+  font: 700 11px/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.business-inline-create:hover {
+  border-color: var(--business-gold);
+  background: #fff1bb;
+}
+
+.business-inline-create svg {
+  width: 15px;
+  height: 15px;
+}
+
 .business-dialog select {
   width: 100%;
   min-height: 40px;
@@ -1702,6 +1740,11 @@
   }
   .business-dialog form {
     grid-template-columns: 1fr;
+  }
+  .business-inline-create {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
   }
   .business-dialog-actions {
     grid-column: auto;
