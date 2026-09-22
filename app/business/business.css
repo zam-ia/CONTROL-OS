@@ -184,7 +184,8 @@
 }
 
 .business-sidebar nav button,
-.back-to-control {
+.back-to-control,
+.business-logout {
   position: relative;
   min-height: 44px;
   width: 100%;
@@ -204,14 +205,16 @@
 }
 
 .business-sidebar nav button svg,
-.back-to-control svg {
+.back-to-control svg,
+.business-logout svg {
   width: 18px;
   flex: 0 0 auto;
 }
 
 .business-sidebar nav button:hover,
 .business-sidebar nav button.active,
-.back-to-control:hover {
+.back-to-control:hover,
+.business-logout:hover {
   background: #242119;
   color: white;
   text-decoration: none;
@@ -285,6 +288,16 @@
 .back-to-control {
   margin-top: auto;
   border: 1px solid #333028;
+}
+.business-logout {
+  margin-top: 8px;
+  border: 1px solid transparent;
+  color: #d8d1c3;
+}
+.business-logout:hover {
+  border-color: #4e302d;
+  background: #241716;
+  color: #ffb4aa;
 }
 
 .business-sidebar-foot {
@@ -1418,6 +1431,7 @@
 .business-shell.is-collapsed .business-nav-label,
 .business-shell.is-collapsed .business-sidebar nav button span,
 .business-shell.is-collapsed .back-to-control span,
+.business-shell.is-collapsed .business-logout span,
 .business-shell.is-collapsed .business-sidebar-foot span {
   display: none;
 }
@@ -1454,7 +1468,8 @@
 }
 
 .business-shell.is-collapsed .business-sidebar nav button,
-.business-shell.is-collapsed .back-to-control {
+.business-shell.is-collapsed .back-to-control,
+.business-shell.is-collapsed .business-logout {
   justify-content: center;
   padding: 0;
 }
@@ -1560,6 +1575,7 @@
   .business-shell.is-collapsed .business-nav-label,
   .business-shell.is-collapsed .business-sidebar nav button span,
   .business-shell.is-collapsed .back-to-control span,
+  .business-shell.is-collapsed .business-logout span,
   .business-shell.is-collapsed .business-sidebar-foot span {
     display: initial;
   }
@@ -1584,7 +1600,8 @@
     margin-top: 0;
   }
   .business-shell.is-collapsed .business-sidebar nav button,
-  .business-shell.is-collapsed .back-to-control {
+  .business-shell.is-collapsed .back-to-control,
+  .business-shell.is-collapsed .business-logout {
     justify-content: flex-start;
     padding: 0 12px;
   }
@@ -1802,6 +1819,7 @@
   .business-sidebar nav button,
   .business-more-navigation > summary,
   .back-to-control,
+  .business-logout,
   .business-menu,
   .business-mobile-close {
     min-height: 44px;

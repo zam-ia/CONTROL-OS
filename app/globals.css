@@ -1156,7 +1156,7 @@ footer {
     right: 16px;
     transform: none;
     width: auto;
-    bottom: 12px;
+    bottom: calc(82px + env(safe-area-inset-bottom));
   }
   .filters {
     align-items: stretch;
@@ -1470,6 +1470,27 @@ small {
   background: #242016;
   color: #ffc949;
 }
+.sidebar-logout {
+  min-height: 44px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: #d8d1c3;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+.sidebar-logout:hover {
+  border-color: #4e302d;
+  background: #241716;
+  color: #ffb4aa;
+}
 .sidebar-bottom {
   margin-top: auto;
   padding: 24px 10px 0;
@@ -1568,8 +1589,13 @@ main {
   padding: 0;
 }
 .sidebar-collapsed .business-launcher-sidebar span,
-.sidebar-collapsed .business-launcher-sidebar svg:last-child {
+.sidebar-collapsed .business-launcher-sidebar svg:last-child,
+.sidebar-collapsed .sidebar-logout span {
   display: none;
+}
+.sidebar-collapsed .sidebar-logout {
+  justify-content: center;
+  padding: 0;
 }
 .sidebar-collapsed main {
   margin-left: 76px;
@@ -1887,8 +1913,13 @@ a {
     padding: 0 12px;
   }
   .sidebar-collapsed .business-launcher-sidebar span,
-  .sidebar-collapsed .business-launcher-sidebar svg:last-child {
+  .sidebar-collapsed .business-launcher-sidebar svg:last-child,
+  .sidebar-collapsed .sidebar-logout span {
     display: block;
+  }
+  .sidebar-collapsed .sidebar-logout {
+    justify-content: flex-start;
+    padding: 0 12px;
   }
   .sidebar-collapsed .more-navigation > summary span {
     display: inline;
@@ -3016,7 +3047,9 @@ a {
   color: var(--foreground);
   text-align: left;
   text-decoration: none;
-  transition: border-color 150ms ease, transform 150ms ease;
+  transition:
+    border-color 150ms ease,
+    transform 150ms ease;
 }
 .today-strip > button:hover,
 .today-strip > a:hover {
@@ -3207,6 +3240,7 @@ a {
   .sidebar nav button,
   .more-navigation > summary,
   .business-launcher-sidebar,
+  .sidebar-logout,
   .mobile-nav-close,
   .mobile-nav-toggle {
     min-height: 44px;

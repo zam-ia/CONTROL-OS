@@ -21,6 +21,19 @@ test('client mobile navigation exposes Inicio, Ruta, Empresa and Más', () => {
   for (const label of ['Inicio', 'Ruta', 'Empresa', 'Más']) {
     assert.match(app, new RegExp(`<span>${label}<\\/span>`));
   }
+  for (const label of ['Portafolio', 'Programa']) {
+    assert.match(app, new RegExp(`<span>${label}<\\/span>`));
+  }
+});
+
+test('logout remains visible and explicit in responsive navigation', () => {
+  assert.match(app, /className="sidebar-logout"/);
+  assert.match(app, /<span>Cerrar sesión<\/span>/);
+  assert.match(app, /const logout = \(\) =>/);
+  assert.match(css, /\.sidebar-logout/);
+  assert.match(css, /bottom: calc\(82px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(business, /className="business-logout"/);
+  assert.match(businessCss, /\.business-logout/);
 });
 
 test('responsive breakpoints include mobile cards, safe areas and touch targets', () => {

@@ -23,6 +23,7 @@ import {
   FolderPlus,
   LayoutDashboard,
   LockKeyhole,
+  LogOut,
   MessageSquare,
   Menu,
   PanelLeftClose,
@@ -1555,6 +1556,18 @@ export default function Home() {
     setTaskId(null);
     setMobileNavOpen(false);
   };
+  const logout = () => {
+    void fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    try {
+      sessionStorage.removeItem('control-os-session');
+    } catch {}
+    setMobileNavOpen(false);
+    setSessionUser(null);
+    setSessionActive(false);
+  };
   const toggleSidebar = () => {
     setSidebarCollapsed((collapsed) => {
       const next = !collapsed;
@@ -2198,11 +2211,15 @@ export default function Home() {
               FASE {visiblePhase.id} · SEMANA {org.current}
             </p>
             <h2 id="today-next-action">Tu siguiente acción</h2>
-            <p>{visiblePhase.name} · {visiblePhase.result}</p>
+            <p>
+              {visiblePhase.name} · {visiblePhase.result}
+            </p>
           </div>
           <div className="today-command-action">
             <span>AHORA</span>
-            <strong>{todayNextTask?.title || 'Continúa tu semana actual'}</strong>
+            <strong>
+              {todayNextTask?.title || 'Continúa tu semana actual'}
+            </strong>
             <small>
               {todayNextTask
                 ? `Vence ${displayDate(todayNextTask.due)}`
@@ -2210,7 +2227,9 @@ export default function Home() {
             </small>
             <Button
               onClick={() =>
-                todayNextTask ? setTaskId(todayNextTask.id) : openWeek(org.current)
+                todayNextTask
+                  ? setTaskId(todayNextTask.id)
+                  : openWeek(org.current)
               }
             >
               Continuar ahora <ArrowRight />
@@ -2220,19 +2239,30 @@ export default function Home() {
         <div className="today-strip" aria-label="Resumen de hoy">
           <button type="button" onClick={() => navigate('tareas')}>
             <CheckSquare />
-            <span><b>{tasksFor().filter((task) => task.status !== 'DONE').length}</b> tareas activas</span>
+            <span>
+              <b>
+                {tasksFor().filter((task) => task.status !== 'DONE').length}
+              </b>{' '}
+              tareas activas
+            </span>
           </button>
           <button type="button" onClick={() => navigate('sesiones')}>
             <CalendarDays />
-            <span><b>{plan.sessions}</b> sesiones incluidas</span>
+            <span>
+              <b>{plan.sessions}</b> sesiones incluidas
+            </span>
           </button>
           <button type="button" onClick={() => navigate('notificaciones')}>
             <Bell />
-            <span><b>{h.reasons.length}</b> alertas accionables</span>
+            <span>
+              <b>{h.reasons.length}</b> alertas accionables
+            </span>
           </button>
           <Link href={`/business?org=${encodeURIComponent(org.id)}`}>
             <BriefcaseBusiness />
-            <span><b>Mi Empresa</b> abrir pulso del negocio</span>
+            <span>
+              <b>Mi Empresa</b> abrir pulso del negocio
+            </span>
           </Link>
         </div>
         <div className="dashboard-grid">
@@ -5508,8 +5538,8 @@ export default function Home() {
     body = (
       <Section title="Actividad local" action={<Bell size={19} />}>
         <p className="muted">
-          Actividad registrada en CENTRA. El envío por email se configura
-          por separado.
+          Actividad registrada en CENTRA. El envío por email se configura por
+          separado.
         </p>
         {timeline(mode === 'admin')}
       </Section>
@@ -5584,7 +5614,9 @@ export default function Home() {
           </small>
         </div>
         <small className="eyebrow">
-          {mode === 'client' ? 'TU NEGOCIO, MÁS CLARO CADA DÍA' : 'COMMAND CENTER'}
+          {mode === 'client'
+            ? 'TU NEGOCIO, MÁS CLARO CADA DÍA'
+            : 'COMMAND CENTER'}
         </small>
         <nav
           aria-label={mode === 'client' ? 'Portal cliente' : 'Administración'}
@@ -5649,6 +5681,15 @@ export default function Home() {
           <span>Mi Empresa</span>
           <ArrowUpRight size={15} />
         </Link>
+        <button
+          className="sidebar-logout"
+          type="button"
+          title="Cerrar sesión"
+          onClick={logout}
+        >
+          <LogOut size={18} />
+          <span>Cerrar sesión</span>
+        </button>
         <div className="sidebar-bottom">
           <ShieldCheck size={21} />
           <p>
@@ -5739,17 +5780,7 @@ export default function Home() {
               type="button"
               aria-label="Cerrar sesión"
               title="Cerrar sesión"
-              onClick={() => {
-                void fetch('/api/auth/logout', {
-                  method: 'POST',
-                  credentials: 'include',
-                });
-                try {
-                  sessionStorage.removeItem('control-os-session');
-                } catch {}
-                setSessionUser(null);
-                setSessionActive(false);
-              }}
+              onClick={logout}
             >
               {sessionUser?.name
                 .split(/\s+/)
@@ -5790,48 +5821,76 @@ export default function Home() {
           )}
           {body}
           <footer>
-            CENTRA <span>Todo tu negocio en un solo lugar · Método CONTROL™</span>
+            CENTRA{' '}
+            <span>Todo tu negocio en un solo lugar · Método CONTROL™</span>
             <span>America/Lima · PEN</span>
           </footer>
         </div>
       </main>
-      {mode === 'client' && (
-        <nav className="mobile-bottom-nav" aria-label="Navegación móvil">
-          <button
-            type="button"
-            className={page === 'inicio' ? 'active' : ''}
-            aria-current={page === 'inicio' ? 'page' : undefined}
-            onClick={() => navigate('inicio')}
-          >
-            <LayoutDashboard size={20} />
-            <span>Inicio</span>
-          </button>
-          <button
-            type="button"
-            className={page === 'ruta' || page === 'semana' ? 'active' : ''}
-            aria-current={
-              page === 'ruta' || page === 'semana' ? 'page' : undefined
-            }
-            onClick={() => navigate('ruta')}
-          >
-            <Route size={20} />
-            <span>Ruta</span>
-          </button>
-          <Link href={`/business?org=${encodeURIComponent(org.id)}`}>
-            <BriefcaseBusiness size={20} />
-            <span>Empresa</span>
-          </Link>
-          <button
-            type="button"
-            aria-expanded={mobileNavOpen}
-            aria-controls="sidebar-navigation"
-            onClick={() => setMobileNavOpen(true)}
-          >
-            <Menu size={20} />
-            <span>Más</span>
-          </button>
-        </nav>
-      )}
+      <nav className="mobile-bottom-nav" aria-label="Navegación móvil">
+        {mode === 'client' ? (
+          <>
+            <button
+              type="button"
+              className={page === 'inicio' ? 'active' : ''}
+              aria-current={page === 'inicio' ? 'page' : undefined}
+              onClick={() => navigate('inicio')}
+            >
+              <LayoutDashboard size={20} />
+              <span>Inicio</span>
+            </button>
+            <button
+              type="button"
+              className={page === 'ruta' || page === 'semana' ? 'active' : ''}
+              aria-current={
+                page === 'ruta' || page === 'semana' ? 'page' : undefined
+              }
+              onClick={() => navigate('ruta')}
+            >
+              <Route size={20} />
+              <span>Ruta</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={
+                page === 'portafolio' || page === 'cliente' ? 'active' : ''
+              }
+              aria-current={
+                page === 'portafolio' || page === 'cliente' ? 'page' : undefined
+              }
+              onClick={() => navigate('portafolio')}
+            >
+              <Users size={20} />
+              <span>Portafolio</span>
+            </button>
+            <button
+              type="button"
+              className={page === 'programa' ? 'active' : ''}
+              aria-current={page === 'programa' ? 'page' : undefined}
+              onClick={() => navigate('programa')}
+            >
+              <Route size={20} />
+              <span>Programa</span>
+            </button>
+          </>
+        )}
+        <Link href={`/business?org=${encodeURIComponent(org.id)}`}>
+          <BriefcaseBusiness size={20} />
+          <span>Empresa</span>
+        </Link>
+        <button
+          type="button"
+          aria-expanded={mobileNavOpen}
+          aria-controls="sidebar-navigation"
+          onClick={() => setMobileNavOpen(true)}
+        >
+          <Menu size={20} />
+          <span>Más</span>
+        </button>
+      </nav>
       <FormDialog
         key={form?.title + JSON.stringify(form?.command)}
         form={form}

@@ -21,6 +21,7 @@ import {
   FolderCog,
   LayoutDashboard,
   LockKeyhole,
+  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -187,6 +188,20 @@ export default function BusinessPage() {
   const [notice, setNotice] = useState('');
   const [importFile, setImportFile] = useState('');
 
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      try {
+        sessionStorage.removeItem('control-os-session');
+      } catch {}
+      window.location.assign('/');
+    }
+  };
+
   useEffect(() => {
     const media = window.matchMedia('(max-width: 820px)');
     const update = () => setIsMobileViewport(media.matches);
@@ -252,7 +267,9 @@ export default function BusinessPage() {
           )
             initial = {
               ...candidate,
-              team: Array.isArray(candidate.team) ? candidate.team : initial.team,
+              team: Array.isArray(candidate.team)
+                ? candidate.team
+                : initial.team,
               positions: Array.isArray(candidate.positions)
                 ? candidate.positions
                 : initial.positions,
@@ -336,11 +353,7 @@ export default function BusinessPage() {
   };
 
   if (!sessionReady || !state || !metrics)
-    return (
-      <output className="business-loading">
-        Preparando CENTRA…
-      </output>
-    );
+    return <output className="business-loading">Preparando CENTRA…</output>;
 
   if (!authorized)
     return (
@@ -868,12 +881,21 @@ export default function BusinessPage() {
           <div className="service-cards">
             {state.positions.map((position) => (
               <article key={position.id}>
-                <div><span className="service-icon"><Users /></span><Status value="ACTIVE" /></div>
+                <div>
+                  <span className="service-icon">
+                    <Users />
+                  </span>
+                  <Status value="ACTIVE" />
+                </div>
                 <h4>{position.name}</h4>
-                <p>{position.area} · Backup: {position.backup}</p>
+                <p>
+                  {position.area} · Backup: {position.backup}
+                </p>
                 <strong>{position.purpose}</strong>
                 <ul>
-                  {position.functions.map((item) => <li key={item}>{item}</li>)}
+                  {position.functions.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
                 </ul>
               </article>
             ))}
@@ -900,7 +922,8 @@ export default function BusinessPage() {
                 <span>
                   <strong>{checklist.task}</strong>
                   <small>
-                    {checklist.owner} · {checklist.frequency} · vence {shortDate(checklist.dueOn)}
+                    {checklist.owner} · {checklist.frequency} · vence{' '}
+                    {shortDate(checklist.dueOn)}
                     {checklist.evidenceRequired ? ' · requiere evidencia' : ''}
                   </small>
                 </span>
@@ -926,7 +949,8 @@ export default function BusinessPage() {
                     {new Intl.DateTimeFormat('es-PE', {
                       dateStyle: 'medium',
                       timeStyle: 'short',
-                    }).format(new Date(event.startsAt))} · {event.owner}
+                    }).format(new Date(event.startsAt))}{' '}
+                    · {event.owner}
                   </small>
                 </span>
                 <Status value={event.type} />
@@ -1039,7 +1063,8 @@ export default function BusinessPage() {
                     {new Intl.DateTimeFormat('es-PE', {
                       dateStyle: 'medium',
                       timeStyle: 'short',
-                    }).format(new Date(event.startsAt))} · {event.owner}
+                    }).format(new Date(event.startsAt))}{' '}
+                    · {event.owner}
                   </small>
                 </span>
                 <Status value={event.type} />
@@ -1394,6 +1419,15 @@ export default function BusinessPage() {
           <ArrowLeft />
           <span>Volver a CENTRA</span>
         </Link>
+        <button
+          className="business-logout"
+          type="button"
+          title="Cerrar sesión"
+          onClick={() => void logout()}
+        >
+          <LogOut />
+          <span>Cerrar sesión</span>
+        </button>
         <div className="business-sidebar-foot">
           <Building2 />
           <span>
