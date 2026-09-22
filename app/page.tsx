@@ -3372,15 +3372,15 @@ export default function Home() {
             <TableBody>
               {[...org.kpis].reverse().map((k) => (
                 <TableRow key={k.id}>
-                  <TableCell>
+                  <TableCell data-label="Indicador">
                     {definitions.find((d) => d.code === k.code)?.name}
                   </TableCell>
-                  <TableCell>{k.period}</TableCell>
-                  <TableCell>
+                  <TableCell data-label="Período">{k.period}</TableCell>
+                  <TableCell data-label="Valor">
                     {k.value} {definitions.find((d) => d.code === k.code)?.unit}
                   </TableCell>
-                  <TableCell>{k.source}</TableCell>
-                  <TableCell>
+                  <TableCell data-label="Fuente">{k.source}</TableCell>
+                  <TableCell data-label="Calidad">
                     <Badge value={k.status} />
                   </TableCell>
                 </TableRow>
@@ -4380,13 +4380,17 @@ export default function Home() {
                   .reduce((sum, entry) => sum + entry.amount, 0);
                 return (
                   <TableRow key={item.id}>
-                    <TableCell>
+                    <TableCell data-label="Cliente">
                       <strong>{item.name}</strong>
                       <small>{item.person}</small>
                     </TableCell>
-                    <TableCell>S/ {income.toLocaleString('es-PE')}</TableCell>
-                    <TableCell>S/ {expense.toLocaleString('es-PE')}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Cobrado">
+                      S/ {income.toLocaleString('es-PE')}
+                    </TableCell>
+                    <TableCell data-label="Costo">
+                      S/ {expense.toLocaleString('es-PE')}
+                    </TableCell>
+                    <TableCell data-label="Contribución">
                       <Badge
                         value={
                           'S/ ' + (income - expense).toLocaleString('es-PE')
@@ -4394,7 +4398,9 @@ export default function Home() {
                         color={income - expense >= 0 ? '' : 'red'}
                       />
                     </TableCell>
-                    <TableCell>S/ {due.toLocaleString('es-PE')}</TableCell>
+                    <TableCell data-label="Pendiente">
+                      S/ {due.toLocaleString('es-PE')}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -4573,7 +4579,7 @@ export default function Home() {
                 );
                 return (
                   <TableRow key={o.id}>
-                    <TableCell>
+                    <TableCell data-label="Empresa / plan">
                       <strong>{o.name}</strong>
                       {clientUsers.map((user) => (
                         <small key={user.id}>
@@ -4582,23 +4588,23 @@ export default function Home() {
                       ))}
                       <small>{getPlan(state, o).name}</small>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Ruta">
                       Semana {o.current}
                       <Meter
                         label="Progreso"
                         value={programProgress(state, o)}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Salud">
                       <Badge
                         value={risk.label + ' · ' + risk.score}
                         color={risk.color}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Última actividad">
                       {risk.days === 0 ? 'Hoy' : risk.days + ' días atrás'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Acción">
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -5353,27 +5359,27 @@ export default function Home() {
             <TableBody>
               {state.users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell>
+                  <TableCell data-label="Usuario">
                     <strong>{user.name}</strong>
                     <small>@{user.username}</small>
                   </TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell>
+                  <TableCell data-label="Rol">{user.role}</TableCell>
+                  <TableCell data-label="Empresa">
                     {state.orgs.find((item) => item.id === user.orgId)?.name ||
                       'Equipo interno'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Estado">
                     <Badge
                       value={user.status}
                       color={user.status === 'SUSPENDIDO' ? 'red' : ''}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Último acceso">
                     {user.lastAccess
                       ? displayDate(user.lastAccess)
                       : 'Sin acceso'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Acciones">
                     <div className="table-actions">
                       {user.role === 'CLIENTE' && (
                         <Button
@@ -5789,6 +5795,43 @@ export default function Home() {
           </footer>
         </div>
       </main>
+      {mode === 'client' && (
+        <nav className="mobile-bottom-nav" aria-label="Navegación móvil">
+          <button
+            type="button"
+            className={page === 'inicio' ? 'active' : ''}
+            aria-current={page === 'inicio' ? 'page' : undefined}
+            onClick={() => navigate('inicio')}
+          >
+            <LayoutDashboard size={20} />
+            <span>Inicio</span>
+          </button>
+          <button
+            type="button"
+            className={page === 'ruta' || page === 'semana' ? 'active' : ''}
+            aria-current={
+              page === 'ruta' || page === 'semana' ? 'page' : undefined
+            }
+            onClick={() => navigate('ruta')}
+          >
+            <Route size={20} />
+            <span>Ruta</span>
+          </button>
+          <Link href={`/business?org=${encodeURIComponent(org.id)}`}>
+            <BriefcaseBusiness size={20} />
+            <span>Empresa</span>
+          </Link>
+          <button
+            type="button"
+            aria-expanded={mobileNavOpen}
+            aria-controls="sidebar-navigation"
+            onClick={() => setMobileNavOpen(true)}
+          >
+            <Menu size={20} />
+            <span>Más</span>
+          </button>
+        </nav>
+      )}
       <FormDialog
         key={form?.title + JSON.stringify(form?.command)}
         form={form}

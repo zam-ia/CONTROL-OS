@@ -26,6 +26,7 @@ import {
   PanelLeftOpen,
   Plus,
   RefreshCw,
+  Route,
   Settings,
   Target,
   Upload,
@@ -651,18 +652,19 @@ export default function BusinessPage() {
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((entry) => (
                     <tr key={entry.id}>
-                      <td>{shortDate(entry.date)}</td>
-                      <td>
+                      <td data-label="Fecha">{shortDate(entry.date)}</td>
+                      <td data-label="Concepto">
                         <strong>{entry.description}</strong>
                         <small>
                           {entry.kind === 'income' ? 'Ingreso' : 'Gasto'}
                         </small>
                       </td>
-                      <td>{entry.entity}</td>
-                      <td>
+                      <td data-label="Cliente / proveedor">{entry.entity}</td>
+                      <td data-label="Estado">
                         <Status value={entry.status} />
                       </td>
                       <td
+                        data-label="Monto"
                         className={`numeric ${entry.amount < 0 ? 'negative' : 'positive'}`}
                       >
                         {money(entry.amount)}
@@ -727,19 +729,26 @@ export default function BusinessPage() {
                 )!;
                 return (
                   <tr key={row.id}>
-                    <td>
+                    <td data-label="Cliente">
                       <strong>{row.name}</strong>
                       <small>
                         {client.segment} · {client.owner}
                       </small>
                     </td>
-                    <td>
+                    <td data-label="Estado">
                       <Status value={client.status} />
                     </td>
-                    <td className="numeric">{money(row.revenue)}</td>
-                    <td className="numeric">{money(row.directCost)}</td>
-                    <td className="numeric">{money(row.contribution)}</td>
+                    <td data-label="Ingresos" className="numeric">
+                      {money(row.revenue)}
+                    </td>
+                    <td data-label="Costo directo" className="numeric">
+                      {money(row.directCost)}
+                    </td>
+                    <td data-label="Lo que deja" className="numeric">
+                      {money(row.contribution)}
+                    </td>
                     <td
+                      data-label="Margen"
                       className={`numeric ${row.margin < 20 ? 'negative' : 'positive'}`}
                     >
                       {row.margin}%
@@ -817,7 +826,7 @@ export default function BusinessPage() {
             <Users />
           </div>
           <div className="business-table-wrap">
-            <table>
+            <table className="business-table">
               <thead>
                 <tr>
                   <th>Persona</th>
@@ -830,11 +839,18 @@ export default function BusinessPage() {
               <tbody>
                 {state.team.map((member) => (
                   <tr key={member.id}>
-                    <td><strong>{member.name}</strong><small>{member.email}</small></td>
-                    <td>{member.modality}</td>
-                    <td>{member.supervisor}</td>
-                    <td className="numeric">{money(member.monthlyCost)}</td>
-                    <td><Status value={member.status} /></td>
+                    <td data-label="Persona">
+                      <strong>{member.name}</strong>
+                      <small>{member.email}</small>
+                    </td>
+                    <td data-label="Modalidad">{member.modality}</td>
+                    <td data-label="Supervisor">{member.supervisor}</td>
+                    <td data-label="Costo mensual" className="numeric">
+                      {money(member.monthlyCost)}
+                    </td>
+                    <td data-label="Estado">
+                      <Status value={member.status} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1443,6 +1459,37 @@ export default function BusinessPage() {
           </footer>
         </div>
       </main>
+      <nav
+        className="business-bottom-nav"
+        aria-label="Navegación móvil de CENTRA"
+      >
+        <Link href="/?page=inicio">
+          <LayoutDashboard />
+          <span>Inicio</span>
+        </Link>
+        <Link href="/?page=ruta">
+          <Route />
+          <span>Ruta</span>
+        </Link>
+        <button
+          type="button"
+          className={view === 'dashboard' ? 'active' : ''}
+          aria-current={view === 'dashboard' ? 'page' : undefined}
+          onClick={() => go('dashboard')}
+        >
+          <BriefcaseBusiness />
+          <span>Empresa</span>
+        </button>
+        <button
+          type="button"
+          aria-expanded={mobileOpen}
+          aria-controls="business-navigation"
+          onClick={() => setMobileOpen(true)}
+        >
+          <Menu />
+          <span>Más</span>
+        </button>
+      </nav>
       <Dialog
         open={form !== null}
         onOpenChange={(open) => {
