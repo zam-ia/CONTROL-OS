@@ -120,6 +120,70 @@ test('Business OS objectives derive progress only from checkpoints', () => {
   assert.equal(next.objectives[0].status, 'ACHIEVED');
 });
 
+test('ending a collaborator preserves costs, tasks and financial history', () => {
+  const base = businessSeed();
+  const expenseCount = base.expenses.length;
+  const taskCount = base.tasks.length;
+  const next = executeBusiness(base, {
+    type: 'endTeamMember',
+    teamMemberId: 'team-carlos',
+    endedOn: '2026-09-24',
+    reason: 'Renuncia voluntaria',
+  });
+  const member = next.team.find((item) => item.id === 'team-carlos');
+  assert.equal(member.status, 'ENDED');
+  assert.equal(member.endedOn, '2026-09-24');
+  assert.equal(next.expenses.length, expenseCount);
+  assert.equal(next.tasks.length, taskCount);
+  assert.equal(
+    next.teamCosts.find((item) => item.teamMemberId === 'team-carlos').endsOn,
+    '2026-09-24',
+  );
+});
+
+test('changing a collaborator cost opens a new historical period', () => {
+  const base = businessSeed();
+  const member = structuredClone(
+    base.team.find((item) => item.id === 'team-andrea'),
+  );
+  member.monthlyCost = 5800;
+  const next = executeBusiness(base, {
+    type: 'saveTeamMember',
+    member,
+    effectiveOn: '2026-10-01',
+  });
+  const costs = next.teamCosts.filter(
+    (item) => item.teamMemberId === 'team-andrea',
+  );
+  assert.equal(costs.length, 2);
+  assert.equal(costs.filter((item) => !item.endsOn).length, 1);
+  assert.equal(costs.find((item) => !item.endsOn).monthlyCost, 5800);
+});
+
+test('company tasks retain collaborator, position and alert links', () => {
+  const base = businessSeed();
+  const next = executeBusiness(base, {
+    type: 'addTask',
+    task: {
+      id: 'task-company-qa',
+      title: 'Visitar cliente',
+      owner: 'Andrea Pérez',
+      dueOn: '2026-09-25',
+      alertMinutes: 60,
+      assigneeMemberId: 'team-andrea',
+      positionId: 'position-client-success',
+      category: 'VISIT',
+      priority: 'HIGH',
+      status: 'TODO',
+      source: 'COMPANY',
+    },
+  });
+  const task = next.tasks.find((item) => item.id === 'task-company-qa');
+  assert.equal(task.assigneeMemberId, 'team-andrea');
+  assert.equal(task.positionId, 'position-client-success');
+  assert.equal(task.alertMinutes, 60);
+});
+
 test('Business OS locked periods reject new financial movements', () => {
   const locked = executeBusiness(businessSeed(), { type: 'lockPeriod' });
   assert.throws(

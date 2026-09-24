@@ -9,8 +9,9 @@ import {
   BarChart3,
   BriefcaseBusiness,
   Building2,
-  Check,
+  CalendarDays,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   CircleHelp,
   CircleDollarSign,
@@ -25,12 +26,15 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  Paperclip,
+  Pencil,
   Plus,
   RefreshCw,
   Route,
   Settings,
   Target,
   Upload,
+  UserMinus,
   Users,
   WalletCards,
   X,
@@ -51,7 +55,6 @@ import {
   clientProfitability,
   executeBusiness,
   monthlyTrend,
-  objectiveProgress,
   removeBusinessDemoData,
   serviceProfitability,
   type BusinessCommand,
@@ -70,9 +73,20 @@ type View =
   | 'reports'
   | 'import'
   | 'settings';
-type FormKind = 'income' | 'expense' | 'client' | 'service' | null;
+type FormKind =
+  | 'income'
+  | 'expense'
+  | 'client'
+  | 'service'
+  | 'team'
+  | 'teamEnd'
+  | 'position'
+  | 'task'
+  | 'calendar'
+  | null;
 type ActiveFormKind = Exclude<FormKind, null>;
 type FormDrafts = Partial<Record<ActiveFormKind, Record<string, string>>>;
+type AgendaView = 'month' | 'week' | 'day';
 type SessionUser = {
   globalRole: string;
   organization: { id: string; name: string } | null;
@@ -112,6 +126,40 @@ const shortDate = (value: string) =>
     new Date(`${value}T12:00:00-05:00`),
   );
 
+const dateKey = (value: Date) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(value);
+
+const todayKey = () => dateKey(new Date());
+
+const addDays = (value: string, amount: number) => {
+  const date = new Date(`${value}T12:00:00-05:00`);
+  date.setDate(date.getDate() + amount);
+  return dateKey(date);
+};
+
+const addMonths = (value: string, amount: number) => {
+  const date = new Date(`${value}T12:00:00-05:00`);
+  date.setMonth(date.getMonth() + amount);
+  return dateKey(date);
+};
+
+const startOfWeek = (value: string) => {
+  const date = new Date(`${value}T12:00:00-05:00`);
+  const offset = (date.getDay() + 6) % 7;
+  return addDays(value, -offset);
+};
+
+const agendaDays = (value: string, mode: AgendaView) => {
+  if (mode === 'day') return [value];
+  if (mode === 'week') {
+    const start = startOfWeek(value);
+    return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+  }
+  const monthStart = `${value.slice(0, 7)}-01`;
+  const gridStart = startOfWeek(monthStart);
+  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+};
+
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 function download(filename: string, contents: string, type: string) {
@@ -126,6 +174,7 @@ function download(filename: string, contents: string, type: string) {
 function Status({ value }: { value: string }) {
   const label: Record<string, string> = {
     ACTIVE: 'Activo',
+    ENDED: 'Cesado',
     PAUSED: 'Pausado',
     REVIEW: 'En revisión',
     DRAFT: 'Borrador',
@@ -142,6 +191,8 @@ function Status({ value }: { value: string }) {
     OVERDUE: 'Vencido',
     OPEN: 'Abierto',
     LOCKED: 'Cerrado',
+    SCHEDULED: 'Programado',
+    CANCELED: 'Cancelado',
   };
   return (
     <span className={`business-status status-${value.toLowerCase()}`}>
@@ -182,6 +233,7 @@ export default function BusinessPage() {
   const [state, setState] = useState<BusinessState | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [view, setView] = useState<View>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -193,6 +245,16 @@ export default function BusinessPage() {
   const [formDrafts, setFormDrafts] = useState<FormDrafts>({});
   const [notice, setNotice] = useState('');
   const [importFile, setImportFile] = useState('');
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingPositionId, setEditingPositionId] = useState<string | null>(
+    null,
+  );
+  const [agendaView, setAgendaView] = useState<AgendaView>('month');
+  const [agendaDate, setAgendaDate] = useState(todayKey);
+  const [positionFile, setPositionFile] = useState<{
+    name: string;
+    data: string;
+  } | null>(null);
 
   const logout = async () => {
     try {
@@ -237,6 +299,7 @@ export default function BusinessPage() {
       } catch {}
       if (!active) return;
       setAuthorized(Boolean(authenticatedUser));
+      setSessionUser(authenticatedUser);
       let initial = businessSeed();
       const searchParams = new URLSearchParams(window.location.search);
       const requestedFromUrl = searchParams.get('org') || 'norte';
@@ -276,6 +339,9 @@ export default function BusinessPage() {
               team: Array.isArray(candidate.team)
                 ? candidate.team
                 : initial.team,
+              teamCosts: Array.isArray(candidate.teamCosts)
+                ? candidate.teamCosts
+                : initial.teamCosts,
               positions: Array.isArray(candidate.positions)
                 ? candidate.positions
                 : initial.positions,
@@ -304,6 +370,37 @@ export default function BusinessPage() {
           requestedOrganization,
           requestedOrganizationName,
         );
+      }
+      if (authenticatedUser?.organization?.id) {
+        try {
+          const remoteResponse = await fetch('/api/business/state', {
+            credentials: 'include',
+            cache: 'no-store',
+          });
+          if (remoteResponse.ok) {
+            const remotePayload = (await remoteResponse.json()) as {
+              state?: BusinessState | null;
+            };
+            const remote = remotePayload.state;
+            if (
+              remote?.schema === 2 &&
+              remote.workspace?.organizationId ===
+                authenticatedUser.organization.id
+            ) {
+              initial = {
+                ...remote,
+                teamCosts: Array.isArray(remote.teamCosts)
+                  ? remote.teamCosts
+                  : initial.teamCosts,
+              };
+              localStorage.setItem(STORAGE, JSON.stringify(initial));
+            }
+          }
+        } catch {
+          setNotice(
+            'Se abrió la copia guardada en este dispositivo; se reintentará sincronizar al guardar.',
+          );
+        }
       }
       setState(initial);
       setSessionReady(true);
@@ -334,6 +431,28 @@ export default function BusinessPage() {
       localStorage.setItem(STORAGE, JSON.stringify(next));
     } catch {
       setNotice('El navegador no permitió guardar este cambio.');
+    }
+    if (sessionUser?.organization?.id) {
+      void fetch('/api/business/state', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: next }),
+      })
+        .then(async (response) => {
+          if (response.ok) return;
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(payload?.error || 'No se pudo sincronizar Supabase.');
+        })
+        .catch((error: unknown) =>
+          setNotice(
+            error instanceof Error
+              ? `${error.message} El cambio sigue guardado en este dispositivo.`
+              : 'No se pudo sincronizar Supabase; el cambio sigue guardado en este dispositivo.',
+          ),
+        );
     }
   };
 
@@ -369,6 +488,9 @@ export default function BusinessPage() {
     }
     setReturnForm(null);
     setForm(null);
+    setEditingTeamId(null);
+    setEditingPositionId(null);
+    setPositionFile(null);
   };
 
   const cancelCurrentForm = () => {
@@ -395,6 +517,43 @@ export default function BusinessPage() {
     }
     setReturnForm(source);
     setForm(target);
+  };
+
+  const openTeamForm = (teamMemberId?: string) => {
+    setEditingTeamId(teamMemberId || null);
+    setForm('team');
+  };
+
+  const openTeamEndForm = (teamMemberId: string) => {
+    setEditingTeamId(teamMemberId);
+    setForm('teamEnd');
+  };
+
+  const openPositionForm = (positionId?: string) => {
+    const position = state?.positions.find((item) => item.id === positionId);
+    setEditingPositionId(positionId || null);
+    setPositionFile(
+      position?.profileFileData && position.profileFileName
+        ? { name: position.profileFileName, data: position.profileFileData }
+        : null,
+    );
+    setForm('position');
+  };
+
+  const readPositionFile = (file?: File) => {
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      setNotice('El archivo debe pesar menos de 1.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string')
+        setPositionFile({ name: file.name, data: reader.result });
+      else setNotice('No se pudo leer el archivo del puesto.');
+    };
+    reader.onerror = () => setNotice('No se pudo leer el archivo del puesto.');
+    reader.readAsDataURL(file);
   };
 
   if (!sessionReady || !state || !metrics)
@@ -426,6 +585,31 @@ export default function BusinessPage() {
   const currentDraft = form ? formDrafts[form] || {} : {};
   const draftValue = (key: string, fallback = '') =>
     currentDraft[key] ?? fallback;
+  const editingMember = state.team.find((item) => item.id === editingTeamId);
+  const editingPosition = state.positions.find(
+    (item) => item.id === editingPositionId,
+  );
+  const visibleAgendaDays = agendaDays(agendaDate, agendaView);
+  const agendaTitle = new Intl.DateTimeFormat('es-PE', {
+    month: 'long',
+    year: 'numeric',
+    ...(agendaView === 'day' ? { day: 'numeric' } : {}),
+  }).format(new Date(`${agendaDate}T12:00:00-05:00`));
+  const positionPerformance = state.positions.map((position) => {
+    const tasks = state.tasks.filter((task) => task.positionId === position.id);
+    const completed = tasks.filter((task) => task.status === 'DONE').length;
+    const activeMembers = state.team.filter(
+      (member) =>
+        member.positionId === position.id && member.status === 'ACTIVE',
+    );
+    return {
+      position,
+      tasks: tasks.length,
+      completed,
+      completion: tasks.length ? Math.round((completed / tasks.length) * 100) : 0,
+      activeMembers,
+    };
+  });
 
   let content: React.ReactNode;
   if (view === 'dashboard')
@@ -882,38 +1066,81 @@ export default function BusinessPage() {
           <div className="business-card-head">
             <div>
               <p className="business-kicker">EQUIPO Y CAPACIDAD</p>
-              <h3>Personas, puestos y responsabilidades</h3>
+              <h3>Personas, costos e historial laboral</h3>
             </div>
-            <Users />
+            <Button onClick={() => openTeamForm()}>
+              <Plus /> Añadir persona
+            </Button>
           </div>
+          <p className="business-note business-note-top">
+            Edita los datos cuando cambien. Si alguien deja la empresa, registra
+            su cese: sus gastos, tareas y resultados anteriores no se borran.
+          </p>
           <div className="business-table-wrap">
             <table className="business-table">
               <thead>
                 <tr>
                   <th>Persona</th>
+                  <th>Puesto</th>
                   <th>Modalidad</th>
                   <th>Supervisor</th>
                   <th className="numeric">Costo mensual</th>
                   <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {state.team.map((member) => (
-                  <tr key={member.id}>
+                {state.team.map((member) => {
+                  const position = state.positions.find(
+                    (item) => item.id === member.positionId,
+                  );
+                  const costs = state.teamCosts.filter(
+                    (item) => item.teamMemberId === member.id,
+                  );
+                  return (
+                  <tr key={member.id} className={member.status === 'ENDED' ? 'is-ended' : ''}>
                     <td data-label="Persona">
                       <strong>{member.name}</strong>
                       <small>{member.email}</small>
+                      <small>
+                        Desde {member.startedOn ? shortDate(member.startedOn) : 'sin fecha'}
+                        {member.endedOn ? ` · hasta ${shortDate(member.endedOn)}` : ''}
+                      </small>
                     </td>
+                    <td data-label="Puesto">{position?.name || 'Sin puesto'}</td>
                     <td data-label="Modalidad">{member.modality}</td>
                     <td data-label="Supervisor">{member.supervisor}</td>
                     <td data-label="Costo mensual" className="numeric">
                       {money(member.monthlyCost)}
+                      {costs.length > 1 && (
+                        <small>{costs.length} periodos guardados</small>
+                      )}
                     </td>
                     <td data-label="Estado">
                       <Status value={member.status} />
+                      {member.terminationReason && (
+                        <small>{member.terminationReason}</small>
+                      )}
+                    </td>
+                    <td data-label="Acciones">
+                      <div className="business-row-actions">
+                        <button type="button" onClick={() => openTeamForm(member.id)}>
+                          <Pencil /> Editar
+                        </button>
+                        {member.status !== 'ENDED' && (
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => openTeamEndForm(member.id)}
+                          >
+                            <UserMinus /> Registrar cese
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -922,9 +1149,11 @@ export default function BusinessPage() {
           <div className="business-card-head">
             <div>
               <p className="business-kicker">PUESTOS</p>
-              <h3>Qué resultado posee cada rol</h3>
+              <h3>Perfiles conectados con el equipo</h3>
             </div>
-            <BriefcaseBusiness />
+            <Button variant="outline" onClick={() => openPositionForm()}>
+              <Plus /> Crear puesto
+            </Button>
           </div>
           <div className="service-cards">
             {state.positions.map((position) => (
@@ -933,7 +1162,7 @@ export default function BusinessPage() {
                   <span className="service-icon">
                     <Users />
                   </span>
-                  <Status value="ACTIVE" />
+                  <Status value={position.status || 'ACTIVE'} />
                 </div>
                 <h4>{position.name}</h4>
                 <p>
@@ -945,6 +1174,17 @@ export default function BusinessPage() {
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
+                <p className="business-position-meta">
+                  {position.kpis.length} KPI{position.kpis.length === 1 ? '' : 's'}
+                  {position.profileFileName ? ` · ${position.profileFileName}` : ''}
+                </p>
+                <button
+                  type="button"
+                  className="business-inline-create"
+                  onClick={() => openPositionForm(position.id)}
+                >
+                  <Pencil /> Editar perfil
+                </button>
               </article>
             ))}
           </div>
@@ -1010,121 +1250,209 @@ export default function BusinessPage() {
     );
   else if (view === 'work')
     content = (
-      <div className="business-grid work-grid">
+      <div className="business-grid work-grid business-agenda-page">
         <section className="business-card business-wide">
-          <div className="business-card-head">
+          <div className="business-card-head business-agenda-head">
             <div>
-              <p className="business-kicker">RESULTADOS</p>
-              <h3>Metas por pasos completados</h3>
+              <p className="business-kicker">AGENDA DE TU EMPRESA</p>
+              <h3>Planifica visitas, operaciones, grabaciones y pendientes</h3>
+              <p>
+                Estas actividades pertenecen a tu negocio, no al programa de CENTRA.
+              </p>
             </div>
-            <Target />
+            <div className="business-actions">
+              <Button variant="outline" onClick={() => setForm('calendar')}>
+                <CalendarDays /> Nuevo evento
+              </Button>
+              <Button onClick={() => setForm('task')}>
+                <Plus /> Nueva tarea
+              </Button>
+            </div>
           </div>
-          <div className="objective-grid">
-            {state.objectives.map((objective) => {
-              const completion = objectiveProgress(objective);
+          <div className="business-calendar-toolbar">
+            <div className="business-calendar-navigation">
+              <button
+                type="button"
+                aria-label="Periodo anterior"
+                onClick={() =>
+                  setAgendaDate((current) =>
+                    agendaView === 'month'
+                      ? addMonths(current, -1)
+                      : addDays(current, agendaView === 'week' ? -7 : -1),
+                  )
+                }
+              >
+                <ChevronLeft />
+              </button>
+              <button type="button" onClick={() => setAgendaDate(todayKey())}>
+                Hoy
+              </button>
+              <button
+                type="button"
+                aria-label="Periodo siguiente"
+                onClick={() =>
+                  setAgendaDate((current) =>
+                    agendaView === 'month'
+                      ? addMonths(current, 1)
+                      : addDays(current, agendaView === 'week' ? 7 : 1),
+                  )
+                }
+              >
+                <ChevronRight />
+              </button>
+              <strong>{agendaTitle}</strong>
+            </div>
+            <div className="business-segmented" aria-label="Vista de agenda">
+              {(['month', 'week', 'day'] as const).map((mode) => (
+                <button
+                  type="button"
+                  key={mode}
+                  className={agendaView === mode ? 'active' : ''}
+                  onClick={() => setAgendaView(mode)}
+                >
+                  {mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {agendaView !== 'day' && (
+            <div className="business-calendar-weekdays" aria-hidden="true">
+              {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+          )}
+          <div className={`business-calendar-grid is-${agendaView}`}>
+            {visibleAgendaDays.map((day) => {
+              const dayTasks = state.tasks.filter((task) => task.dueOn === day);
+              const dayEvents = state.calendar.filter(
+                (event) => dateKey(new Date(event.startsAt)) === day,
+              );
+              const outsideMonth = day.slice(0, 7) !== agendaDate.slice(0, 7);
               return (
-                <article key={objective.id}>
-                  <div className="objective-head">
-                    <span>
-                      <Status value={objective.status} />
-                      <small>Vence {shortDate(objective.dueOn)}</small>
-                    </span>
-                    <strong>{completion}%</strong>
-                  </div>
-                  <h4>{objective.title}</h4>
-                  <p>Responsable: {objective.owner}</p>
-                  <div className="objective-progress">
-                    <i style={{ width: `${completion}%` }} />
-                  </div>
-                  <div className="checkpoint-list">
-                    {objective.checkpoints.map((checkpoint) => (
-                      <label key={checkpoint.id}>
-                        <input
-                          type="checkbox"
-                          checked={checkpoint.completed}
-                          onChange={() =>
-                            run({
-                              type: 'toggleObjectiveCheckpoint',
-                              objectiveId: objective.id,
-                              checkpointId: checkpoint.id,
-                            })
-                          }
-                        />
-                        <span>
-                          <Check />
-                          {checkpoint.title}
-                        </span>
-                      </label>
+                <article
+                  key={day}
+                  className={`${day === todayKey() ? 'is-today' : ''} ${
+                    outsideMonth && agendaView === 'month' ? 'is-outside' : ''
+                  }`}
+                >
+                  <header>
+                    <strong>{new Date(`${day}T12:00:00-05:00`).getDate()}</strong>
+                    {agendaView !== 'month' && <span>{shortDate(day)}</span>}
+                  </header>
+                  <div className="business-calendar-items">
+                    {dayEvents.map((event) => (
+                      <div className="calendar-item event" key={event.id}>
+                        <span>{new Date(event.startsAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <strong>{event.title}</strong>
+                        <small>{event.owner}</small>
+                      </div>
                     ))}
+                    {dayTasks.map((task) => (
+                      <button
+                        type="button"
+                        className={`calendar-item task ${task.status === 'DONE' ? 'done' : ''}`}
+                        key={task.id}
+                        onClick={() => run({ type: 'toggleTask', taskId: task.id })}
+                      >
+                        <span>{task.priority === 'URGENT' ? 'Urgente' : 'Tarea'}</span>
+                        <strong>{task.title}</strong>
+                        <small>{task.owner}</small>
+                      </button>
+                    ))}
+                    {!dayTasks.length && !dayEvents.length && agendaView === 'day' && (
+                      <p className="business-empty-day">No hay actividades para este día.</p>
+                    )}
                   </div>
                 </article>
               );
             })}
           </div>
-          <p className="business-note">
-            El avance se calcula solo con pasos completados; nadie escribe el
-            porcentaje manualmente.
-          </p>
         </section>
-        <section className="business-card">
+        <section className="business-card business-wide">
           <div className="business-card-head">
             <div>
-              <p className="business-kicker">ESTA SEMANA</p>
-              <h3>Tareas operativas</h3>
+              <p className="business-kicker">TAREAS DE LA EMPRESA</p>
+              <h3>Responsables, puestos y alertas</h3>
             </div>
             <ClipboardCheck />
           </div>
           <div className="business-task-list">
-            {state.tasks.map((task) => (
-              <label key={task.id}>
-                <input
-                  type="checkbox"
-                  checked={task.status === 'DONE'}
-                  onChange={() => run({ type: 'toggleTask', taskId: task.id })}
-                />
-                <span>
-                  <strong>{task.title}</strong>
-                  <small>
-                    {task.owner} · {shortDate(task.dueOn)} ·{' '}
-                    {task.source.replace('_', ' ')}
-                  </small>
-                </span>
-                <Status value={task.status} />
-              </label>
-            ))}
-          </div>
-        </section>
-        <section className="business-card">
-          <div className="business-card-head">
-            <div>
-              <p className="business-kicker">CALENDARIO</p>
-              <h3>Agenda de la semana</h3>
-            </div>
-            <BarChart3 />
-          </div>
-          <div className="business-task-list">
-            {state.calendar.map((event) => (
-              <div className="business-agenda-row" key={event.id}>
-                <span>
-                  <strong>{event.title}</strong>
-                  <small>
-                    {new Intl.DateTimeFormat('es-PE', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(new Date(event.startsAt))}{' '}
-                    · {event.owner}
-                  </small>
-                </span>
-                <Status value={event.type} />
-              </div>
-            ))}
+            {state.tasks.map((task) => {
+              const position = state.positions.find((item) => item.id === task.positionId);
+              return (
+                <label key={task.id}>
+                  <input
+                    type="checkbox"
+                    checked={task.status === 'DONE'}
+                    onChange={() => run({ type: 'toggleTask', taskId: task.id })}
+                  />
+                  <span>
+                    <strong>{task.title}</strong>
+                    <small>
+                      {task.owner} · {position?.name || 'Sin puesto'} · {shortDate(task.dueOn)}
+                      {task.alertMinutes ? ` · alerta ${task.alertMinutes} min antes` : ''}
+                    </small>
+                  </span>
+                  <Status value={task.status} />
+                </label>
+              );
+            })}
           </div>
         </section>
       </div>
     );
   else if (view === 'processes')
     content = (
-      <section className="business-card">
+      <div className="business-grid work-grid">
+      <section className="business-card business-wide">
+        <div className="business-card-head">
+          <div>
+            <p className="business-kicker">PERFILES DE PUESTO</p>
+            <h3>Qué debe lograr y medir cada puesto</h3>
+          </div>
+          <Button onClick={() => openPositionForm()}>
+            <Plus /> Crear perfil
+          </Button>
+        </div>
+        <p className="business-note business-note-top">
+          Crea el perfil aquí o adjunta el documento que ya usa tu empresa. El
+          puesto queda disponible para asignar personas, tareas y KPIs.
+        </p>
+        <div className="business-position-grid">
+          {state.positions.map((position) => {
+            const assigned = state.team.filter(
+              (member) => member.positionId === position.id && member.status === 'ACTIVE',
+            );
+            return (
+              <article key={position.id}>
+                <header>
+                  <div>
+                    <span>{position.area || 'Sin área'}</span>
+                    <h4>{position.name}</h4>
+                  </div>
+                  <Status value={position.status || 'ACTIVE'} />
+                </header>
+                <p>{position.purpose}</p>
+                <dl>
+                  <div><dt>Personas asignadas</dt><dd>{assigned.map((member) => member.name).join(', ') || 'Sin asignar'}</dd></div>
+                  <div><dt>Funciones</dt><dd>{position.functions.length}</dd></div>
+                  <div><dt>KPIs</dt><dd>{position.kpis.join(', ') || 'Sin definir'}</dd></div>
+                </dl>
+                {position.profileFileName && (
+                  <a href={position.profileFileData} download={position.profileFileName}>
+                    <Paperclip /> {position.profileFileName}
+                  </a>
+                )}
+                <Button variant="outline" onClick={() => openPositionForm(position.id)}>
+                  <Pencil /> Editar perfil
+                </Button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+      <section className="business-card business-wide">
         <div className="business-card-head">
           <div>
             <p className="business-kicker">SISTEMA OPERATIVO</p>
@@ -1170,10 +1498,50 @@ export default function BusinessPage() {
           versión de las instrucciones y conserva el histórico.
         </p>
       </section>
+      </div>
     );
   else if (view === 'reports')
     content = (
       <div className="report-grid">
+        <section className="business-card business-wide business-kpi-report">
+          <div className="business-card-head">
+            <div>
+              <p className="business-kicker">KPIS POR PUESTO</p>
+              <h3>Resultados vinculados con tareas reales</h3>
+            </div>
+            <BarChart3 />
+          </div>
+          <div className="business-table-wrap">
+            <table className="business-table">
+              <thead>
+                <tr>
+                  <th>Puesto</th>
+                  <th>Persona actual</th>
+                  <th>KPIs definidos</th>
+                  <th>Tareas asignadas</th>
+                  <th>Completadas</th>
+                  <th>Avance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positionPerformance.map((row) => (
+                  <tr key={row.position.id}>
+                    <td data-label="Puesto"><strong>{row.position.name}</strong><small>{row.position.area}</small></td>
+                    <td data-label="Persona actual">{row.activeMembers.map((member) => member.name).join(', ') || 'Sin asignar'}</td>
+                    <td data-label="KPIs definidos">{row.position.kpis.join(', ') || 'Sin definir'}</td>
+                    <td data-label="Tareas asignadas">{row.tasks}</td>
+                    <td data-label="Completadas">{row.completed}</td>
+                    <td data-label="Avance"><strong>{row.completion}%</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="business-note">
+            El avance se calcula con tareas enlazadas al puesto. Los KPIs escritos
+            en el perfil indican qué resultados debe revisar la empresa.
+          </p>
+        </section>
         <section className="business-card">
           <FileSpreadsheet />
           <h3>Libro financiero</h3>
@@ -1586,7 +1954,21 @@ export default function BusinessPage() {
                 ? 'Registrar gasto'
                 : form === 'client'
                   ? 'Crear cliente'
-                  : 'Crear servicio'}
+                  : form === 'service'
+                    ? 'Crear servicio'
+                    : form === 'team'
+                      ? editingMember
+                        ? 'Editar colaborador'
+                        : 'Añadir colaborador'
+                      : form === 'teamEnd'
+                        ? 'Registrar cese'
+                        : form === 'position'
+                          ? editingPosition
+                            ? 'Editar perfil de puesto'
+                            : 'Crear perfil de puesto'
+                          : form === 'task'
+                            ? 'Nueva tarea de la empresa'
+                            : 'Nuevo evento de agenda'}
           </DialogTitle>
           <DialogDescription>
             {form === 'income'
@@ -1595,7 +1977,17 @@ export default function BusinessPage() {
                 ? 'Anota una compra, pago o salida de dinero de tu negocio.'
                 : form === 'client'
                   ? 'Guarda los datos básicos para reconocer y atender a este cliente.'
-                  : 'Guarda lo que vendes, cuánto cobras y cuántos clientes puedes atender.'}
+                  : form === 'service'
+                    ? 'Guarda lo que vendes, cuánto cobras y cuántos clientes puedes atender.'
+                    : form === 'team'
+                      ? 'Actualiza sus datos y costo sin perder los periodos anteriores.'
+                      : form === 'teamEnd'
+                        ? 'El cese cierra su periodo laboral, pero conserva todos sus gastos, tareas y resultados.'
+                        : form === 'position'
+                          ? 'Define responsabilidades y KPIs para enlazar personas y tareas.'
+                          : form === 'task'
+                            ? 'Asigna una tarea a una persona o puesto y configura su alerta.'
+                            : 'Agenda una actividad propia de la empresa.'}
           </DialogDescription>
           <form
             onSubmit={(event) => {
@@ -1683,6 +2075,141 @@ export default function BusinessPage() {
                     capacityMonth: amount('capacity'),
                   },
                 });
+              } else if (form === 'team') {
+                const memberId = editingMember?.id || makeId('team');
+                ok = run({
+                  type: 'saveTeamMember',
+                  effectiveOn: value('effectiveOn') || todayKey(),
+                  member: {
+                    id: memberId,
+                    name: value('name'),
+                    email: value('email'),
+                    status: editingMember?.status || 'ACTIVE',
+                    monthlyCost: amount('monthlyCost'),
+                    modality: value('modality') as
+                      | 'PAYROLL'
+                      | 'CONTRACTOR'
+                      | 'FREELANCE',
+                    supervisor: value('supervisor') || 'Sin supervisor',
+                    positionId: value('positionId') || undefined,
+                    startedOn:
+                      value('startedOn') || editingMember?.startedOn || todayKey(),
+                    endedOn: editingMember?.endedOn,
+                    terminationReason: editingMember?.terminationReason,
+                  },
+                });
+              } else if (form === 'teamEnd' && editingMember) {
+                ok = run({
+                  type: 'endTeamMember',
+                  teamMemberId: editingMember.id,
+                  endedOn: value('endedOn'),
+                  reason: value('reason'),
+                });
+              } else if (form === 'position') {
+                ok = run({
+                  type: 'savePosition',
+                  position: {
+                    id: editingPosition?.id || makeId('position'),
+                    name: value('name'),
+                    area: value('area') || 'General',
+                    purpose: value('purpose'),
+                    functions: value('functions')
+                      .split('\n')
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+                    kpis: value('kpis')
+                      .split('\n')
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+                    backup: value('backup') || 'Sin reemplazo',
+                    status: editingPosition?.status || 'ACTIVE',
+                    profileFileName:
+                      positionFile?.name || editingPosition?.profileFileName,
+                    profileFileData:
+                      positionFile?.data || editingPosition?.profileFileData,
+                    updatedAt: new Date().toISOString(),
+                  },
+                });
+              } else if (form === 'task') {
+                const assigneeMemberId = value('assigneeMemberId');
+                const positionId = value('positionId');
+                const member = state.team.find(
+                  (item) => item.id === assigneeMemberId,
+                );
+                const position = state.positions.find(
+                  (item) => item.id === positionId,
+                );
+                const date = value('date');
+                const time = value('time') || '09:00';
+                ok = run({
+                  type: 'addTask',
+                  task: {
+                    id: makeId('task'),
+                    title: value('title'),
+                    description: value('description'),
+                    owner: member?.name || position?.name || 'Sin asignar',
+                    dueOn: date,
+                    startsAt: `${date}T${time}:00-05:00`,
+                    dueAt: `${date}T${time}:00-05:00`,
+                    alertMinutes: amount('alertMinutes'),
+                    assigneeMemberId: assigneeMemberId || undefined,
+                    positionId: positionId || member?.positionId || undefined,
+                    clientId: value('clientId') || undefined,
+                    category: value('category') as
+                      | 'VISIT'
+                      | 'OPERATIONS'
+                      | 'RECORDING'
+                      | 'SALES'
+                      | 'ADMIN'
+                      | 'OTHER',
+                    priority: value('priority') as
+                      | 'LOW'
+                      | 'NORMAL'
+                      | 'HIGH'
+                      | 'URGENT',
+                    status: 'TODO',
+                    source: 'COMPANY',
+                  },
+                });
+              } else if (form === 'calendar') {
+                const assigneeMemberId = value('assigneeMemberId');
+                const positionId = value('positionId');
+                const member = state.team.find(
+                  (item) => item.id === assigneeMemberId,
+                );
+                const position = state.positions.find(
+                  (item) => item.id === positionId,
+                );
+                const date = value('date');
+                const startTime = value('startTime') || '09:00';
+                const endTime = value('endTime');
+                ok = run({
+                  type: 'addCalendarEvent',
+                  event: {
+                    id: makeId('calendar'),
+                    title: value('title'),
+                    description: value('description'),
+                    startsAt: `${date}T${startTime}:00-05:00`,
+                    endsAt: endTime
+                      ? `${date}T${endTime}:00-05:00`
+                      : undefined,
+                    type: value('eventType') as
+                      | 'MEETING'
+                      | 'COLLECTION'
+                      | 'DEADLINE'
+                      | 'VISIT'
+                      | 'OPERATION'
+                      | 'RECORDING'
+                      | 'OTHER',
+                    owner: member?.name || position?.name || 'Sin asignar',
+                    location: value('location'),
+                    alertMinutes: amount('alertMinutes'),
+                    assigneeMemberId: assigneeMemberId || undefined,
+                    positionId: positionId || member?.positionId || undefined,
+                    clientId: value('clientId') || undefined,
+                    status: 'SCHEDULED',
+                  },
+                });
               }
               if (!ok) return;
               if (
@@ -1708,7 +2235,7 @@ export default function BusinessPage() {
                 if (form) delete next[form];
                 return next;
               });
-              setForm(null);
+              closeForm();
             }}
           >
             {(form === 'income' || form === 'expense') && (
@@ -2094,6 +2621,138 @@ export default function BusinessPage() {
                     Piensa en un mes normal y escribe una cantidad realista.
                   </small>
                 </label>
+              </>
+            )}
+            {form === 'team' && (
+              <>
+                <label htmlFor="business-team-name">
+                  <span>Nombre completo</span>
+                  <Input id="business-team-name" name="name" defaultValue={editingMember?.name} required />
+                </label>
+                <label htmlFor="business-team-email">
+                  <span>Correo de trabajo (opcional)</span>
+                  <Input id="business-team-email" type="email" name="email" defaultValue={editingMember?.email} />
+                </label>
+                <label htmlFor="business-team-position">
+                  <span>¿Qué puesto ocupa?</span>
+                  <select id="business-team-position" name="positionId" defaultValue={editingMember?.positionId || ''}>
+                    <option value="">Sin puesto asignado</option>
+                    {state.positions.filter((item) => item.status !== 'ARCHIVED').map((position) => (
+                      <option value={position.id} key={position.id}>{position.name}</option>
+                    ))}
+                  </select>
+                  <small className="business-field-help">El puesto conecta sus tareas y KPIs con los reportes.</small>
+                </label>
+                <label htmlFor="business-team-modality">
+                  <span>¿Cómo trabaja con la empresa?</span>
+                  <select id="business-team-modality" name="modality" defaultValue={editingMember?.modality || 'PAYROLL'}>
+                    <option value="PAYROLL">En planilla</option>
+                    <option value="CONTRACTOR">Contrato de servicios</option>
+                    <option value="FREELANCE">Trabajo independiente</option>
+                  </select>
+                </label>
+                <label htmlFor="business-team-supervisor">
+                  <span>¿Quién supervisa su trabajo?</span>
+                  <Input id="business-team-supervisor" name="supervisor" defaultValue={editingMember?.supervisor} placeholder="Ej. Dirección o Andrea Pérez" />
+                </label>
+                <label htmlFor="business-team-cost">
+                  <span>¿Cuánto le cuesta al negocio por mes?</span>
+                  <Input id="business-team-cost" type="number" min="0" step="0.01" name="monthlyCost" defaultValue={editingMember?.monthlyCost} required />
+                  <small className="business-field-help">Si cambia, se abrirá un nuevo periodo y el costo anterior quedará guardado.</small>
+                </label>
+                <label htmlFor="business-team-effective">
+                  <span>¿Desde cuándo aplica este costo?</span>
+                  <Input id="business-team-effective" type="date" name="effectiveOn" defaultValue={todayKey()} required />
+                </label>
+                <label htmlFor="business-team-started">
+                  <span>¿Cuándo empezó a trabajar?</span>
+                  <Input id="business-team-started" type="date" name="startedOn" defaultValue={editingMember?.startedOn || todayKey()} required />
+                </label>
+              </>
+            )}
+            {form === 'teamEnd' && editingMember && (
+              <>
+                <div className="business-dialog-warning">
+                  <UserMinus />
+                  <span><strong>{editingMember.name}</strong><small>El registro no se elimina y seguirá apareciendo en históricos y reportes.</small></span>
+                </div>
+                <label htmlFor="business-team-ended">
+                  <span>Último día de trabajo</span>
+                  <Input id="business-team-ended" type="date" name="endedOn" defaultValue={todayKey()} required />
+                </label>
+                <label htmlFor="business-team-reason">
+                  <span>Motivo del cese</span>
+                  <textarea id="business-team-reason" name="reason" rows={3} placeholder="Ej. Renuncia voluntaria o término de contrato" required />
+                </label>
+              </>
+            )}
+            {form === 'position' && (
+              <>
+                <label htmlFor="business-position-name">
+                  <span>Nombre del puesto</span>
+                  <Input id="business-position-name" name="name" defaultValue={editingPosition?.name} placeholder="Ej. Responsable de Operaciones" required />
+                </label>
+                <label htmlFor="business-position-area">
+                  <span>Área</span>
+                  <Input id="business-position-area" name="area" defaultValue={editingPosition?.area} placeholder="Ej. Operaciones, Ventas o Administración" />
+                </label>
+                <label htmlFor="business-position-purpose">
+                  <span>¿Qué resultado debe lograr este puesto?</span>
+                  <textarea id="business-position-purpose" name="purpose" rows={3} defaultValue={editingPosition?.purpose} placeholder="Describe el resultado principal, no solo actividades." required />
+                </label>
+                <label htmlFor="business-position-functions">
+                  <span>Funciones principales</span>
+                  <textarea id="business-position-functions" name="functions" rows={4} defaultValue={editingPosition?.functions.join('\n')} placeholder={'Una función por línea\nEj. Revisar entregas\nResolver bloqueos'} />
+                </label>
+                <label htmlFor="business-position-kpis">
+                  <span>KPIs del puesto</span>
+                  <textarea id="business-position-kpis" name="kpis" rows={4} defaultValue={editingPosition?.kpis.join('\n')} placeholder={'Un indicador por línea\nEj. Entregas a tiempo\nRetrabajos'} />
+                  <small className="business-field-help">Estos indicadores aparecerán en Reportes junto con las tareas vinculadas.</small>
+                </label>
+                <label htmlFor="business-position-backup">
+                  <span>¿Quién cubre este puesto si falta?</span>
+                  <Input id="business-position-backup" name="backup" defaultValue={editingPosition?.backup} placeholder="Ej. Dirección" />
+                </label>
+                <label htmlFor="business-position-file" className="business-file-field">
+                  <span>Adjuntar perfil existente (opcional)</span>
+                  <input id="business-position-file" type="file" accept=".pdf,.doc,.docx,.txt" onChange={(event) => readPositionFile(event.target.files?.[0])} />
+                  <small>{positionFile?.name || editingPosition?.profileFileName || 'PDF, Word o texto; máximo 1.5 MB.'}</small>
+                </label>
+              </>
+            )}
+            {form === 'task' && (
+              <>
+                <label htmlFor="business-task-title"><span>¿Qué se debe hacer?</span><Input id="business-task-title" name="title" placeholder="Ej. Visitar al cliente o grabar contenido" required /></label>
+                <label htmlFor="business-task-description"><span>Indicaciones (opcional)</span><textarea id="business-task-description" name="description" rows={3} placeholder="Agrega dirección, resultado esperado o información útil." /></label>
+                <div className="business-form-columns">
+                  <label htmlFor="business-task-date"><span>Fecha</span><Input id="business-task-date" type="date" name="date" defaultValue={agendaDate} required /></label>
+                  <label htmlFor="business-task-time"><span>Hora</span><Input id="business-task-time" type="time" name="time" defaultValue="09:00" required /></label>
+                </div>
+                <label htmlFor="business-task-category"><span>Tipo de tarea</span><select id="business-task-category" name="category" defaultValue="OPERATIONS"><option value="VISIT">Visita de cliente</option><option value="OPERATIONS">Operación</option><option value="RECORDING">Grabación</option><option value="SALES">Venta o seguimiento</option><option value="ADMIN">Administración</option><option value="OTHER">Otra</option></select></label>
+                <label htmlFor="business-task-member"><span>Asignar a una persona (opcional)</span><select id="business-task-member" name="assigneeMemberId" defaultValue=""><option value="">Sin persona específica</option>{state.team.filter((member) => member.status === 'ACTIVE').map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+                <label htmlFor="business-task-position"><span>Asignar a un puesto (opcional)</span><select id="business-task-position" name="positionId" defaultValue=""><option value="">Sin puesto específico</option>{state.positions.filter((position) => position.status !== 'ARCHIVED').map((position) => <option key={position.id} value={position.id}>{position.name}</option>)}</select></label>
+                <label htmlFor="business-task-client"><span>Cliente relacionado (opcional)</span><select id="business-task-client" name="clientId" defaultValue=""><option value="">No corresponde a un cliente</option>{state.clients.filter((client) => client.status === 'ACTIVE').map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+                <div className="business-form-columns">
+                  <label htmlFor="business-task-priority"><span>Prioridad</span><select id="business-task-priority" name="priority" defaultValue="NORMAL"><option value="LOW">Baja</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
+                  <label htmlFor="business-task-alert"><span>Alerta</span><select id="business-task-alert" name="alertMinutes" defaultValue="30"><option value="0">Sin alerta</option><option value="10">10 minutos antes</option><option value="30">30 minutos antes</option><option value="60">1 hora antes</option><option value="1440">1 día antes</option></select></label>
+                </div>
+              </>
+            )}
+            {form === 'calendar' && (
+              <>
+                <label htmlFor="business-event-title"><span>Nombre del evento</span><Input id="business-event-title" name="title" placeholder="Ej. Visita a cliente o reunión de operaciones" required /></label>
+                <label htmlFor="business-event-description"><span>Detalles (opcional)</span><textarea id="business-event-description" name="description" rows={3} placeholder="Objetivo, materiales o acuerdos por revisar." /></label>
+                <label htmlFor="business-event-date"><span>Fecha</span><Input id="business-event-date" type="date" name="date" defaultValue={agendaDate} required /></label>
+                <div className="business-form-columns">
+                  <label htmlFor="business-event-start"><span>Empieza</span><Input id="business-event-start" type="time" name="startTime" defaultValue="09:00" required /></label>
+                  <label htmlFor="business-event-end"><span>Termina (opcional)</span><Input id="business-event-end" type="time" name="endTime" /></label>
+                </div>
+                <label htmlFor="business-event-type"><span>Tipo de actividad</span><select id="business-event-type" name="eventType" defaultValue="MEETING"><option value="MEETING">Reunión</option><option value="VISIT">Visita de cliente</option><option value="OPERATION">Operación</option><option value="RECORDING">Grabación</option><option value="COLLECTION">Cobranza</option><option value="DEADLINE">Fecha límite</option><option value="OTHER">Otra</option></select></label>
+                <label htmlFor="business-event-location"><span>Lugar o enlace (opcional)</span><Input id="business-event-location" name="location" placeholder="Dirección, sala o enlace de videollamada" /></label>
+                <label htmlFor="business-event-member"><span>Responsable (opcional)</span><select id="business-event-member" name="assigneeMemberId" defaultValue=""><option value="">Sin persona específica</option>{state.team.filter((member) => member.status === 'ACTIVE').map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+                <label htmlFor="business-event-position"><span>Puesto responsable (opcional)</span><select id="business-event-position" name="positionId" defaultValue=""><option value="">Sin puesto específico</option>{state.positions.filter((position) => position.status !== 'ARCHIVED').map((position) => <option key={position.id} value={position.id}>{position.name}</option>)}</select></label>
+                <label htmlFor="business-event-client"><span>Cliente relacionado (opcional)</span><select id="business-event-client" name="clientId" defaultValue=""><option value="">No corresponde a un cliente</option>{state.clients.filter((client) => client.status === 'ACTIVE').map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+                <label htmlFor="business-event-alert"><span>Recordatorio</span><select id="business-event-alert" name="alertMinutes" defaultValue="30"><option value="0">Sin recordatorio</option><option value="10">10 minutos antes</option><option value="30">30 minutos antes</option><option value="60">1 hora antes</option><option value="1440">1 día antes</option></select></label>
               </>
             )}
             <div className="business-dialog-actions">

@@ -66,6 +66,21 @@ export type BusinessTask = {
   title: string;
   owner: string;
   dueOn: string;
+  startsAt?: string;
+  dueAt?: string;
+  description?: string;
+  alertMinutes?: number;
+  assigneeMemberId?: string;
+  positionId?: string;
+  clientId?: string;
+  category?:
+    | 'VISIT'
+    | 'OPERATIONS'
+    | 'RECORDING'
+    | 'SALES'
+    | 'ADMIN'
+    | 'OTHER';
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'BLOCKED' | 'DONE';
   source:
     | 'CONTROL_METHOD'
@@ -81,10 +96,23 @@ export type BusinessTeamMember = {
   id: string;
   name: string;
   email: string;
-  status: 'ACTIVE' | 'PAUSED';
+  status: 'ACTIVE' | 'PAUSED' | 'ENDED';
   monthlyCost: number;
   modality: 'PAYROLL' | 'CONTRACTOR' | 'FREELANCE';
   supervisor: string;
+  positionId?: string;
+  startedOn?: string;
+  endedOn?: string;
+  terminationReason?: string;
+};
+
+export type BusinessTeamCost = {
+  id: string;
+  teamMemberId: string;
+  startsOn: string;
+  endsOn?: string;
+  monthlyCost: number;
+  modality: BusinessTeamMember['modality'];
 };
 
 export type BusinessPosition = {
@@ -95,6 +123,10 @@ export type BusinessPosition = {
   functions: string[];
   kpis: string[];
   backup: string;
+  status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  profileFileName?: string;
+  profileFileData?: string;
+  updatedAt?: string;
 };
 
 export type BusinessChecklist = {
@@ -112,7 +144,23 @@ export type BusinessCalendarEvent = {
   id: string;
   title: string;
   startsAt: string;
-  type: 'MEETING' | 'PROGRAM' | 'COLLECTION' | 'DEADLINE';
+  endsAt?: string;
+  description?: string;
+  location?: string;
+  alertMinutes?: number;
+  assigneeMemberId?: string;
+  positionId?: string;
+  clientId?: string;
+  status?: 'SCHEDULED' | 'DONE' | 'CANCELED';
+  type:
+    | 'MEETING'
+    | 'PROGRAM'
+    | 'COLLECTION'
+    | 'DEADLINE'
+    | 'VISIT'
+    | 'OPERATION'
+    | 'RECORDING'
+    | 'OTHER';
   owner: string;
 };
 
@@ -147,6 +195,7 @@ export type BusinessState = {
   objectives: BusinessObjective[];
   tasks: BusinessTask[];
   team: BusinessTeamMember[];
+  teamCosts: BusinessTeamCost[];
   positions: BusinessPosition[];
   checklists: BusinessChecklist[];
   calendar: BusinessCalendarEvent[];
@@ -191,6 +240,20 @@ export type BusinessCommand =
   | { type: 'addExpense'; entry: BusinessExpense }
   | { type: 'addClient'; client: BusinessClient }
   | { type: 'addService'; service: BusinessService }
+  | {
+      type: 'saveTeamMember';
+      member: BusinessTeamMember;
+      effectiveOn: string;
+    }
+  | {
+      type: 'endTeamMember';
+      teamMemberId: string;
+      endedOn: string;
+      reason: string;
+    }
+  | { type: 'savePosition'; position: BusinessPosition }
+  | { type: 'addTask'; task: BusinessTask }
+  | { type: 'addCalendarEvent'; event: BusinessCalendarEvent }
   | {
       type: 'toggleObjectiveCheckpoint';
       objectiveId: string;
@@ -485,6 +548,96 @@ export function executeBusiness(
       id: `event-${command.service.id}`,
       at: new Date().toISOString(),
       text: 'Servicio creado.',
+    });
+  } else if (command.type === 'saveTeamMember') {
+    if (!command.member.name.trim())
+      throw Error('Escribe el nombre del colaborador.');
+    if (command.member.monthlyCost < 0)
+      throw Error('El costo mensual no puede ser negativo.');
+    const existingIndex = next.team.findIndex(
+      (item) => item.id === command.member.id,
+    );
+    const existing = next.team[existingIndex];
+    if (existingIndex >= 0) next.team[existingIndex] = command.member;
+    else next.team.unshift(command.member);
+    const changedCost =
+      !existing ||
+      existing.monthlyCost !== command.member.monthlyCost ||
+      existing.modality !== command.member.modality;
+    if (changedCost) {
+      const openCost = next.teamCosts.find(
+        (item) => item.teamMemberId === command.member.id && !item.endsOn,
+      );
+      if (openCost) openCost.endsOn = command.effectiveOn;
+      next.teamCosts.unshift({
+        id: `team-cost-${command.member.id}-${command.effectiveOn}-${Date.now()}`,
+        teamMemberId: command.member.id,
+        startsOn: command.effectiveOn,
+        monthlyCost: command.member.monthlyCost,
+        modality: command.member.modality,
+      });
+    }
+    next.events.unshift({
+      id: `event-${Date.now()}`,
+      at: new Date().toISOString(),
+      text: existing ? 'Colaborador actualizado.' : 'Colaborador agregado.',
+    });
+  } else if (command.type === 'endTeamMember') {
+    const member = next.team.find(
+      (item) => item.id === command.teamMemberId,
+    );
+    if (!member) throw Error('Colaborador no encontrado.');
+    if (!command.reason.trim()) throw Error('Indica el motivo del cese.');
+    member.status = 'ENDED';
+    member.endedOn = command.endedOn;
+    member.terminationReason = command.reason.trim();
+    const openCost = next.teamCosts.find(
+      (item) => item.teamMemberId === member.id && !item.endsOn,
+    );
+    if (openCost) openCost.endsOn = command.endedOn;
+    next.events.unshift({
+      id: `event-${Date.now()}`,
+      at: new Date().toISOString(),
+      text: `Cese registrado para ${member.name}; su histórico se conserva.`,
+    });
+  } else if (command.type === 'savePosition') {
+    if (!command.position.name.trim())
+      throw Error('Escribe el nombre del puesto.');
+    if (!command.position.purpose.trim())
+      throw Error('Explica el resultado esperado del puesto.');
+    const existingIndex = next.positions.findIndex(
+      (item) => item.id === command.position.id,
+    );
+    if (existingIndex >= 0)
+      next.positions[existingIndex] = command.position;
+    else next.positions.unshift(command.position);
+    next.events.unshift({
+      id: `event-${Date.now()}`,
+      at: new Date().toISOString(),
+      text: existingIndex >= 0 ? 'Perfil de puesto actualizado.' : 'Puesto creado.',
+    });
+  } else if (command.type === 'addTask') {
+    if (!command.task.title.trim()) throw Error('Escribe el nombre de la tarea.');
+    if (!command.task.dueOn) throw Error('Elige una fecha para la tarea.');
+    next.tasks.unshift(command.task);
+    next.events.unshift({
+      id: `event-${command.task.id}`,
+      at: new Date().toISOString(),
+      text: 'Tarea empresarial creada.',
+    });
+  } else if (command.type === 'addCalendarEvent') {
+    if (!command.event.title.trim()) throw Error('Escribe el nombre del evento.');
+    if (!command.event.startsAt) throw Error('Elige fecha y hora de inicio.');
+    if (
+      command.event.endsAt &&
+      new Date(command.event.endsAt) < new Date(command.event.startsAt)
+    )
+      throw Error('La hora de fin no puede ser anterior al inicio.');
+    next.calendar.unshift(command.event);
+    next.events.unshift({
+      id: `event-${command.event.id}`,
+      at: new Date().toISOString(),
+      text: 'Evento agregado a la agenda de la empresa.',
     });
   } else if (command.type === 'toggleObjectiveCheckpoint') {
     const objective = next.objectives.find(
@@ -838,6 +991,10 @@ export function businessSeed(): BusinessState {
         title: 'Validar imputaciones de septiembre',
         owner: 'Andrea P.',
         dueOn: '2026-09-08',
+        assigneeMemberId: 'team-andrea',
+        positionId: 'position-client-success',
+        category: 'ADMIN',
+        priority: 'HIGH',
         status: 'IN_PROGRESS',
         source: 'CONTROL_METHOD',
       },
@@ -846,6 +1003,10 @@ export function businessSeed(): BusinessState {
         title: 'Definir responsable de la bienvenida',
         owner: 'Carlos R.',
         dueOn: '2026-09-09',
+        assigneeMemberId: 'team-carlos',
+        positionId: 'position-operations',
+        category: 'OPERATIONS',
+        priority: 'NORMAL',
         status: 'BLOCKED',
         source: 'PROCESS',
       },
@@ -854,6 +1015,10 @@ export function businessSeed(): BusinessState {
         title: 'Dar seguimiento a cobranza de Costa Sur',
         owner: 'Andrea P.',
         dueOn: '2026-09-07',
+        assigneeMemberId: 'team-andrea',
+        positionId: 'position-client-success',
+        category: 'SALES',
+        priority: 'URGENT',
         status: 'TODO',
         source: 'ALERT',
       },
@@ -862,6 +1027,10 @@ export function businessSeed(): BusinessState {
         title: 'Publicar instrucciones de entrega',
         owner: 'Carlos R.',
         dueOn: '2026-09-12',
+        assigneeMemberId: 'team-carlos',
+        positionId: 'position-operations',
+        category: 'OPERATIONS',
+        priority: 'HIGH',
         status: 'REVIEW',
         source: 'CONTROL_METHOD',
       },
@@ -875,6 +1044,8 @@ export function businessSeed(): BusinessState {
         monthlyCost: 5200,
         modality: 'PAYROLL',
         supervisor: 'Dirección',
+        positionId: 'position-client-success',
+        startedOn: '2025-01-06',
       },
       {
         id: 'team-carlos',
@@ -884,6 +1055,24 @@ export function businessSeed(): BusinessState {
         monthlyCost: 3800,
         modality: 'CONTRACTOR',
         supervisor: 'Andrea Pérez',
+        positionId: 'position-operations',
+        startedOn: '2025-03-03',
+      },
+    ],
+    teamCosts: [
+      {
+        id: 'team-cost-andrea-1',
+        teamMemberId: 'team-andrea',
+        startsOn: '2025-01-06',
+        monthlyCost: 5200,
+        modality: 'PAYROLL',
+      },
+      {
+        id: 'team-cost-carlos-1',
+        teamMemberId: 'team-carlos',
+        startsOn: '2025-03-03',
+        monthlyCost: 3800,
+        modality: 'CONTRACTOR',
       },
     ],
     positions: [
